@@ -237,12 +237,17 @@ export default function BillingApp() {
 
   useEffect(() => {
     // Handle redirect result
+    console.log("Checking for Redirect Result...");
     getRedirectResult(auth).then((result) => {
       if (result) {
+        console.log("Redirect sign-in successful:", result.user.email);
         showToast("Signed in with Google!");
+      } else {
+        console.log("No redirect result found (standard page load)");
       }
     }).catch((error) => {
-      showToast(error.message, "error");
+      console.error("Redirect Error:", error.code, error.message);
+      showToast(`Sign-in error: ${error.message}`, "error");
     });
 
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -264,13 +269,16 @@ export default function BillingApp() {
     getDoc(userDocRef).then(docSnap => {
       if (docSnap.exists()) {
         const cloudData = docSnap.data();
-        if (cloudData.invoices) setInvoices(cloudData.invoices);
-        if (cloudData.clients) setClients(cloudData.clients);
-        if (cloudData.products) setProducts(cloudData.products);
+        console.log("Cloud data found, syncing...");
+        if (cloudData.invoices && cloudData.invoices.length > 0) setInvoices(cloudData.invoices);
+        if (cloudData.clients && cloudData.clients.length > 0) setClients(cloudData.clients);
+        if (cloudData.products && cloudData.products.length > 0) setProducts(cloudData.products);
         if (cloudData.seller) setSeller(cloudData.seller);
         if (cloudData.taxRates) setTaxRates(cloudData.taxRates);
         if (cloudData.currency) setCurrency(cloudData.currency);
         if (cloudData.inventoryTitle) setInventoryTitle(cloudData.inventoryTitle);
+      } else {
+        console.log("No cloud profile found for this user. Local data will be synced up.");
       }
     }).catch(err => console.error("Cloud fetch error:", err));
 
@@ -1315,7 +1323,7 @@ export default function BillingApp() {
                         showToast(err.message, "error");
                       }
                     }} style={{ width: "100%", padding: "16px", borderRadius: "12px", background: "#fff", border: `1px solid ${T.divider}`, color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer", transition: "all 0.2s" }}>
-                      <img src="https://www.gstatic.com/firebase/anonymous-scan.png" style={{ width: "20px" }} alt="Google" />
+                      <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" style={{ width: "20px" }} alt="Google" />
                       Sign in with Google
                     </button>
                   </div>
