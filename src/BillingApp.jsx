@@ -1,4 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { auth, db } from "./firebase";
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 const initialClients = [{
   id: 1,
@@ -229,24 +232,70 @@ export default function BillingApp() {
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [currencySearch, setCurrencySearch] = useState("");
   const [openItemPicker, setOpenItemPicker] = useState(null);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authForm, setAuthForm] = useState({ email: "", password: "", isLogin: true });
 
   useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  // Cloud Sync Effect
+  useEffect(() => {
+    if (!user) return;
+    const userDocRef = doc(db, "users", user.uid);
+
+    // Initial fetch from cloud
+    getDoc(userDocRef).then(docSnap => {
+      if (docSnap.exists()) {
+        const cloudData = docSnap.data();
+        if (cloudData.invoices) setInvoices(cloudData.invoices);
+        if (cloudData.clients) setClients(cloudData.clients);
+        if (cloudData.products) setProducts(cloudData.products);
+        if (cloudData.seller) setSeller(cloudData.seller);
+        if (cloudData.taxRates) setTaxRates(cloudData.taxRates);
+        if (cloudData.currency) setCurrency(cloudData.currency);
+        if (cloudData.inventoryTitle) setInventoryTitle(cloudData.inventoryTitle);
+      }
+    }).catch(err => console.error("Cloud fetch error:", err));
+
+    // Optional: Real-time listener for multi-device sync
+    const unsub = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const cloudData = docSnap.data();
+        // Only update if cloud data is newer or has different content (simplified)
+        // For now, we mainly push updates to cloud.
+      }
+    });
+    return unsub;
+  }, [user]);
+
+  // Combined Local & Cloud Save Effect
+  useEffect(() => {
+    const data = { invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle };
+
+    // Save Local
     try {
-      localStorage.setItem("billit_invoices", JSON.stringify(invoices));
-      localStorage.setItem("billit_clients", JSON.stringify(clients));
-      localStorage.setItem("billit_theme", JSON.stringify(theme));
-      localStorage.setItem("billit_currency", JSON.stringify(currency));
-      localStorage.setItem("billit_taxRates", JSON.stringify(taxRates));
-      localStorage.setItem("billit_products", JSON.stringify(products));
-      localStorage.setItem("billit_seller", JSON.stringify(seller));
-      localStorage.setItem("billit_inventoryTitle", JSON.stringify(inventoryTitle));
+      Object.entries(data).forEach(([key, val]) => {
+        localStorage.setItem("billit_" + key, JSON.stringify(val));
+      });
     } catch (e) {
       if (e.name === "QuotaExceededError" || e.code === 22) {
         showToast("Storage full! Use smaller images.", "error");
       }
       console.error("Storage save error:", e);
     }
-  }, [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle]);
+
+    // Save Cloud
+    if (user) {
+      setDoc(doc(db, "users", user.uid), data, { merge: true })
+        .catch(err => console.error("Cloud sync error:", err));
+    }
+  }, [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, user]);
 
   const [tab, setTab] = useState("home");
   const [search, setSearch] = useState("");
@@ -1203,8 +1252,25 @@ export default function BillingApp() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "2px", marginBottom: "16px", background: T.inputBg, padding: "2px", borderRadius: "12px", border: `1px solid ${T.divider}` }}>
-              {["app", "currency", "taxes"].map(st => (
+            <div style={{ background: T.cardBg, borderRadius: "20px", padding: "20px", border: `1px solid ${T.cardBorder}`, marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ width: "50px", height: "50px", borderRadius: "15px", background: user ? "linear-gradient(135deg, #4ade80, #22c55e)" : "linear-gradient(135deg, #9e9aad, #656570)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>
+                  {user ? "👤" : "☁️"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: "bold", fontSize: "16px" }}>{user ? (user.displayName || user.email) : "Cloud Sync Offline"}</div>
+                  <div style={{ fontSize: "12px", color: T.textSub }}>{user ? "Your data is backed up online" : "Log in to backup your data online"}</div>
+                </div>
+                {user ? (
+                  <button onClick={() => signOut(auth).then(() => showToast("Logged out"))} style={{ background: "none", border: "none", color: "#ef4444", fontWeight: "bold" }}>Logout</button>
+                ) : (
+                  <button onClick={() => setSettingsTab("account")} style={{ background: "none", border: "none", color: "#f5c842", fontWeight: "bold" }}>Log In</button>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "2px", marginBottom: "16px", background: T.inputBg, padding: "2px", borderRadius: "12px", border: `1px solid ${T.divider}` }}>
+              {["app", "account", "currency", "taxes"].map(st => (
                 <button key={st} onClick={() => setSettingsTab(st)} style={{
                   padding: "10px", borderRadius: "10px",
                   background: settingsTab === st ? T.cardBg : "none",
@@ -1214,6 +1280,45 @@ export default function BillingApp() {
                 }}>{st.toUpperCase()}</button>
               ))}
             </div>
+
+            {settingsTab === "account" && (
+              <div style={{ background: T.cardBg, borderRadius: "20px", padding: "24px", border: `1px solid ${T.cardBorder}`, marginBottom: "20px" }}>
+                {user ? (
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "40px", marginBottom: "12px" }}>✅</div>
+                    <div style={{ fontWeight: "bold", marginBottom: "4px" }}>You are logged in!</div>
+                    <div style={{ fontSize: "13px", color: T.textSub, marginBottom: "20px" }}>All your invoices, clients, and items are syncing with your account: <b>{user.email}</b></div>
+                    <button onClick={() => signOut(auth)} style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "none", border: `1px solid ${T.divider}`, color: "#ef4444", fontWeight: "bold" }}>Logout from Account</button>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 style={{ marginTop: 0 }}>{authForm.isLogin ? "Login to Cloud" : "Create Sync Account"}</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <input style={{ width: "100%", padding: "14px", borderRadius: "12px", background: T.inputBg, border: `1px solid ${T.divider}`, color: T.text }} placeholder="Email" value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />
+                      <input type="password" style={{ width: "100%", padding: "14px", borderRadius: "12px", background: T.inputBg, border: `1px solid ${T.divider}`, color: T.text }} placeholder="Password" value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} />
+                      <button onClick={async () => {
+                        try {
+                          if (authForm.isLogin) {
+                            await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
+                            showToast("Welcome back!");
+                          } else {
+                            await createUserWithEmailAndPassword(auth, authForm.email, authForm.password);
+                            showToast("Account created!");
+                          }
+                        } catch (err) {
+                          showToast(err.message, "error");
+                        }
+                      }} style={{ padding: "14px", borderRadius: "12px", background: "#f5c842", border: "none", color: "#000", fontWeight: "bold" }}>
+                        {authForm.isLogin ? "Log In" : "Sign Up"}
+                      </button>
+                      <button onClick={() => setAuthForm({ ...authForm, isLogin: !authForm.isLogin })} style={{ background: "none", border: "none", color: "#f5c842", fontSize: "12px", cursor: "pointer" }}>
+                        {authForm.isLogin ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {settingsTab === "app" && (
               <div style={{ background: T.cardBg, borderRadius: "20px", overflow: "hidden", border: `1px solid ${T.cardBorder}`, marginBottom: "20px" }}>
