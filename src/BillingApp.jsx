@@ -234,6 +234,7 @@ export default function BillingApp() {
   const [openItemPicker, setOpenItemPicker] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [hasLoadedCloud, setHasLoadedCloud] = useState(false);
 
   useEffect(() => {
     // Handle redirect result
@@ -251,10 +252,13 @@ export default function BillingApp() {
     });
 
     const unsub = onAuthStateChanged(auth, (u) => {
+      console.log("Auth State Changed:", u ? u.email : "Logged Out");
       setUser(u);
       setAuthLoading(false);
       if (u && u.email) {
         setSeller(prev => ({ ...prev, email: u.email }));
+      } else {
+        setHasLoadedCloud(false); // Reset if logged out
       }
     });
     return unsub;
@@ -266,21 +270,27 @@ export default function BillingApp() {
     const userDocRef = doc(db, "users", user.uid);
 
     // Initial fetch from cloud
+    console.log("Fetching cloud data for user:", user.uid);
     getDoc(userDocRef).then(docSnap => {
       if (docSnap.exists()) {
         const cloudData = docSnap.data();
-        console.log("Cloud data found, syncing...");
+        console.log("Cloud data retrieved successfully.");
+        // We only update if there's actual data in the cloud
         if (cloudData.invoices && cloudData.invoices.length > 0) setInvoices(cloudData.invoices);
         if (cloudData.clients && cloudData.clients.length > 0) setClients(cloudData.clients);
         if (cloudData.products && cloudData.products.length > 0) setProducts(cloudData.products);
-        if (cloudData.seller) setSeller(cloudData.seller);
+        if (cloudData.seller) setSeller(prev => ({ ...prev, ...cloudData.seller }));
         if (cloudData.taxRates) setTaxRates(cloudData.taxRates);
         if (cloudData.currency) setCurrency(cloudData.currency);
         if (cloudData.inventoryTitle) setInventoryTitle(cloudData.inventoryTitle);
       } else {
-        console.log("No cloud profile found for this user. Local data will be synced up.");
+        console.log("No cloud document found. This user is new or hasn't synced yet.");
       }
-    }).catch(err => console.error("Cloud fetch error:", err));
+      setHasLoadedCloud(true);
+    }).catch(err => {
+      console.error("Cloud fetch error:", err);
+      setHasLoadedCloud(true); // Don't block local saves if fetch fails
+    });
 
     // Optional: Real-time listener for multi-device sync
     const unsub = onSnapshot(userDocRef, (docSnap) => {
@@ -310,11 +320,12 @@ export default function BillingApp() {
     }
 
     // Save Cloud
-    if (user) {
-      setDoc(doc(db, "users", user.uid), data, { merge: true })
-        .catch(err => console.error("Cloud sync error:", err));
+    if (user && hasLoadedCloud) {
+      console.log("Syncing local changes to Cloud...");
+      const userDocRef = doc(db, "users", user.uid);
+      setDoc(userDocRef, data, { merge: true }).catch(err => console.error("Cloud save error:", err));
     }
-  }, [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, user]);
+  }, [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, user, hasLoadedCloud]);
 
   const [tab, setTab] = useState("home");
   const [search, setSearch] = useState("");
@@ -1302,7 +1313,12 @@ export default function BillingApp() {
 
             {settingsTab === "account" && (
               <div style={{ background: T.cardBg, borderRadius: "20px", padding: "24px", border: `1px solid ${T.cardBorder}`, marginBottom: "20px" }}>
-                {user ? (
+                {authLoading ? (
+                  <div style={{ textAlign: "center", padding: "20px" }}>
+                    <div className="spinner" style={{ border: "3px solid #f3f3f3", borderTop: "3px solid #f5c842", borderRadius: "50%", width: "30px", height: "30px", animation: "spin 1s linear infinite", margin: "0 auto 10px auto" }} />
+                    <div style={{ fontSize: "12px", color: T.textSub }}>Checking Authentication...</div>
+                  </div>
+                ) : user ? (
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: "40px", marginBottom: "12px" }}>✅</div>
                     <div style={{ fontWeight: "bold", marginBottom: "4px" }}>You are logged in!</div>
@@ -1323,7 +1339,7 @@ export default function BillingApp() {
                         showToast(err.message, "error");
                       }
                     }} style={{ width: "100%", padding: "16px", borderRadius: "12px", background: "#fff", border: `1px solid ${T.divider}`, color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer", transition: "all 0.2s" }}>
-                      <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" style={{ width: "20px" }} alt="Google" />
+                      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "20px" }} alt="Google" />
                       Sign in with Google
                     </button>
                   </div>
@@ -1824,6 +1840,7 @@ export default function BillingApp() {
           body { margin: 0; background: ${T.bg}; overscroll-behavior: none; }
           * { box-sizing: border-box; }
           ::-webkit-scrollbar { width: 0; background: transparent; }
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         `}</style>
 
       {
