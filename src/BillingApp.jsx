@@ -240,6 +240,9 @@ export default function BillingApp() {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
+      if (u && u.email) {
+        setSeller(prev => ({ ...prev, email: u.email }));
+      }
     });
     return unsub;
   }, []);
