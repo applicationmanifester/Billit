@@ -1306,9 +1306,12 @@ export default function BillingApp() {
                     <h3 style={{ marginTop: 0 }}>Sync Account</h3>
                     <p style={{ fontSize: "14px", color: T.textSub, marginBottom: "24px" }}>Securely back up your invoices, clients, and items to the cloud.</p>
                     <button onClick={async () => {
+                      showToast("Signing in with Google...");
+                      console.log("Starting Google Sign-In Redirect...");
                       try {
                         await signInWithRedirect(auth, googleProvider);
                       } catch (err) {
+                        console.error("Sign-In Redirect Error:", err);
                         showToast(err.message, "error");
                       }
                     }} style={{ width: "100%", padding: "16px", borderRadius: "12px", background: "#fff", border: `1px solid ${T.divider}`, color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer", transition: "all 0.2s" }}>
