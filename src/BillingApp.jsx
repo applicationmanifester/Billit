@@ -1287,7 +1287,7 @@ export default function BillingApp() {
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: "40px", marginBottom: "12px" }}>✅</div>
                     <div style={{ fontWeight: "bold", marginBottom: "4px" }}>You are logged in!</div>
-                    <div style={{ fontSize: "13px", color: T.textSub, marginBottom: "20px" }}>All your invoices, clients, and items are syncing with your account: <b>{user.email}</b></div>
+                    <div style={{ fontSize: "13px", color: T.textSub, marginBottom: "20px" }}>All your data is securely syncing with your account: <b>{user.email}</b></div>
                     <button onClick={() => signOut(auth)} style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "none", border: `1px solid ${T.divider}`, color: "#ef4444", fontWeight: "bold" }}>Logout from Account</button>
                   </div>
                 ) : (
@@ -1333,7 +1333,7 @@ export default function BillingApp() {
                           showToast(err.message, "error");
                         }
                       }} style={{ padding: "14px", borderRadius: "12px", background: "#f5c842", border: "none", color: "#000", fontWeight: "bold" }}>
-                        {authForm.isLogin ? "Log In with Email" : "Sign Up with Email"}
+                        {authForm.isLogin ? "Log In" : "Sign Up"}
                       </button>
                       <button onClick={() => setAuthForm({ ...authForm, isLogin: !authForm.isLogin })} style={{ background: "none", border: "none", color: "#f5c842", fontSize: "12px", cursor: "pointer" }}>
                         {authForm.isLogin ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
