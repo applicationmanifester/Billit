@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { auth, db } from "./firebase";
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { auth, db, googleProvider } from "./firebase";
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithPopup } from "firebase/auth";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 const initialClients = [{
@@ -1294,9 +1294,33 @@ export default function BillingApp() {
                   <div>
                     <h3 style={{ marginTop: 0 }}>{authForm.isLogin ? "Login to Cloud" : "Create Sync Account"}</h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <button onClick={async () => {
+                        try {
+                          await signInWithPopup(auth, googleProvider);
+                          showToast("Signed in with Google!");
+                        } catch (err) {
+                          showToast(err.message, "error");
+                        }
+                      }} style={{ padding: "14px", borderRadius: "12px", background: "#fff", border: `1px solid ${T.divider}`, color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer" }}>
+                        <img src="https://www.gstatic.com/firebase/anonymous-scan.png" style={{ width: "20px" }} alt="Google" />
+                        Sign in with Google
+                      </button>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "10px 0" }}>
+                        <div style={{ flex: 1, height: "1px", background: T.divider }}></div>
+                        <div style={{ fontSize: "12px", color: T.textSub }}>OR</div>
+                        <div style={{ flex: 1, height: "1px", background: T.divider }}></div>
+                      </div>
+
                       <input style={{ width: "100%", padding: "14px", borderRadius: "12px", background: T.inputBg, border: `1px solid ${T.divider}`, color: T.text }} placeholder="Email" value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />
                       <input type="password" style={{ width: "100%", padding: "14px", borderRadius: "12px", background: T.inputBg, border: `1px solid ${T.divider}`, color: T.text }} placeholder="Password" value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} />
                       <button onClick={async () => {
+                        if (!authForm.email || !authForm.password) {
+                          return showToast("Please fill all fields", "error");
+                        }
+                        if (authForm.password.length < 6) {
+                          return showToast("Password must be at least 6 characters", "error");
+                        }
                         try {
                           if (authForm.isLogin) {
                             await signInWithEmailAndPassword(auth, authForm.email, authForm.password);
@@ -1309,7 +1333,7 @@ export default function BillingApp() {
                           showToast(err.message, "error");
                         }
                       }} style={{ padding: "14px", borderRadius: "12px", background: "#f5c842", border: "none", color: "#000", fontWeight: "bold" }}>
-                        {authForm.isLogin ? "Log In" : "Sign Up"}
+                        {authForm.isLogin ? "Log In with Email" : "Sign Up with Email"}
                       </button>
                       <button onClick={() => setAuthForm({ ...authForm, isLogin: !authForm.isLogin })} style={{ background: "none", border: "none", color: "#f5c842", fontSize: "12px", cursor: "pointer" }}>
                         {authForm.isLogin ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
