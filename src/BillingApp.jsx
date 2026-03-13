@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { auth, db, googleProvider } from "./firebase";
-import { onAuthStateChanged, signOut, signInWithPopup } from "firebase/auth";
+import { onAuthStateChanged, signOut, signInWithRedirect, getRedirectResult } from "firebase/auth";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 const initialClients = [{
@@ -236,6 +236,15 @@ export default function BillingApp() {
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
+    // Handle redirect result
+    getRedirectResult(auth).then((result) => {
+      if (result) {
+        showToast("Signed in with Google!");
+      }
+    }).catch((error) => {
+      showToast(error.message, "error");
+    });
+
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
@@ -1298,8 +1307,7 @@ export default function BillingApp() {
                     <p style={{ fontSize: "14px", color: T.textSub, marginBottom: "24px" }}>Securely back up your invoices, clients, and items to the cloud.</p>
                     <button onClick={async () => {
                       try {
-                        await signInWithPopup(auth, googleProvider);
-                        showToast("Signed in with Google!");
+                        await signInWithRedirect(auth, googleProvider);
                       } catch (err) {
                         showToast(err.message, "error");
                       }
