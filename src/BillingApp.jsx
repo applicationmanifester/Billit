@@ -249,6 +249,7 @@ export default function BillingApp() {
   const [selectedInvoices, setSelectedInvoices] = useState([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isSaving, setIsSaving] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const getInitialItems = () => {
     const defaults = products.filter(p => p.isDefault);
@@ -478,29 +479,41 @@ export default function BillingApp() {
   const deleteInvoices = () => setDeleteConfirm({ type: "bulk" });
 
   const confirmDelete = useCallback(async () => {
-    if (!deleteConfirm) return;
-    if (deleteConfirm.type === "bulk") {
-      setInvoices(prev => prev.filter(inv => !selectedInvoices.includes(inv.id)));
-      setSelectedInvoices([]); setIsSelectionMode(false); showToast("Invoices deleted");
-    } else if (deleteConfirm.type === "single") {
-      setInvoices(prev => prev.filter(inv => inv.id !== deleteConfirm.id));
-      setShowModal(null); setSelectedInvoice(null); showToast("Invoice deleted");
-    } else if (deleteConfirm.type === "product") {
-      setProducts(prev => prev.filter(p => p.id !== deleteConfirm.id)); showToast("Item deleted from inventory");
-    } else if (deleteConfirm.type === "client") {
-      setClients(prev => prev.filter(c => c.id !== deleteConfirm.id)); showToast("Client deleted");
-    } else if (deleteConfirm.type === "wipe") {
-      try {
+    if (!deleteConfirm || isDeleting) return;
+
+    setIsDeleting(true);
+    try {
+      if (deleteConfirm.type === "bulk") {
+        setInvoices(prev => prev.filter(inv => !selectedInvoices.includes(inv.id)));
+        setSelectedInvoices([]);
+        setIsSelectionMode(false);
+        showToast("Invoices deleted");
+      } else if (deleteConfirm.type === "single") {
+        setInvoices(prev => prev.filter(inv => inv.id !== deleteConfirm.id));
+        setShowModal(null);
+        setSelectedInvoice(null);
+        showToast("Invoice deleted");
+      } else if (deleteConfirm.type === "product") {
+        setProducts(prev => prev.filter(p => p.id !== deleteConfirm.id));
+        showToast("Item deleted from inventory");
+      } else if (deleteConfirm.type === "client") {
+        setClients(prev => prev.filter(c => c.id !== deleteConfirm.id));
+        showToast("Client deleted");
+      } else if (deleteConfirm.type === "wipe") {
+        showToast("Deleting data…");
         await wipeCloudState();
         clearLocalState();
         window.location.reload();
-      } catch (err) {
-        console.error("Wipe all data failed:", err);
-        showToast("Could not wipe data. Please try again.", "error");
       }
+
+      setDeleteConfirm(null);
+    } catch (err) {
+      console.error("Delete action failed:", err);
+      showToast("Could not delete data. Please try again.", "error");
+    } finally {
+      setIsDeleting(false);
     }
-    setDeleteConfirm(null);
-  }, [deleteConfirm, selectedInvoices, wipeCloudState, clearLocalState, showToast]);
+  }, [deleteConfirm, selectedInvoices, wipeCloudState, clearLocalState, showToast, isDeleting]);
 
   const toggleSelection = (id) => setSelectedInvoices(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
 
@@ -652,8 +665,8 @@ export default function BillingApp() {
             <h3 style={{ margin: "0 0 8px" }}>Confirm Delete</h3>
             <p style={{ fontSize: "14px", color: "var(--text-secondary)", margin: "0 0 24px" }}>Are you sure? This action cannot be undone.</p>
             <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={() => setDeleteConfirm(null)} className="secondary-btn" style={{ flex: 1 }}>Cancel</button>
-              <button onClick={confirmDelete} className="primary-btn" style={{ flex: 1, background: "#ef4444" }}>Delete</button>
+              <button onClick={() => setDeleteConfirm(null)} disabled={isDeleting} className="secondary-btn" style={{ flex: 1, opacity: isDeleting ? 0.65 : 1, cursor: isDeleting ? "not-allowed" : "pointer" }}>Cancel</button>
+              <button onClick={confirmDelete} disabled={isDeleting} className="primary-btn" style={{ flex: 1, background: "#ef4444", opacity: isDeleting ? 0.75 : 1, cursor: isDeleting ? "not-allowed" : "pointer" }}>{isDeleting ? "Deleting..." : "Delete"}</button>
             </div>
           </div>
         </div>
