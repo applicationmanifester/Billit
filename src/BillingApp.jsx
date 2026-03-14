@@ -190,9 +190,38 @@ export default function BillingApp() {
     setProducts([]);
     setSeller({ name: "My Business", email: "", phone: "", address: "", gstin: "", tagline: "", logo: null, qrCode: null, invoicePrefix: "INV" });
     setTaxRates([{ id: 1, label: "GST", rate: 18 }]);
-    setCurrency(CURRENCIES[0]);
+    setCurrency(CURRENCIES[3]);
     localStorage.clear();
   };
+
+  const wipeCloudState = useCallback(async () => {
+    if (!user) return;
+
+    const resetPayload = {
+      invoices: [],
+      clients: initialClients,
+      products: [],
+      seller: {
+        name: "Business Name",
+        tagline: "Professional Billing",
+        email: "biz@example.com",
+        phone: "+1 000-000-0000",
+        address: "123 Street",
+        gstin: "",
+        website: "",
+        qrCode: "",
+        logo: "",
+        invoicePrefix: "INV"
+      },
+      taxRates: [{ id: 1, label: "GST", rate: 18 }],
+      currency: CURRENCIES[3],
+      inventoryTitle: "Inventory List",
+      defaultNote: "",
+      lastSync: new Date().toLocaleTimeString()
+    };
+
+    await setDoc(doc(db, "users", user.uid), resetPayload, { merge: false });
+  }, [user]);
 
   const [tab, setTab] = useState("home");
   const [search, setSearch] = useState("");
@@ -429,7 +458,7 @@ export default function BillingApp() {
 
   const deleteInvoices = () => setDeleteConfirm({ type: "bulk" });
 
-  const confirmDelete = useCallback(() => {
+  const confirmDelete = useCallback(async () => {
     if (!deleteConfirm) return;
     if (deleteConfirm.type === "bulk") {
       setInvoices(prev => prev.filter(inv => !selectedInvoices.includes(inv.id)));
@@ -442,11 +471,17 @@ export default function BillingApp() {
     } else if (deleteConfirm.type === "client") {
       setClients(prev => prev.filter(c => c.id !== deleteConfirm.id)); showToast("Client deleted");
     } else if (deleteConfirm.type === "wipe") {
-      if (user) setDoc(doc(db, "users", user.uid), {}).then(() => { clearLocalState(); window.location.reload(); });
-      else { clearLocalState(); window.location.reload(); }
+      try {
+        await wipeCloudState();
+        clearLocalState();
+        window.location.reload();
+      } catch (err) {
+        console.error("Wipe all data failed:", err);
+        showToast("Could not wipe data. Please try again.", "error");
+      }
     }
     setDeleteConfirm(null);
-  }, [deleteConfirm, selectedInvoices, user, clearLocalState, showToast]);
+  }, [deleteConfirm, selectedInvoices, wipeCloudState, clearLocalState, showToast]);
 
   const toggleSelection = (id) => setSelectedInvoices(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
 
