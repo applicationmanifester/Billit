@@ -38,7 +38,10 @@ export const useCloudSync = (user, data, setters, showToast) => {
                 if (cloudData.taxRates && setters.setTaxRates) setters.setTaxRates(cloudData.taxRates);
                 if (cloudData.currency && setters.setCurrency) setters.setCurrency(cloudData.currency);
                 if (cloudData.inventoryTitle && setters.setInventoryTitle) setters.setInventoryTitle(cloudData.inventoryTitle);
-                if (cloudData.lastSync) setLastSync(cloudData.lastSync);
+                // Keep local "last sync" meaningful even when legacy cloud docs don't have this field yet.
+                const fetchSyncTime = cloudData.lastSync || new Date().toLocaleTimeString();
+                setLastSync(fetchSyncTime);
+                localStorage.setItem("billit_lastSync", JSON.stringify(fetchSyncTime));
 
                 setSyncStatus("synced");
                 addLog("Data successfully merged from cloud.");
@@ -95,10 +98,10 @@ export const useCloudSync = (user, data, setters, showToast) => {
 
                 // Payload includes lastSync, but since lastSync is NOT in the dependency array
                 // of this effect, updating it inside .then() won't trigger a loop (Bug 3 fix)
-                const cloudPayload = { ...data, lastSync };
+                const now = new Date().toLocaleTimeString();
+                const cloudPayload = { ...data, lastSync: now };
 
                 setDoc(userDocRef, cloudPayload, { merge: true }).then(() => {
-                    const now = new Date().toLocaleTimeString();
                     setLastSync(now);
                     setSyncStatus("synced");
                     addLog("Cloud backup updated.");
