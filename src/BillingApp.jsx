@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { auth, db, googleProvider } from "./firebase";
-import { onAuthStateChanged, signOut, signInWithRedirect, getRedirectResult } from "firebase/auth";
+import { onAuthStateChanged, signOut, signInWithRedirect, getRedirectResult, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 const initialClients = [{
@@ -239,30 +239,45 @@ export default function BillingApp() {
   const [lastSync, setLastSync] = useState(null);
 
   useEffect(() => {
+    // Set Persistence
+    setPersistence(auth, browserLocalPersistence).then(() => {
+      console.log("Auth Persistence set to Local.");
+    }).catch(err => console.error("Persistence Error:", err));
+
     // Handle redirect result
+    console.log("Current URL on load:", window.location.href);
     console.log("Checking for Redirect Result...");
     getRedirectResult(auth).then((result) => {
       if (result) {
-        console.log("Redirect sign-in successful:", result.user.email);
+        console.log("Redirect sign-in successful. User:", result.user.email);
+        setUser(result.user); // Explicitly set user from redirect result
+        setAuthLoading(false);
         showToast("Signed in with Google!");
       } else {
         console.log("No redirect result found (standard page load)");
       }
     }).catch((error) => {
       console.error("Redirect Error:", error.code, error.message);
-      showToast(`Sign-in error: ${error.message}`, "error");
+      if (error.code === "auth/unauthorized-domain") {
+        showToast("Error: This domain is not authorized in Firebase Console!", "error");
+      } else {
+        showToast(`Sign-in error: ${error.message}`, "error");
+      }
+      setAuthLoading(false);
     });
 
     const unsub = onAuthStateChanged(auth, async (u) => {
-      console.log("Auth State Changed:", u ? u.email : "Logged Out");
-      setUser(u);
-      setAuthLoading(false);
-      if (u && u.email) {
+      if (u) {
+        console.log("Verified Auth State:", u.email);
+        setUser(u);
         setSeller(prev => ({ ...prev, email: u.email }));
       } else {
+        console.log("Verified Auth State: Logged Out");
+        setUser(null);
         setHasLoadedCloud(false);
         setSyncStatus("idle");
       }
+      setAuthLoading(false);
     });
     return unsub;
   }, []);
