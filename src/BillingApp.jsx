@@ -238,7 +238,8 @@ export default function BillingApp() {
   const [syncStatus, setSyncStatus] = useState("idle"); // idle, syncing, synced, error
   const [lastSync, setLastSync] = useState(null);
   const [authError, setAuthError] = useState(null);
-
+  const [syncLog, setSyncLog] = useState([]);
+  const addLog = (msg) => setSyncLog(prev => [msg, ...prev].slice(0, 10));
   useEffect(() => {
     // 1. Listen for Auth State Changes
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -279,34 +280,38 @@ export default function BillingApp() {
   const fetchFromCloud = async (u) => {
     if (!u) return;
     setSyncStatus("syncing");
+    addLog("Initiating fetch from cloud...");
     const userDocRef = doc(db, "users", u.uid);
     try {
-      console.log("Fetching cloud data for user:", u.uid);
       const docSnap = await getDoc(userDocRef);
       if (docSnap.exists()) {
         const cloudData = docSnap.data();
-        console.log("Cloud data retrieved successfully.");
-        if (cloudData.invoices && cloudData.invoices.length > 0) setInvoices(cloudData.invoices);
-        if (cloudData.clients && cloudData.clients.length > 0) setClients(cloudData.clients);
-        if (cloudData.products && cloudData.products.length > 0) setProducts(cloudData.products);
+        addLog(`Cloud doc found! Invoices: ${cloudData.invoices?.length || 0}`);
+
+        // Prioritize cloud data if it exists
+        if (cloudData.invoices) setInvoices(cloudData.invoices);
+        if (cloudData.clients) setClients(cloudData.clients);
+        if (cloudData.products) setProducts(cloudData.products);
         if (cloudData.seller) setSeller(prev => ({ ...prev, ...cloudData.seller }));
         if (cloudData.taxRates) setTaxRates(cloudData.taxRates);
         if (cloudData.currency) setCurrency(cloudData.currency);
         if (cloudData.inventoryTitle) setInventoryTitle(cloudData.inventoryTitle);
+
         setLastSync(new Date().toLocaleTimeString());
         setSyncStatus("synced");
+        addLog("Data successfully merged with cloud.");
       } else {
-        console.log("No cloud document found.");
+        addLog("No cloud document found for this account.");
         setSyncStatus("idle");
       }
       setHasLoadedCloud(true);
     } catch (err) {
       console.error("Cloud fetch error:", err);
+      addLog(`Fetch error: ${err.message}`);
       setSyncStatus("error");
       setHasLoadedCloud(true);
     }
   };
-
   // Cloud Sync Effect
   useEffect(() => {
     if (user && !hasLoadedCloud) {
@@ -346,14 +351,16 @@ export default function BillingApp() {
 
     // Save Cloud
     if (user && hasLoadedCloud) {
-      console.log("Syncing local changes to Cloud...");
       setSyncStatus("syncing");
+      addLog("Sending local updates to cloud...");
       const userDocRef = doc(db, "users", user.uid);
       setDoc(userDocRef, data, { merge: true }).then(() => {
         setLastSync(new Date().toLocaleTimeString());
         setSyncStatus("synced");
+        addLog("Cloud backup updated.");
       }).catch(err => {
         console.error("Cloud save error:", err);
+        addLog(`Save error: ${err.code}`);
         setSyncStatus("error");
       });
     }
@@ -1444,11 +1451,31 @@ export default function BillingApp() {
                         🔍 Verify Active Session
                       </button>
 
+                      <div style={{ marginTop: "15px", padding: "10px", background: "rgba(0,0,0,0.05)", borderRadius: "8px" }}>
+                        <div style={{ fontSize: "10px", color: T.textSub, fontWeight: "bold", marginBottom: "5px" }}>SYNC LOG</div>
+                        {syncLog.length === 0 ? (
+                          <div style={{ fontSize: "10px", color: T.textSub }}>No activity yet.</div>
+                        ) : (
+                          syncLog.map((log, i) => (
+                            <div key={i} style={{ fontSize: "10px", marginBottom: "2px", borderBottom: `1px solid ${T.divider}`, paddingBottom: "2px" }}>• {log}</div>
+                          ))
+                        )}
+                      </div>
+
                       {authError && (authError.includes("unauthorized-domain") || authError.includes("auth/unauthorized-domain")) && (
                         <div style={{ fontSize: "11px", color: "#f5c842", marginTop: "12px", lineHeight: "1.4" }}>
                           ⚠️ <b>Notice:</b> Ensure <b>{window.location.host}</b> is added to "Authorized Domains" in Firebase Console (Authentication → Settings).
                         </div>
                       )}
+
+                      <button onClick={() => {
+                        if (confirm("This will wipe local storage and attempt a fresh cloud pull. Proceed?")) {
+                          localStorage.clear();
+                          window.location.reload();
+                        }
+                      }} style={{ marginTop: "10px", width: "100%", padding: "6px", fontSize: "10px", background: "none", border: `1px solid ${T.divider}`, color: "#ef4444", borderRadius: "6px", cursor: "pointer" }}>
+                        ⚠️ Reset Local Storage & Force Reload
+                      </button>
                     </div>
                   </div>
                 )}
