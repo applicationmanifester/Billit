@@ -33,10 +33,10 @@ export const statusColors = {
 };
 
 export const CURRENCIES = [
+    { code: "INR", symbol: "₹", name: "Indian Rupee", locale: "en-IN" },
     { code: "USD", symbol: "$", name: "US Dollar", locale: "en-US" },
     { code: "EUR", symbol: "€", name: "Euro", locale: "de-DE" },
     { code: "GBP", symbol: "£", name: "British Pound", locale: "en-GB" },
-    { code: "INR", symbol: "₹", name: "Indian Rupee", locale: "en-IN" },
     { code: "JPY", symbol: "¥", name: "Japanese Yen", locale: "ja-JP" },
     { code: "AUD", symbol: "A$", name: "Australian Dollar", locale: "en-AU" },
     { code: "CAD", symbol: "C$", name: "Canadian Dollar", locale: "en-CA" },

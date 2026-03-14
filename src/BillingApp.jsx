@@ -107,7 +107,7 @@ export default function BillingApp() {
   const [invoices, setInvoices] = useState(() => getStorage("invoices", initialInvoices));
   const [clients, setClients] = useState(() => getStorage("clients", initialClients));
   const { theme, setTheme, toggleTheme } = useTheme();
-  const [currency, setCurrency] = useState(() => getStorage("currency", CURRENCIES[3])); // 3 is INR
+  const [currency, setCurrency] = useState(() => getStorage("currency", CURRENCIES[0]));
   const [taxRates, setTaxRates] = useState(() => {
     const saved = getStorage("taxRates", [{ id: 1, label: "GST", rate: 18 }]);
     if (saved.length > 0 && !saved.some(t => t.rate === 18)) {
@@ -190,7 +190,7 @@ export default function BillingApp() {
     setProducts([]);
     setSeller({ name: "My Business", email: "", phone: "", address: "", gstin: "", tagline: "", logo: null, qrCode: null, invoicePrefix: "INV" });
     setTaxRates([{ id: 1, label: "GST", rate: 18 }]);
-    setCurrency(CURRENCIES[3]);
+    setCurrency(CURRENCIES[0]);
     setInventoryTitle("Inventory List");
     setDefaultNote("");
     localStorage.clear();
