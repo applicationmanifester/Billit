@@ -4,6 +4,7 @@ export const InvoiceModal = ({
     if (showModal !== "invoice") return null;
 
     const isEdit = !!selectedInvoice;
+    const preventScrollValueChange = (e) => e.currentTarget.blur();
 
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
@@ -93,11 +94,11 @@ export const InvoiceModal = ({
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
                                 <div>
                                     <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Qty</label>
-                                    <input type="number" min="0" className="input-field" style={{ width: "100%", padding: "8px" }} value={item.qty} onChange={(e) => updateItem(idx, "qty", e.target.value)} />
+                                    <input type="number" min="0" className="input-field" style={{ width: "100%", padding: "8px" }} value={item.qty} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "qty", e.target.value)} />
                                 </div>
                                 <div>
                                     <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Price</label>
-                                    <input type="number" min="0" className="input-field" style={{ width: "100%", padding: "8px" }} value={item.price} onChange={(e) => updateItem(idx, "price", e.target.value)} />
+                                    <input type="number" min="0" className="input-field" style={{ width: "100%", padding: "8px" }} value={item.price} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "price", e.target.value)} />
                                 </div>
                                 <div>
                                     <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total</label>
