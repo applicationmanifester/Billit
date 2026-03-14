@@ -71,9 +71,12 @@ export const Settings = ({
                                         {syncStatus.charAt(0).toUpperCase() + syncStatus.slice(1)}
                                     </span>
                                 </div>
-                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                                     <span style={{ fontSize: "14px" }}>Last Sync</span>
                                     <span style={{ fontSize: "14px", color: "var(--text-secondary)" }}>{lastSync || "Never"}</span>
+                                </div>
+                                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "20px" }}>
+                                    Auto-sync runs in near real-time (about 1 second after changes).
                                 </div>
 
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "20px" }}>
