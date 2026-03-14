@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { auth, db, googleProvider } from "./firebase";
 import { onAuthStateChanged, signOut, signInWithRedirect, signInWithPopup, getRedirectResult, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
@@ -239,6 +239,7 @@ export default function BillingApp() {
   const [lastSync, setLastSync] = useState(null);
   const [authError, setAuthError] = useState(null);
   const [syncLog, setSyncLog] = useState([]);
+  const skipCloudSave = useRef(false);
   const addLog = (msg) => setSyncLog(prev => [msg, ...prev].slice(0, 10));
   useEffect(() => {
     // 1. Listen for Auth State Changes
@@ -287,6 +288,9 @@ export default function BillingApp() {
       if (docSnap.exists()) {
         const cloudData = docSnap.data();
         addLog(`Cloud doc found! Invoices: ${cloudData.invoices?.length || 0}`);
+
+        // Mark that we are loading from cloud, so the next save effect should be skipped
+        skipCloudSave.current = true;
 
         // Prioritize cloud data if it exists
         if (cloudData.invoices) setInvoices(cloudData.invoices);
@@ -351,18 +355,28 @@ export default function BillingApp() {
 
     // Save Cloud
     if (user && hasLoadedCloud) {
+      if (skipCloudSave.current) {
+        console.log("Skipping initial ghost-save after fetch.");
+        skipCloudSave.current = false;
+        return;
+      }
+
       setSyncStatus("syncing");
-      addLog("Sending local updates to cloud...");
-      const userDocRef = doc(db, "users", user.uid);
-      setDoc(userDocRef, data, { merge: true }).then(() => {
-        setLastSync(new Date().toLocaleTimeString());
-        setSyncStatus("synced");
-        addLog("Cloud backup updated.");
-      }).catch(err => {
-        console.error("Cloud save error:", err);
-        addLog(`Save error: ${err.code}`);
-        setSyncStatus("error");
-      });
+      const timeoutId = setTimeout(() => {
+        addLog("Sending local updates to cloud...");
+        const userDocRef = doc(db, "users", user.uid);
+        setDoc(userDocRef, data, { merge: true }).then(() => {
+          setLastSync(new Date().toLocaleTimeString());
+          setSyncStatus("synced");
+          addLog("Cloud backup updated.");
+        }).catch(err => {
+          console.error("Cloud save error:", err);
+          addLog(`Save error: ${err.code}`);
+          setSyncStatus("error");
+        });
+      }, 3000); // 3 second debounce
+
+      return () => clearTimeout(timeoutId);
     }
   }, [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, user, hasLoadedCloud]);
 
