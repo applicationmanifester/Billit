@@ -111,7 +111,7 @@ export const useCloudSync = (user, data, setters, showToast) => {
                     addLog(`Save error: ${err.code}`);
                     setSyncStatus("error");
                 });
-            }, 3000); // 3 second debounce
+            }, 800); // keep sync feeling near real-time without writing on every keystroke
 
             return () => clearTimeout(timeoutId);
         }
