@@ -1311,8 +1311,9 @@ export default function BillingApp() {
                   {user ? "👤" : "☁️"}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: "bold", fontSize: "16px" }}>{user ? (user.displayName || user.email) : "Cloud Sync Offline"}</div>
-                  <div style={{ fontSize: "12px", color: T.textSub }}>{user ? "Your data is backed up online" : "Log in to backup your data online"}</div>
+                  <div style={{ fontWeight: "bold", fontSize: "16px" }}>{user ? (user.displayName || "Google User") : "Cloud Sync Offline"}</div>
+                  <div style={{ fontSize: "12px", color: T.textSub }}>{user ? user.email : "Log in to backup your data online"}</div>
+                  {user && <div style={{ fontSize: "10px", color: "#4ade80", fontWeight: "bold", marginTop: "4px" }}>✓ Synced with Google Cloud</div>}
                 </div>
                 {user ? (
                   <button onClick={() => signOut(auth).then(() => showToast("Logged out"))} style={{ background: "none", border: "none", color: "#ef4444", fontWeight: "bold" }}>Logout</button>
@@ -1344,8 +1345,9 @@ export default function BillingApp() {
                 ) : user ? (
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: "40px", marginBottom: "12px" }}>✅</div>
-                    <div style={{ fontWeight: "bold", marginBottom: "4px" }}>You are logged in!</div>
-                    <div style={{ fontSize: "13px", color: T.textSub, marginBottom: "20px" }}>Logged in as: <b>{user.email}</b></div>
+                    <div style={{ fontWeight: "bold", fontSize: "18px", marginBottom: "4px" }}>Synced with Google Cloud</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: T.text, marginBottom: "2px" }}>{user.displayName || "Google User"}</div>
+                    <div style={{ fontSize: "13px", color: T.textSub, marginBottom: "20px" }}>{user.email}</div>
 
                     <div style={{ background: T.inputBg, borderRadius: "15px", padding: "16px", marginBottom: "20px", border: `1px solid ${T.divider}`, textAlign: "left" }}>
                       <div style={{ fontSize: "12px", color: T.textSub, marginBottom: "12px", fontWeight: "bold", textTransform: "uppercase" }}>Cloud Sync Status</div>
