@@ -1456,46 +1456,6 @@ export default function BillingApp() {
                       </button>
                     </div>
 
-                    <div style={{ marginTop: "32px", padding: "16px", background: "rgba(245,200,66,0.05)", borderRadius: "15px", border: `1px solid ${T.divider}`, textAlign: "left" }}>
-                      <div style={{ fontSize: "11px", color: T.textSub, fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Diagnostic Info</div>
-                      <div style={{ fontSize: "12px", marginBottom: "4px" }}><b>Domain:</b> {window.location.host}</div>
-                      <div style={{ fontSize: "12px", color: authError ? "#ef4444" : "#4ade80" }}>
-                        <b>Last Error:</b> {authError || "None"}
-                      </div>
-
-                      <button onClick={() => {
-                        console.log("Manual Check - Current User:", auth.currentUser);
-                        showToast(auth.currentUser ? `Firebase User: ${auth.currentUser.email}` : "Firebase State: Logged Out");
-                      }} style={{ marginTop: "12px", width: "100%", padding: "8px", fontSize: "11px", background: "none", border: `1px solid ${T.divider}`, borderRadius: "8px", color: T.text, cursor: "pointer" }}>
-                        🔍 Verify Active Session
-                      </button>
-
-                      <div style={{ marginTop: "15px", padding: "10px", background: "rgba(0,0,0,0.05)", borderRadius: "8px" }}>
-                        <div style={{ fontSize: "10px", color: T.textSub, fontWeight: "bold", marginBottom: "5px" }}>SYNC LOG</div>
-                        {syncLog.length === 0 ? (
-                          <div style={{ fontSize: "10px", color: T.textSub }}>No activity yet.</div>
-                        ) : (
-                          syncLog.map((log, i) => (
-                            <div key={i} style={{ fontSize: "10px", marginBottom: "2px", borderBottom: `1px solid ${T.divider}`, paddingBottom: "2px" }}>• {log}</div>
-                          ))
-                        )}
-                      </div>
-
-                      {authError && (authError.includes("unauthorized-domain") || authError.includes("auth/unauthorized-domain")) && (
-                        <div style={{ fontSize: "11px", color: "#f5c842", marginTop: "12px", lineHeight: "1.4" }}>
-                          ⚠️ <b>Notice:</b> Ensure <b>{window.location.host}</b> is added to "Authorized Domains" in Firebase Console (Authentication → Settings).
-                        </div>
-                      )}
-
-                      <button onClick={() => {
-                        if (confirm("This will wipe local storage and attempt a fresh cloud pull. Proceed?")) {
-                          localStorage.clear();
-                          window.location.reload();
-                        }
-                      }} style={{ marginTop: "10px", width: "100%", padding: "6px", fontSize: "10px", background: "none", border: `1px solid ${T.divider}`, color: "#ef4444", borderRadius: "6px", cursor: "pointer" }}>
-                        ⚠️ Reset Local Storage & Force Reload
-                      </button>
-                    </div>
                   </div>
                 )}
               </div>
