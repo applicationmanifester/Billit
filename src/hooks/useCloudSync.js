@@ -2,6 +2,19 @@ import { useState, useEffect, useRef } from "react";
 import { db } from "../firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
+const SYNC_REQUEST_TIMEOUT_MS = 12000;
+
+const withTimeout = (promise, timeoutMs, actionLabel) => {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error(`${actionLabel} timed out after ${timeoutMs / 1000}s`));
+        }, timeoutMs);
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+};
+
 export const useCloudSync = (user, data, setters, showToast) => {
     const [syncStatus, setSyncStatus] = useState("idle"); // idle, syncing, synced, error, waiting
     const [hasLoadedCloud, setHasLoadedCloud] = useState(false);
@@ -23,7 +36,11 @@ export const useCloudSync = (user, data, setters, showToast) => {
         addLog("Initiating fetch from cloud...");
         const userDocRef = doc(db, "users", u.uid);
         try {
-            const docSnap = await getDoc(userDocRef);
+            const docSnap = await withTimeout(
+                getDoc(userDocRef),
+                SYNC_REQUEST_TIMEOUT_MS,
+                "Cloud fetch"
+            );
             if (docSnap.exists()) {
                 const cloudData = docSnap.data();
                 addLog(`Cloud doc found! Invoices: ${cloudData.invoices?.length || 0}`);
@@ -38,6 +55,7 @@ export const useCloudSync = (user, data, setters, showToast) => {
                 if (cloudData.taxRates && setters.setTaxRates) setters.setTaxRates(cloudData.taxRates);
                 if (cloudData.currency && setters.setCurrency) setters.setCurrency(cloudData.currency);
                 if (cloudData.inventoryTitle && setters.setInventoryTitle) setters.setInventoryTitle(cloudData.inventoryTitle);
+                if (typeof cloudData.defaultNote === "string" && setters.setDefaultNote) setters.setDefaultNote(cloudData.defaultNote);
                 // Keep local "last sync" meaningful even when legacy cloud docs don't have this field yet.
                 const fetchSyncTime = cloudData.lastSync || new Date().toLocaleTimeString();
                 setLastSync(fetchSyncTime);
@@ -101,14 +119,18 @@ export const useCloudSync = (user, data, setters, showToast) => {
                 const now = new Date().toLocaleTimeString();
                 const cloudPayload = { ...data, lastSync: now };
 
-                setDoc(userDocRef, cloudPayload, { merge: true }).then(() => {
+                withTimeout(
+                    setDoc(userDocRef, cloudPayload, { merge: true }),
+                    SYNC_REQUEST_TIMEOUT_MS,
+                    "Cloud save"
+                ).then(() => {
                     setLastSync(now);
                     setSyncStatus("synced");
                     addLog("Cloud backup updated.");
                     localStorage.setItem("billit_lastSync", JSON.stringify(now));
                 }).catch(err => {
                     console.error("Cloud save error:", err);
-                    addLog(`Save error: ${err.code}`);
+                    addLog(`Save error: ${err.code || err.message}`);
                     setSyncStatus("error");
                 });
             }, 800); // keep sync feeling near real-time without writing on every keystroke
