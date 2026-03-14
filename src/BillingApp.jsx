@@ -1401,34 +1401,34 @@ export default function BillingApp() {
                 ) : (
                   <div style={{ textAlign: "center" }}>
                     <h3 style={{ marginTop: 0 }}>Sync Account</h3>
-                    <p style={{ fontSize: "14px", color: T.textSub, marginBottom: "24px" }}>Securely back up your invoices, clients, and items to the cloud.</p>
-                    <button onClick={async () => {
-                      showToast("Signing in with Google...");
-                      console.log("Starting Google Sign-In Redirect...");
-                      try {
-                        await signInWithRedirect(auth, googleProvider);
-                      } catch (err) {
-                        console.error("Sign-In Redirect Error:", err);
-                        showToast(err.message, "error");
-                      }
-                    }} style={{ width: "100%", padding: "16px", borderRadius: "12px", background: "#fff", border: `1px solid ${T.divider}`, color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer" }}>
-                      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "20px" }} alt="Google" />
-                      Sign in with Google (Redirect)
-                    </button>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <button onClick={async () => {
+                        showToast("Opening Sign-in Popup...");
+                        try {
+                          const result = await signInWithPopup(auth, googleProvider);
+                          if (result.user) showToast("Signed in successfully!");
+                        } catch (err) {
+                          console.error("Popup Error:", err);
+                          setAuthError(err.code);
+                          showToast(err.message, "error");
+                        }
+                      }} style={{ width: "100%", padding: "16px", borderRadius: "12px", background: "#fff", border: `1px solid ${T.divider}`, color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer" }}>
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "20px" }} alt="Google" />
+                        Sign in with Google
+                      </button>
 
-                    <button onClick={async () => {
-                      showToast("Opening Sign-in Popup...");
-                      try {
-                        const result = await signInWithPopup(auth, googleProvider);
-                        if (result.user) showToast("Signed in successfully!");
-                      } catch (err) {
-                        console.error("Popup Error:", err);
-                        setAuthError(err.code);
-                        showToast(err.message, "error");
-                      }
-                    }} style={{ width: "100%", marginTop: "10px", padding: "12px", borderRadius: "12px", background: "none", border: `1px solid ${T.divider}`, color: T.text, fontSize: "12px", cursor: "pointer" }}>
-                      Trouble signing in? Try Popup Mode
-                    </button>
+                      <button onClick={async () => {
+                        showToast("Signing in (Redirect Mode)...");
+                        try {
+                          await signInWithRedirect(auth, googleProvider);
+                        } catch (err) {
+                          console.error("Sign-In Redirect Error:", err);
+                          showToast(err.message, "error");
+                        }
+                      }} style={{ width: "100%", marginTop: "10px", padding: "12px", borderRadius: "12px", background: "none", border: `1px solid ${T.divider}`, color: T.text, fontSize: "12px", cursor: "pointer" }}>
+                        Can't see the popup? Try Redirect Mode
+                      </button>
+                    </div>
 
                     <div style={{ marginTop: "32px", padding: "16px", background: "rgba(245,200,66,0.05)", borderRadius: "15px", border: `1px solid ${T.divider}`, textAlign: "left" }}>
                       <div style={{ fontSize: "11px", color: T.textSub, fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Diagnostic Info</div>
