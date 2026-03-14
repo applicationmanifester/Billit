@@ -1,0 +1,81 @@
+export const initialClients = [{
+    id: 1,
+    name: "Customer",
+    email: "customer@business.com",
+    phone: "+1 000-000-0000",
+    address: "123 customer St",
+    info: "Default client."
+}];
+
+export const initialInvoices = [];
+
+export const statusColors = {
+    paid: {
+        bg: "#0d2818",
+        text: "#4ade80",
+        border: "#166534"
+    },
+    sent: {
+        bg: "#1e1b4b",
+        text: "#818cf8",
+        border: "#3730a3"
+    },
+    draft: {
+        bg: "#1c1917",
+        text: "#a8a29e",
+        border: "#44403c"
+    },
+    overdue: {
+        bg: "#2d0a0a",
+        text: "#f87171",
+        border: "#7f1d1d"
+    }
+};
+
+export const CURRENCIES = [
+    { code: "USD", symbol: "$", name: "US Dollar", locale: "en-US" },
+    { code: "EUR", symbol: "€", name: "Euro", locale: "de-DE" },
+    { code: "GBP", symbol: "£", name: "British Pound", locale: "en-GB" },
+    { code: "INR", symbol: "₹", name: "Indian Rupee", locale: "en-IN" },
+    { code: "JPY", symbol: "¥", name: "Japanese Yen", locale: "ja-JP" },
+    { code: "AUD", symbol: "A$", name: "Australian Dollar", locale: "en-AU" },
+    { code: "CAD", symbol: "C$", name: "Canadian Dollar", locale: "en-CA" },
+    { code: "SGD", symbol: "S$", name: "Singapore Dollar", locale: "en-SG" },
+    { code: "HKD", symbol: "HK$", name: "Hong Kong Dollar", locale: "zh-HK" },
+    { code: "NZD", symbol: "NZ$", name: "New Zealand Dollar", locale: "en-NZ" },
+    { code: "AED", symbol: "د.إ", name: "UAE Dirham", locale: "ar-AE" },
+    { code: "SAR", symbol: "SR", name: "Saudi Riyal", locale: "ar-SA" },
+    { code: "QAR", symbol: "QR", name: "Qatari Rial", locale: "ar-QA" },
+    { code: "KWD", symbol: "KD", name: "Kuwaiti Dinar", locale: "ar-KW" },
+    { code: "OMR", symbol: "RO", name: "Omani Rial", locale: "ar-OM" },
+    { code: "BHD", symbol: "BD", name: "Bahraini Dinar", locale: "ar-BH" },
+    { code: "CHF", symbol: "Fr", name: "Swiss Franc", locale: "de-CH" },
+    { code: "CNY", symbol: "¥", name: "Chinese Yuan", locale: "zh-CN" },
+    { code: "RUB", symbol: "₽", name: "Russian Ruble", locale: "ru-RU" },
+    { code: "BRL", symbol: "R$", name: "Brazilian Real", locale: "pt-BR" },
+    { code: "MXN", symbol: "MX$", name: "Mexican Peso", locale: "es-MX" },
+    { code: "ZAR", symbol: "R", name: "South African Rand", locale: "en-ZA" },
+    { code: "TRY", symbol: "₺", name: "Turkish Lira", locale: "tr-TR" },
+    { code: "KRW", symbol: "₩", name: "South Korean Won", locale: "ko-KR" },
+    { code: "IDR", symbol: "Rp", name: "Indonesian Rupiah", locale: "id-ID" },
+    { code: "MYR", symbol: "RM", name: "Malaysian Ringgit", locale: "ms-MY" },
+    { code: "THB", symbol: "฿", name: "Thai Baht", locale: "th-TH" },
+    { code: "PHP", symbol: "₱", name: "Philippine Peso", locale: "en-PH" },
+    { code: "VND", symbol: "₫", name: "Vietnamese Dong", locale: "vi-VN" },
+    { code: "PKR", symbol: "₨", name: "Pakistani Rupee", locale: "en-PK" },
+    { code: "BDT", symbol: "৳", name: "Bangladeshi Taka", locale: "bn-BD" },
+    { code: "EGP", symbol: "E£", name: "Egyptian Pound", locale: "ar-EG" },
+    { code: "NGN", symbol: "₦", name: "Nigerian Naira", locale: "en-NG" },
+    { code: "ILS", symbol: "₪", name: "Israeli New Shekel", locale: "he-IL" },
+    { code: "PLN", symbol: "zł", name: "Polish Zloty", locale: "pl-PL" },
+    { code: "SEK", symbol: "kr", name: "Swedish Krona", locale: "sv-SE" },
+    { code: "NOK", symbol: "kr", name: "Norwegian Krone", locale: "nb-NO" },
+    { code: "DKK", symbol: "kr", name: "Danish Krone", locale: "da-DK" },
+    { code: "HUF", symbol: "Ft", name: "Hungarian Forint", locale: "hu-HU" },
+    { code: "CZK", symbol: "Kč", name: "Czech Koruna", locale: "cs-CZ" },
+    { code: "RON", symbol: "lei", name: "Romanian Leu", locale: "ro-RO" },
+    { code: "ARS", symbol: "AR$", name: "Argentine Peso", locale: "es-AR" },
+    { code: "CLP", symbol: "CLP$", name: "Chilean Peso", locale: "es-CL" },
+    { code: "COP", symbol: "COL$", name: "Colombian Peso", locale: "es-CO" },
+    { code: "PEN", symbol: "S/", name: "Peruvian Sol", locale: "es-PE" }
+];

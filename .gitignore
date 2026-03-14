@@ -7,7 +7,9 @@ dist
 brain
 *.webp
 *.png
-android/build
-android/app/build
-android/.gradle
-android/.idea
+android/
+ios/
+.env
+.env.*
+! .env.example
+vite.config.js.timestamp-*
