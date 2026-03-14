@@ -237,6 +237,7 @@ export default function BillingApp() {
   const [hasLoadedCloud, setHasLoadedCloud] = useState(false);
   const [syncStatus, setSyncStatus] = useState("idle"); // idle, syncing, synced, error
   const [lastSync, setLastSync] = useState(null);
+  const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
     // Set Persistence
@@ -250,20 +251,18 @@ export default function BillingApp() {
     getRedirectResult(auth).then((result) => {
       if (result) {
         console.log("Redirect sign-in successful. User:", result.user.email);
-        setUser(result.user); // Explicitly set user from redirect result
+        setUser(result.user);
         setAuthLoading(false);
+        setAuthError(null);
         showToast("Signed in with Google!");
       } else {
         console.log("No redirect result found (standard page load)");
       }
     }).catch((error) => {
       console.error("Redirect Error:", error.code, error.message);
-      if (error.code === "auth/unauthorized-domain") {
-        showToast("Error: This domain is not authorized in Firebase Console!", "error");
-      } else {
-        showToast(`Sign-in error: ${error.message}`, "error");
-      }
+      setAuthError(`${error.code}: ${error.message}`);
       setAuthLoading(false);
+      showToast(`Sign-in error: ${error.message}`, "error");
     });
 
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -1421,6 +1420,19 @@ export default function BillingApp() {
                       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "20px" }} alt="Google" />
                       Sign in with Google
                     </button>
+
+                    <div style={{ marginTop: "32px", padding: "16px", background: "rgba(245,200,66,0.05)", borderRadius: "15px", border: `1px solid ${T.divider}`, textAlign: "left" }}>
+                      <div style={{ fontSize: "11px", color: T.textSub, fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Diagnostic Info</div>
+                      <div style={{ fontSize: "12px", marginBottom: "4px" }}><b>Domain:</b> {window.location.origin}</div>
+                      <div style={{ fontSize: "12px", color: authError ? "#ef4444" : "#4ade80" }}>
+                        <b>Auth Error:</b> {authError || "None"}
+                      </div>
+                      {authError && authError.includes("auth/unauthorized-domain") && (
+                        <div style={{ fontSize: "11px", color: "#f5c842", marginTop: "8px" }}>
+                          ⚠️ <b>Action Required:</b> Copy the domain above and add it to "Authorized Domains" in your Firebase Console (Authentication → Settings).
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
