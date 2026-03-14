@@ -302,10 +302,8 @@ export default function BillingApp() {
         if (cloudData.inventoryTitle) setInventoryTitle(cloudData.inventoryTitle);
         if (cloudData.lastSync) setLastSync(cloudData.lastSync);
 
-
-        setLastSync(new Date().toLocaleTimeString());
         setSyncStatus("synced");
-        addLog("Data successfully merged with cloud.");
+        addLog("Data successfully merged from cloud.");
       } else {
         addLog("No cloud document found for this account.");
         setSyncStatus("idle");
@@ -342,7 +340,7 @@ export default function BillingApp() {
   // Combined Local & Cloud Save Effect
   useEffect(() => {
     // Save Local & Sync State
-    const dataToPersist = { invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, lastSync };
+    const dataToPersist = { invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle };
     try {
       Object.entries(dataToPersist).forEach(([key, val]) => {
         localStorage.setItem("billit_" + key, JSON.stringify(val));
