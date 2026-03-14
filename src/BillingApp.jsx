@@ -48,6 +48,12 @@ const compressImage = async (dataUrl) => {
   });
 };
 
+const getLocalISODate = () => {
+  const now = new Date();
+  const timezoneOffsetMs = now.getTimezoneOffset() * 60 * 1000;
+  return new Date(now.getTime() - timezoneOffsetMs).toISOString().split('T')[0];
+};
+
 // Sub-components
 const Badge = ({ status }) => (
   <div className="badge" style={{
@@ -151,7 +157,7 @@ export default function BillingApp() {
   // Auto-overdue detection
   useEffect(() => {
     if (invoices.length === 0) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalISODate();
     let changed = false;
     const updatedInvoices = invoices.map(inv => {
       if (inv.status === "sent" && inv.due < today) {
@@ -255,8 +261,8 @@ export default function BillingApp() {
 
   const [form, setForm] = useState({
     clientId: (clients[0] || initialClients[0] || {}).id || "",
-    date: new Date().toISOString().split('T')[0],
-    due: new Date().toISOString().split('T')[0],
+    date: getLocalISODate(),
+    due: getLocalISODate(),
     items: getInitialItems(),
     notes: defaultNote
   });
@@ -393,8 +399,8 @@ export default function BillingApp() {
   const resetForm = useCallback(() => {
     setForm({
       clientId: (clients[0] || initialClients[0] || {}).id || "",
-      date: new Date().toISOString().split('T')[0],
-      due: new Date().toISOString().split('T')[0],
+      date: getLocalISODate(),
+      due: getLocalISODate(),
       items: getInitialItems(),
       notes: defaultNote
     });
