@@ -383,8 +383,7 @@ export default function BillingApp() {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, user, hasLoadedCloud, lastSync]);
-
+  }, [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, user, hasLoadedCloud]);
   const [tab, setTab] = useState("home");
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -1456,6 +1455,26 @@ export default function BillingApp() {
                       </button>
                     </div>
 
+                    <div style={{ marginTop: "24px", padding: "16px", background: "rgba(245,200,66,0.05)", borderRadius: "12px", border: `1px solid ${T.divider}`, textAlign: "left" }}>
+                      <div style={{ fontSize: "10px", color: T.textSub, fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Sync Activity</div>
+                      <div style={{ maxHeight: "150px", overflowY: "auto" }}>
+                        {syncLog.length === 0 ? (
+                          <div style={{ fontSize: "10px", color: T.textSub }}>No activity logged. Try signing in or pushing "Syncing" state.</div>
+                        ) : (
+                          syncLog.map((log, i) => (
+                            <div key={i} style={{ fontSize: "10px", marginBottom: "4px", borderBottom: `1px solid ${T.divider}`, paddingBottom: "2px" }}>• {log}</div>
+                          ))
+                        )}
+                      </div>
+                      <button onClick={() => {
+                        if (confirm("Reset local cache and reload? This might help if sync is stuck.")) {
+                          localStorage.clear();
+                          window.location.reload();
+                        }
+                      }} style={{ marginTop: "12px", width: "100%", padding: "6px", fontSize: "10px", background: "none", border: `1px solid ${T.divider}`, color: "#ef4444", borderRadius: "6px", cursor: "pointer" }}>
+                        Reset Local Cache
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
