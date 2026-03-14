@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { auth, db, googleProvider } from "./firebase";
-import { onAuthStateChanged, signOut, signInWithRedirect, getRedirectResult, setPersistence, browserLocalPersistence } from "firebase/auth";
+import { onAuthStateChanged, signOut, signInWithRedirect, signInWithPopup, getRedirectResult, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 const initialClients = [{
@@ -240,47 +240,42 @@ export default function BillingApp() {
   const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
-    // Set Persistence
-    setPersistence(auth, browserLocalPersistence).then(() => {
-      console.log("Auth Persistence set to Local.");
-    }).catch(err => console.error("Persistence Error:", err));
-
-    // Handle redirect result
-    console.log("Current URL on load:", window.location.href);
-    console.log("Checking for Redirect Result...");
-    getRedirectResult(auth).then((result) => {
-      if (result) {
-        console.log("Redirect sign-in successful. User:", result.user.email);
-        setUser(result.user);
-        setAuthLoading(false);
-        setAuthError(null);
-        showToast("Signed in with Google!");
-      } else {
-        console.log("No redirect result found (standard page load)");
-      }
-    }).catch((error) => {
-      console.error("Redirect Error:", error.code, error.message);
-      setAuthError(`${error.code}: ${error.message}`);
-      setAuthLoading(false);
-      showToast(`Sign-in error: ${error.message}`, "error");
-    });
-
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    // 1. Listen for Auth State Changes
+    const unsub = onAuthStateChanged(auth, (u) => {
+      console.log("Verified Auth State Change:", u ? u.email : "Logged Out");
       if (u) {
-        console.log("Verified Auth State:", u.email);
         setUser(u);
         setSeller(prev => ({ ...prev, email: u.email }));
+        setAuthError(null);
       } else {
-        console.log("Verified Auth State: Logged Out");
         setUser(null);
         setHasLoadedCloud(false);
         setSyncStatus("idle");
       }
       setAuthLoading(false);
     });
+
+    // 2. Handle pending redirect results
+    const checkRedirect = async () => {
+      try {
+        console.log("Checking for Redirect Result...");
+        const result = await getRedirectResult(auth);
+        if (result) {
+          console.log("Redirect sign-in successful. User:", result.user.email);
+          setUser(result.user);
+          setAuthError(null);
+          showToast("Signed in with Google!");
+        }
+      } catch (error) {
+        console.error("Redirect Error:", error.code, error.message);
+        setAuthError(`${error.code}: ${error.message}`);
+        setAuthLoading(false);
+      }
+    };
+
+    checkRedirect();
     return unsub;
   }, []);
-
   const fetchFromCloud = async (u) => {
     if (!u) return;
     setSyncStatus("syncing");
@@ -1416,20 +1411,42 @@ export default function BillingApp() {
                         console.error("Sign-In Redirect Error:", err);
                         showToast(err.message, "error");
                       }
-                    }} style={{ width: "100%", padding: "16px", borderRadius: "12px", background: "#fff", border: `1px solid ${T.divider}`, color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer", transition: "all 0.2s" }}>
+                    }} style={{ width: "100%", padding: "16px", borderRadius: "12px", background: "#fff", border: `1px solid ${T.divider}`, color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer" }}>
                       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "20px" }} alt="Google" />
-                      Sign in with Google
+                      Sign in with Google (Redirect)
+                    </button>
+
+                    <button onClick={async () => {
+                      showToast("Opening Sign-in Popup...");
+                      try {
+                        const result = await signInWithPopup(auth, googleProvider);
+                        if (result.user) showToast("Signed in successfully!");
+                      } catch (err) {
+                        console.error("Popup Error:", err);
+                        setAuthError(err.code);
+                        showToast(err.message, "error");
+                      }
+                    }} style={{ width: "100%", marginTop: "10px", padding: "12px", borderRadius: "12px", background: "none", border: `1px solid ${T.divider}`, color: T.text, fontSize: "12px", cursor: "pointer" }}>
+                      Trouble signing in? Try Popup Mode
                     </button>
 
                     <div style={{ marginTop: "32px", padding: "16px", background: "rgba(245,200,66,0.05)", borderRadius: "15px", border: `1px solid ${T.divider}`, textAlign: "left" }}>
                       <div style={{ fontSize: "11px", color: T.textSub, fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Diagnostic Info</div>
-                      <div style={{ fontSize: "12px", marginBottom: "4px" }}><b>Domain:</b> {window.location.origin}</div>
+                      <div style={{ fontSize: "12px", marginBottom: "4px" }}><b>Domain:</b> {window.location.host}</div>
                       <div style={{ fontSize: "12px", color: authError ? "#ef4444" : "#4ade80" }}>
-                        <b>Auth Error:</b> {authError || "None"}
+                        <b>Last Error:</b> {authError || "None"}
                       </div>
-                      {authError && authError.includes("auth/unauthorized-domain") && (
-                        <div style={{ fontSize: "11px", color: "#f5c842", marginTop: "8px" }}>
-                          ⚠️ <b>Action Required:</b> Copy the domain above and add it to "Authorized Domains" in your Firebase Console (Authentication → Settings).
+
+                      <button onClick={() => {
+                        console.log("Manual Check - Current User:", auth.currentUser);
+                        showToast(auth.currentUser ? `Firebase User: ${auth.currentUser.email}` : "Firebase State: Logged Out");
+                      }} style={{ marginTop: "12px", width: "100%", padding: "8px", fontSize: "11px", background: "none", border: `1px solid ${T.divider}`, borderRadius: "8px", color: T.text, cursor: "pointer" }}>
+                        🔍 Verify Active Session
+                      </button>
+
+                      {authError && (authError.includes("unauthorized-domain") || authError.includes("auth/unauthorized-domain")) && (
+                        <div style={{ fontSize: "11px", color: "#f5c842", marginTop: "12px", lineHeight: "1.4" }}>
+                          ⚠️ <b>Notice:</b> Ensure <b>{window.location.host}</b> is added to "Authorized Domains" in Firebase Console (Authentication → Settings).
                         </div>
                       )}
                     </div>
