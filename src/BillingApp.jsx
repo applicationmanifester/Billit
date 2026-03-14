@@ -204,7 +204,7 @@ export default function BillingApp() {
       clients: initialClients,
       products: [],
       seller: {
-        name: "Business Name",
+        name: "My Business",
         tagline: "Professional Billing",
         email: "biz@example.com",
         phone: "+1 000-000-0000",
@@ -216,7 +216,7 @@ export default function BillingApp() {
         invoicePrefix: "INV"
       },
       taxRates: [{ id: 1, label: "GST", rate: 18 }],
-      currency: CURRENCIES[3],
+      currency: CURRENCIES[0],
       inventoryTitle: "Inventory List",
       defaultNote: "",
       lastSync: new Date().toLocaleTimeString()
@@ -410,13 +410,24 @@ export default function BillingApp() {
     if (!form.clientId) return showToast("Select a client", "error");
     setIsSaving(action || "save");
     try {
-      const invTotal = totalWithTax(form.items, taxRates);
+      // Snapshot current tax rates into each item
+      const enrichedItems = form.items.map(item => ({
+        ...item,
+        taxSnapshots: (item.tax || []).map(id => {
+          const tr = taxRates.find(t => t.id === id);
+          return tr ? { label: tr.label, rate: tr.rate } : null;
+        }).filter(Boolean)
+      }));
+
+      const invTotal = totalWithTax(enrichedItems, taxRates);
       const now = new Date();
       const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
+      const formWithSnapshots = { ...form, items: enrichedItems };
+
       let finalInv;
       if (selectedInvoice) {
-        finalInv = { ...form, id: selectedInvoice.id, status: selectedInvoice.status, time: selectedInvoice.time, totalAmount: invTotal };
+        finalInv = { ...formWithSnapshots, id: selectedInvoice.id, status: selectedInvoice.status, time: selectedInvoice.time, totalAmount: invTotal };
         setInvoices(prev => prev.map(inv => inv.id === selectedInvoice.id ? finalInv : inv));
       } else {
         const prefix = seller.invoicePrefix || "INV";
@@ -431,7 +442,7 @@ export default function BillingApp() {
           return max;
         }, 0);
         const newId = `${prefix}-${String(maxId + 1).padStart(3, "0")}`;
-        finalInv = { ...form, id: newId, status: "sent", time: time, totalAmount: invTotal };
+        finalInv = { ...formWithSnapshots, id: newId, status: "sent", time: time, totalAmount: invTotal };
         setInvoices(prev => [...prev, finalInv]);
       }
 
@@ -450,7 +461,7 @@ export default function BillingApp() {
     } finally {
       setIsSaving(null);
     }
-  }, [form, selectedInvoice, invoices, seller.invoicePrefix, clients, downloadReceipt, shareReceipt, printReceipt, showToast, resetForm]);
+  }, [form, selectedInvoice, invoices, seller.invoicePrefix, clients, downloadReceipt, shareReceipt, printReceipt, showToast, resetForm, taxRates]);
 
   const updateInvoiceStatus = useCallback((id, status) => {
     setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));

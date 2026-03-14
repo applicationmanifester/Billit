@@ -4,6 +4,16 @@ export const getItemTaxList = (item, taxPool) => {
     const qty = item?.qty || 0;
     const price = item?.price || 0;
     const base = qty * price;
+
+    // Use snapshot if available (for historical data preservation)
+    if (item?.taxSnapshots && Array.isArray(item.taxSnapshots)) {
+        return item.taxSnapshots.map(tr => ({
+            label: tr.label,
+            rate: tr.rate,
+            amount: base * (tr.rate / 100)
+        }));
+    }
+
     const appliedTaxIds = (Array.isArray(item?.tax) ? item.tax : [1]).map(String);
     return taxPool.filter(tr => appliedTaxIds.includes(String(tr.id))).map(tr => ({
         label: tr.label,
