@@ -191,6 +191,8 @@ export default function BillingApp() {
     setSeller({ name: "My Business", email: "", phone: "", address: "", gstin: "", tagline: "", logo: null, qrCode: null, invoicePrefix: "INV" });
     setTaxRates([{ id: 1, label: "GST", rate: 18 }]);
     setCurrency(CURRENCIES[3]);
+    setInventoryTitle("Inventory List");
+    setDefaultNote("");
     localStorage.clear();
   };
 
