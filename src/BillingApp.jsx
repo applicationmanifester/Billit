@@ -235,8 +235,8 @@ export default function BillingApp() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [hasLoadedCloud, setHasLoadedCloud] = useState(false);
-  const [syncStatus, setSyncStatus] = useState("idle"); // idle, syncing, synced, error
-  const [lastSync, setLastSync] = useState(null);
+  const [syncStatus, setSyncStatus] = useState("idle"); // idle, syncing, synced, error, waiting
+  const [lastSync, setLastSync] = useState(() => getStorage("lastSync", null));
   const [authError, setAuthError] = useState(null);
   const [syncLog, setSyncLog] = useState([]);
   const skipCloudSave = useRef(false);
@@ -300,6 +300,8 @@ export default function BillingApp() {
         if (cloudData.taxRates) setTaxRates(cloudData.taxRates);
         if (cloudData.currency) setCurrency(cloudData.currency);
         if (cloudData.inventoryTitle) setInventoryTitle(cloudData.inventoryTitle);
+        if (cloudData.lastSync) setLastSync(cloudData.lastSync);
+
 
         setLastSync(new Date().toLocaleTimeString());
         setSyncStatus("synced");
@@ -339,11 +341,10 @@ export default function BillingApp() {
 
   // Combined Local & Cloud Save Effect
   useEffect(() => {
-    const data = { invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle };
-
-    // Save Local
+    // Save Local & Sync State
+    const dataToPersist = { invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, lastSync };
     try {
-      Object.entries(data).forEach(([key, val]) => {
+      Object.entries(dataToPersist).forEach(([key, val]) => {
         localStorage.setItem("billit_" + key, JSON.stringify(val));
       });
     } catch (e) {
@@ -361,12 +362,16 @@ export default function BillingApp() {
         return;
       }
 
-      setSyncStatus("syncing");
+      setSyncStatus("waiting");
       const timeoutId = setTimeout(() => {
+        setSyncStatus("syncing");
         addLog("Sending local updates to cloud...");
         const userDocRef = doc(db, "users", user.uid);
-        setDoc(userDocRef, data, { merge: true }).then(() => {
-          setLastSync(new Date().toLocaleTimeString());
+        // We save the main data structure to Firestore
+        const cloudPayload = { invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle };
+        setDoc(userDocRef, cloudPayload, { merge: true }).then(() => {
+          const now = new Date().toLocaleTimeString();
+          setLastSync(now);
           setSyncStatus("synced");
           addLog("Cloud backup updated.");
         }).catch(err => {
@@ -378,7 +383,7 @@ export default function BillingApp() {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, user, hasLoadedCloud]);
+  }, [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, user, hasLoadedCloud, lastSync]);
 
   const [tab, setTab] = useState("home");
   const [search, setSearch] = useState("");
@@ -1407,13 +1412,13 @@ export default function BillingApp() {
                         </div>
                       </div>
 
-                      <button onClick={() => fetchFromCloud(user)} disabled={syncStatus === "syncing"} style={{
+                      <button onClick={() => fetchFromCloud(user)} disabled={syncStatus === "syncing" || syncStatus === "waiting"} style={{
                         width: "100%", padding: "12px", borderRadius: "10px",
                         background: T.cardBg, border: `1px solid ${T.divider}`,
                         color: "#f5c842", fontWeight: "bold", fontSize: "13px", cursor: "pointer",
-                        opacity: syncStatus === "syncing" ? 0.5 : 1
+                        opacity: (syncStatus === "syncing" || syncStatus === "waiting") ? 0.5 : 1
                       }}>
-                        {syncStatus === "syncing" ? "Syncing..." : "🔄 Force Fetch from Cloud"}
+                        {syncStatus === "syncing" ? "Syncing..." : syncStatus === "waiting" ? "Waiting for idle..." : "🔄 Force Fetch from Cloud"}
                       </button>
                     </div>
 
