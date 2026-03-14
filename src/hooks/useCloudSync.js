@@ -27,6 +27,7 @@ export const useCloudSync = (user, data, setters, showToast) => {
     });
 
     const skipCloudSave = useRef(false);
+    const loadedUidRef = useRef(null);
 
     const addLog = (msg) => setSyncLog(prev => [msg, ...prev].slice(0, 10));
 
@@ -88,6 +89,14 @@ export const useCloudSync = (user, data, setters, showToast) => {
 
     // Initial fetch on login
     useEffect(() => {
+        if (!user) return;
+
+        if (loadedUidRef.current !== user.uid) {
+            loadedUidRef.current = user.uid;
+            setHasLoadedCloud(false);
+            skipCloudSave.current = false;
+        }
+
         if (user && !hasLoadedCloud) {
             fetchFromCloud(user);
         }
@@ -142,6 +151,7 @@ export const useCloudSync = (user, data, setters, showToast) => {
     // Clean up when user logs out
     useEffect(() => {
         if (!user) {
+            loadedUidRef.current = null;
             setHasLoadedCloud(false);
             setSyncStatus("idle");
             setSyncLog([]);
