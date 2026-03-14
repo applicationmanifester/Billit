@@ -146,11 +146,21 @@ export default function BillingApp() {
     user, authLoading, authError, loginWithPopup, loginWithRedirect, logout
   } = useAuth(showToast);
 
+  const cloudSyncData = useMemo(() => ({
+    invoices,
+    clients,
+    theme,
+    currency,
+    taxRates,
+    products,
+    seller,
+    inventoryTitle,
+    defaultNote
+  }), [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, defaultNote]);
+
   const {
     syncStatus, hasLoadedCloud, syncLog, lastSync, fetchFromCloud, addLog
-  } = useCloudSync(user, {
-    invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, defaultNote
-  }, {
+  } = useCloudSync(user, cloudSyncData, {
     setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote
   }, showToast);
 
