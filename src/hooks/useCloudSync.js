@@ -65,7 +65,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         if (typeof navigator !== "undefined" && navigator.onLine) {
             addLog(`📡 Browser is online, but Firebase is unreachable (${err?.code || "unknown"}). Check Firestore/network settings.`);
         } else {
-            addLog("📡 You're signed in, but internet appears unavailable. Cloud data will sync when connection returns.");
+            addLog("📡 You're signed in, but Firebase currently reports an offline/unreachable state. Cloud data will sync when connection stabilizes.");
         }
 
         return false;
