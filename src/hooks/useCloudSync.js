@@ -115,10 +115,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             const data = snapshot.data();
             if (!data) return;
 
-            const remoteTime = new Date(data.updatedAt || 0).getTime();
-            const localTime = new Date(localData.updatedAt || 0).getTime();
-
-            if (remoteTime > localTime + 1000) { // 1s buffer to avoid flip-flopping
+            if (data) {
                 addLog("📥 Remote change detected. Applying...");
                 skipCloudSave.current = true;
                 skipUntilRef.current = Date.now() + 2000;
@@ -153,8 +150,8 @@ export const useCloudSync = (user, localData, setters, showToast) => {
 
         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
 
-        setSyncStatus("saving");
         syncTimeoutRef.current = setTimeout(async () => {
+            setSyncStatus("saving");
             // Re-check guard right before saving (state may have changed during debounce)
             if (skipCloudSave.current || Date.now() < skipUntilRef.current) {
                 setSyncStatus("synced");

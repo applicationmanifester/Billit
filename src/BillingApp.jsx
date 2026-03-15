@@ -199,9 +199,8 @@ export default function BillingApp() {
   // Derived Utils
   const fmt = (n) => formatCurrency(n, currency);
   const getClient = (id) => clients.find(c => String(c.id) === String(id)) || {};
-  const skipCloudSave = useRef(false);
 
-  const clearLocalState = () => {
+  const clearLocalState = useCallback(() => {
     setInvoices([]);
     setClients(initialClients);
     setProducts([]);
@@ -222,7 +221,7 @@ export default function BillingApp() {
     setInventoryTitle("Inventory List");
     setDefaultNote("");
     localStorage.clear();
-  };
+  }, [setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote]);
 
   const wipeCloudState = useCallback(async () => {
     if (!user || !db) return;
