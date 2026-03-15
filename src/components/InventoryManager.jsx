@@ -41,9 +41,13 @@ export const InventoryManager = ({
                             <div style={{ fontSize: "14px", color: "var(--accent-primary)", fontWeight: "bold", marginTop: "2px" }}>{fmt(p.price)}</div>
                         </div>
                     </div>
-                    <div style={{ display: "flex", gap: "12px" }}>
-                        <button onClick={() => { setProductForm(p); setEditingProductId(p.id); setShowModal("product"); }} style={{ background: "none", border: "none", fontSize: "13px", color: "var(--accent-primary)", fontWeight: "bold", cursor: "pointer" }}>Edit</button>
-                        <button onClick={() => setDeleteConfirm({ type: "product", id: p.id, name: p.name })} style={{ background: "none", border: "none", fontSize: "13px", color: "#ef4444", fontWeight: "bold", cursor: "pointer" }}>Delete</button>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                        <button onClick={() => { setProductForm(p); setEditingProductId(p.id); setShowModal("product"); }} style={{
+                            padding: "8px 12px", borderRadius: "10px", background: "var(--accent-primary)", color: "#000", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "all 0.2s"
+                        }}>Edit</button>
+                        <button onClick={() => setDeleteConfirm({ type: "product", id: p.id, name: p.name })} style={{
+                            padding: "8px 12px", borderRadius: "10px", background: "#ef4444", color: "#fff", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "all 0.2s"
+                        }}>Delete</button>
                     </div>
                 </div>
             ))}
