@@ -278,13 +278,6 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                 if (isFirestoreOfflineError(err)) {
                     setSyncStatus("offline");
                     addLog("📡 Cloud save deferred. Local changes are stored and will sync automatically when Firebase reconnects.");
-                } else if (isFirestorePermissionError(err)) {
-                    setSyncStatus("error");
-                    addLog("🔒 Cloud save blocked by Firestore permissions.");
-                    if (showToast && !permissionNoticeRef.current) {
-                        showToast("Cloud save is blocked by Firestore permissions.", "error");
-                        permissionNoticeRef.current = true;
-                    }
                 } else {
                     setSyncStatus("error");
                     addLog(`❌ Save failed: ${err.message}`);
@@ -295,7 +288,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         }, 2000);
 
         return () => clearTimeout(syncTimeoutRef.current);
-    }, [user?.uid, localData, hasLoadedCloud, addLog, isFirestoreOfflineError, isFirestorePermissionError, showToast]);
+    }, [user?.uid, localData, hasLoadedCloud, addLog, isFirestoreOfflineError]);
 
     return {
         syncStatus,
