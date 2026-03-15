@@ -3,7 +3,7 @@ import React from "react";
 export const Settings = ({
     user, seller, setSellerForm, setShowSellerModal, authLoading,
     syncStatus, lastSync, invoices, clients, products, fetchFromCloud, logout, clearLocalState,
-    signInWithPopup, auth, googleProvider, signInWithRedirect, authError, setAuthError, showToast,
+    signInWithPopup, authError, showToast,
     syncLog, theme, setTheme, toggleTheme, currency, setShowCurrencyPicker,
     taxRates, setTaxRates, defaultTaxId, setDefaultTaxId, wipeAllData, settingsTab, setSettingsTab, isDark,
     exportInvoicesToCSV, exportClientsToCSV, exportProductsToCSV, getClient,
@@ -133,10 +133,6 @@ export const Settings = ({
                             <button onClick={signInWithPopup} className="premium-card" style={{ width: "100%", padding: "16px", background: "#fff", color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer", borderRadius: "12px", marginBottom: "12px" }}>
                                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "20px" }} alt="Google" />
                                 Sign in with Google (Popup)
-                            </button>
-                            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "12px" }}>Having trouble with the popup?</div>
-                            <button onClick={signInWithRedirect} className="secondary-btn" style={{ width: "100%", padding: "12px", fontWeight: "bold", cursor: "pointer" }}>
-                                Use Sign-in with Redirect
                             </button>
                             {authError && (
                                 <div style={{ marginTop: "10px", fontSize: "12px", color: "#ef4444", fontWeight: "600" }}>

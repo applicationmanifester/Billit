@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { auth, db, googleProvider } from "./firebase";
+import { db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { signInWithPopup, signInWithRedirect } from "firebase/auth";
 
 // Hooks
 import { useAuth } from "./hooks/useAuth";
@@ -143,7 +142,7 @@ export default function BillingApp() {
 
   // Hooks
   const {
-    user, authLoading, authError, loginWithPopup, loginWithRedirect, logout
+    user, authLoading, authError, loginWithPopup, logout
   } = useAuth(showToast);
 
   const cloudSyncData = useMemo(() => ({
@@ -610,7 +609,7 @@ export default function BillingApp() {
       {tab === "clients" && <ClientManager clients={clients} setClients={setClients} setClientForm={setClientForm} setSelectedClient={setSelectedClient} setShowModal={setShowModal} invoices={invoices} fmt={fmt} setDeleteConfirm={setDeleteConfirm} />}
       {tab === "items" && <InventoryManager inventoryTitle={inventoryTitle} editingInventoryTitle={editingInventoryTitle} setEditingInventoryTitle={setEditingInventoryTitle} setInventoryTitle={setInventoryTitle} downloadInventoryPDF={downloadInventoryPDF} shareInventoryPDF={shareInventoryPDF} setProductForm={setProductForm} setEditingProductId={setEditingProductId} setShowModal={setShowModal} products={products} setProducts={setProducts} setDeleteConfirm={setDeleteConfirm} fmt={fmt} />}
       {tab === "reports" && <Reports invoices={invoices} clients={clients} fmt={fmt} totalWithTax={totalWithTax} taxRates={taxRates} />}
-      {tab === "settings" && <Settings user={user} seller={seller} setSellerForm={setSellerForm} setShowSellerModal={setShowSellerModal} authLoading={authLoading} syncStatus={syncStatus} lastSync={lastSync} invoices={invoices} clients={clients} products={products} fetchFromCloud={fetchFromCloud} logout={logout} clearLocalState={clearLocalState} signInWithPopup={loginWithPopup} auth={auth} googleProvider={googleProvider} signInWithRedirect={loginWithRedirect} authError={authError} setAuthError={() => { }} showToast={showToast} syncLog={syncLog} theme={theme} setTheme={setTheme} toggleTheme={toggleTheme} currency={currency} setShowCurrencyPicker={setShowCurrencyPicker} taxRates={taxRates} setTaxRates={setTaxRates} wipeAllData={wipeAllData} settingsTab={settingsTab} setSettingsTab={setSettingsTab} isDark={isDark} exportInvoicesToCSV={exportInvoicesToCSV} exportClientsToCSV={exportClientsToCSV} exportProductsToCSV={exportProductsToCSV} getClient={getClient} defaultNote={defaultNote} setDefaultNote={setDefaultNote} />}
+      {tab === "settings" && <Settings user={user} seller={seller} setSellerForm={setSellerForm} setShowSellerModal={setShowSellerModal} authLoading={authLoading} syncStatus={syncStatus} lastSync={lastSync} invoices={invoices} clients={clients} products={products} fetchFromCloud={fetchFromCloud} logout={logout} clearLocalState={clearLocalState} signInWithPopup={loginWithPopup} authError={authError} showToast={showToast} syncLog={syncLog} theme={theme} setTheme={setTheme} toggleTheme={toggleTheme} currency={currency} setShowCurrencyPicker={setShowCurrencyPicker} taxRates={taxRates} setTaxRates={setTaxRates} wipeAllData={wipeAllData} settingsTab={settingsTab} setSettingsTab={setSettingsTab} isDark={isDark} exportInvoicesToCSV={exportInvoicesToCSV} exportClientsToCSV={exportClientsToCSV} exportProductsToCSV={exportProductsToCSV} getClient={getClient} defaultNote={defaultNote} setDefaultNote={setDefaultNote} />}
 
       <InvoiceModal showModal={showModal} setShowModal={(val) => { setShowModal(val); if (!val) { setSelectedInvoice(null); resetForm(); } }} form={form} setForm={setForm} clients={clients} products={products} taxRates={taxRates} saveInvoice={saveInvoice} addItem={addItem} removeItem={removeItem} updateItem={updateItem} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} playFeedback={playFeedback} showToast={showToast} selectedInvoice={selectedInvoice} resetForm={resetForm} isSaving={isSaving} />
       <InvoiceViewModal showModal={showModal} setShowModal={setShowModal} selectedInvoice={selectedInvoice} setSelectedInvoice={setSelectedInvoice} setForm={setForm} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} taxRates={taxRates} downloadReceipt={downloadReceipt} printReceipt={printReceipt} shareReceipt={shareReceipt} setDeleteConfirm={setDeleteConfirm} updateStatus={updateInvoiceStatus} showToast={showToast} />
