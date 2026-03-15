@@ -21,9 +21,15 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         ].slice(0, 50));
     }, []);
 
-    const fetchFromCloud = useCallback(async (uid) => {
-        const targetUid = uid || user?.uid;
-        if (!targetUid || !db) return;
+    const fetchFromCloud = useCallback(async (arg) => {
+        let targetUid = arg || user?.uid;
+
+        // Defensive check: If targetUid is an object, try to extract the string UID
+        if (targetUid && typeof targetUid === "object") {
+            targetUid = targetUid.uid || targetUid.id || null;
+        }
+
+        if (!targetUid || typeof targetUid !== "string" || !db) return;
 
         setSyncStatus("loading");
         addLog(`Fetching cloud data for ${targetUid}...`);

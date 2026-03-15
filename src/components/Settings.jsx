@@ -94,7 +94,7 @@ export const Settings = ({
                                     </div>
                                 </div>
 
-                                <button onClick={() => fetchFromCloud(user)} disabled={syncStatus === "syncing" || syncStatus === "waiting"} className="secondary-btn" style={{
+                                <button onClick={() => fetchFromCloud(user.uid)} disabled={syncStatus === "syncing" || syncStatus === "waiting"} className="secondary-btn" style={{
                                     width: "100%", color: "var(--accent-primary)", fontSize: "13px",
                                     opacity: (syncStatus === "syncing" || syncStatus === "waiting") ? 0.5 : 1,
                                     marginBottom: "10px"
