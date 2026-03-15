@@ -72,10 +72,8 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             loadedUidRef.current = targetUid;
         } finally {
             // Release skip lock after state has settled
-            setTimeout(() => {
-                skipCloudSave.current = false;
-                skipUntilRef.current = 0;
-            }, 2000);
+            skipCloudSave.current = false; // reset the ref immediately
+            // skipUntilRef already set to Date.now() + 5000, that's the real guard
         }
     }, [user?.uid, addLog, setters]);
 
@@ -139,7 +137,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         });
 
         return unsub;
-    }, [user?.uid, hasLoadedCloud, localData.updatedAt, setters, addLog]);
+    }, [user?.uid, hasLoadedCloud, setters, addLog]);
 
     // Auto-save local changes to cloud (debounced)
     useEffect(() => {

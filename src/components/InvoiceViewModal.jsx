@@ -29,7 +29,7 @@ export const InvoiceViewModal = ({
                     <button onClick={() => setShowModal(null)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}>✕</button>
                 </div>
 
-                <div style={{ background: "var(--bg-input)", borderRadius: "16px", padding: "16px", marginBottom: "20px", border: `1px solid var(--border - primary)` }}>
+                <div style={{ background: "var(--bg-input)", borderRadius: "16px", padding: "16px", marginBottom: "20px", border: `1px solid var(--border-primary)` }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                         <div>
                             <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Client</div>
@@ -38,7 +38,7 @@ export const InvoiceViewModal = ({
                         </div>
                         <div style={{ textAlign: "right" }}>
                             <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Status</div>
-                            <span className="badge" style={{ background: `var(--status - ${inv.status})`, padding: "4px 12px" }}>{inv.status}</span>
+                            <span className="badge" style={{ background: `var(--status-${inv.status})`, padding: "4px 12px" }}>{inv.status}</span>
                         </div>
                         <div>
                             <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Date</div>
@@ -54,7 +54,7 @@ export const InvoiceViewModal = ({
                 <div style={{ marginBottom: "24px" }}>
                     <div style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "12px" }}>Items</div>
                     {inv.items.map((item, idx) => (
-                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid var(--border - primary)` }}>
+                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid var(--border-primary)` }}>
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: "600", fontSize: "14px" }}>{item.desc}</div>
                                 <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{item.qty} × {fmt(item.price)}</div>
@@ -64,12 +64,12 @@ export const InvoiceViewModal = ({
                     ))}
                 </div>
 
-                <div style={{ background: "var(--bg-input)", borderRadius: "16px", padding: "16px", marginBottom: "24px", border: `1px solid var(--border - primary)` }}>
+                <div style={{ background: "var(--bg-input)", borderRadius: "16px", padding: "16px", marginBottom: "24px", border: `1px solid var(--border-primary)` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                         <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>Subtotal</span>
                         <span style={{ fontWeight: "600" }}>{fmt(subtotal)}</span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", paddingBottom: "12px", borderBottom: `1px solid var(--border - primary)` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", paddingBottom: "12px", borderBottom: `1px solid var(--border-primary)` }}>
                         <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>Taxes</span>
                         <span style={{ fontWeight: "600" }}>{fmt(taxes)}</span>
                     </div>
@@ -82,7 +82,7 @@ export const InvoiceViewModal = ({
                 {inv.notes && (
                     <div style={{ marginBottom: "24px" }}>
                         <div style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Notes</div>
-                        <div style={{ fontSize: "13px", color: "var(--text-secondary)", background: "var(--bg-input)", padding: "12px", borderRadius: "12px", border: `1px solid var(--border - primary)`, whiteSpace: "pre-wrap" }}>{inv.notes}</div>
+                        <div style={{ fontSize: "13px", color: "var(--text-secondary)", background: "var(--bg-input)", padding: "12px", borderRadius: "12px", border: `1px solid var(--border-primary)`, whiteSpace: "pre-wrap" }}>{inv.notes}</div>
                     </div>
                 )}
 
