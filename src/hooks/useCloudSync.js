@@ -7,6 +7,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
     const [hasLoadedCloud, setHasLoadedCloud] = useState(false);
     const [syncLog, setSyncLog] = useState([]);
     const [lastSync, setLastSync] = useState(null);
+    const [forceSave, setForceSave] = useState(0); // Trigger save after fetch
 
     const skipCloudSave = useRef(false);
     const loadedUidRef = useRef(null);
@@ -138,11 +139,18 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                 addLog("✅ Cloud data applied successfully");
             } else {
                 addLog("No cloud data found for user. Starting fresh.");
+                // Shorten skip period so auto-save can fire sooner for new users
+                if (Date.now() + 1000 < skipUntilRef.current) {
+                    skipUntilRef.current = Date.now() + 1000;
+                }
             }
 
             setHasLoadedCloud(true);
             loadedUidRef.current = targetUid;
             setSyncStatus("synced");
+
+            // Trigger auto-save re-evaluation once state settles
+            setTimeout(() => setForceSave(prev => prev + 1), 1500);
         } catch (err) {
             console.error("Cloud Fetch Error:", err);
             const isOfflineError = isFirestoreOfflineError(err);
@@ -338,7 +346,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         }, 2000);
 
         return () => clearTimeout(syncTimeoutRef.current);
-    }, [user?.uid, localData, hasLoadedCloud, addLog, isFirestoreOfflineError]);
+    }, [user?.uid, localData, hasLoadedCloud, addLog, isFirestoreOfflineError, forceSave]);
 
     return {
         syncStatus,
