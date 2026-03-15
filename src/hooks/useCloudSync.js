@@ -16,6 +16,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
     // Track how long to keep skipping saves after a cloud load
     const skipUntilRef = useRef(0);
     const isSavingRef = useRef(false);
+    const permissionNoticeRef = useRef(false);
 
     const isFirestoreOfflineError = useCallback((err) => {
         const code = err?.code || "";
@@ -26,6 +27,17 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             code === "deadline-exceeded" ||
             /client is offline/.test(message) ||
             /failed to get document because the client is offline/.test(message)
+        );
+    }, []);
+
+    const isFirestorePermissionError = useCallback((err) => {
+        const code = err?.code || "";
+        const message = (err?.message || "").toLowerCase();
+
+        return (
+            code === "permission-denied" ||
+            /insufficient permissions/.test(message) ||
+            /missing or insufficient permissions/.test(message)
         );
     }, []);
 
@@ -122,6 +134,13 @@ export const useCloudSync = (user, localData, setters, showToast) => {
 
             if (isOfflineError) {
                 await loadCachedCloudData(docRef, err);
+            } else if (isFirestorePermissionError(err)) {
+                setSyncStatus("error");
+                addLog("🔒 Cloud sync permission denied. Please sign in with the correct account or update Firestore rules.");
+                if (showToast && !permissionNoticeRef.current) {
+                    showToast("Cloud sync is blocked by Firestore permissions.", "error");
+                    permissionNoticeRef.current = true;
+                }
             } else {
                 setSyncStatus("error");
                 addLog(`❌ Fetch error: ${err.message}`);
@@ -137,7 +156,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                 skipUntilRef.current = 0;
             }, 6000); // 6s ensures all state batches settle
         }
-    }, [user?.uid, addLog, loadCachedCloudData, applyCloudData, isFirestoreOfflineError]);
+    }, [user?.uid, addLog, loadCachedCloudData, applyCloudData, isFirestoreOfflineError, isFirestorePermissionError, showToast]);
 
     // Retry cloud fetch when network returns
     useEffect(() => {
@@ -165,11 +184,13 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             skipCloudSave.current = true;
             skipUntilRef.current = Date.now() + 5000;
             fetchFromCloud(user.uid);
+            permissionNoticeRef.current = false;
         } else if (!user) {
             // User signed out — reset sync state
             setHasLoadedCloud(false);
             loadedUidRef.current = null;
             setSyncStatus("idle");
+            permissionNoticeRef.current = false;
             if (syncTimeoutRef.current) {
                 clearTimeout(syncTimeoutRef.current);
                 syncTimeoutRef.current = null;
@@ -192,31 +213,39 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             const data = snapshot.data();
             if (!data) return;
 
-            if (data) {
-                addLog("📥 Remote change detected. Applying...");
-                skipCloudSave.current = true;
-                skipUntilRef.current = Date.now() + 2000;
+            addLog("📥 Remote change detected. Applying...");
+            skipCloudSave.current = true;
+            skipUntilRef.current = Date.now() + 2000;
 
-                if (data.invoices !== undefined) setters.setInvoices(data.invoices);
-                if (data.clients !== undefined) setters.setClients(data.clients);
-                if (data.products !== undefined) setters.setProducts(data.products);
-                if (data.seller !== undefined) setters.setSeller(data.seller);
-                if (data.taxRates !== undefined) setters.setTaxRates(data.taxRates);
-                if (data.currency !== undefined) setters.setCurrency(data.currency);
-                if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
-                if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
+            if (data.invoices !== undefined) setters.setInvoices(data.invoices);
+            if (data.clients !== undefined) setters.setClients(data.clients);
+            if (data.products !== undefined) setters.setProducts(data.products);
+            if (data.seller !== undefined) setters.setSeller(data.seller);
+            if (data.taxRates !== undefined) setters.setTaxRates(data.taxRates);
+            if (data.currency !== undefined) setters.setCurrency(data.currency);
+            if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
+            if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
 
-                setLastSync(data.lastSync || new Date().toLocaleTimeString());
+            setLastSync(data.lastSync || new Date().toLocaleTimeString());
 
-                setTimeout(() => {
-                    skipCloudSave.current = false;
-                    skipUntilRef.current = 0;
-                }, 2000);
+            setTimeout(() => {
+                skipCloudSave.current = false;
+                skipUntilRef.current = 0;
+            }, 2000);
+        }, (err) => {
+            console.error("Cloud Listener Error:", err);
+            if (isFirestorePermissionError(err)) {
+                setSyncStatus("error");
+                addLog("🔒 Real-time sync disabled due to Firestore permissions.");
+                if (showToast && !permissionNoticeRef.current) {
+                    showToast("Real-time cloud sync is blocked by Firestore permissions.", "error");
+                    permissionNoticeRef.current = true;
+                }
             }
         });
 
         return unsub;
-    }, [user?.uid, hasLoadedCloud, setters, addLog]);
+    }, [user?.uid, hasLoadedCloud, setters, addLog, isFirestorePermissionError, showToast]);
 
     // Auto-save local changes to cloud (debounced)
     useEffect(() => {
