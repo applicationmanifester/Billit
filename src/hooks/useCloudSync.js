@@ -11,9 +11,12 @@ export const useCloudSync = (user, localData, setters, showToast) => {
     const skipCloudSave = useRef(false);
     const loadedUidRef = useRef(null);
     const syncTimeoutRef = useRef(null);
+    const isFetchingRef = useRef(false);
+    const lastFetchRef = useRef({ uid: null, at: 0 });
     // Track how long to keep skipping saves after a cloud load
     const skipUntilRef = useRef(0);
     const isSavingRef = useRef(false);
+    const permissionNoticeRef = useRef(false);
 
     const isFirestoreOfflineError = useCallback((err) => {
         const code = err?.code || "";
@@ -24,6 +27,17 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             code === "deadline-exceeded" ||
             /client is offline/.test(message) ||
             /failed to get document because the client is offline/.test(message)
+        );
+    }, []);
+
+    const isFirestorePermissionError = useCallback((err) => {
+        const code = err?.code || "";
+        const message = (err?.message || "").toLowerCase();
+
+        return (
+            code === "permission-denied" ||
+            /insufficient permissions/.test(message) ||
+            /missing or insufficient permissions/.test(message)
         );
     }, []);
 
@@ -53,7 +67,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             if (cachedSnap.exists()) {
                 applyCloudData(cachedSnap.data());
                 setSyncStatus("synced");
-                addLog("📦 Offline mode: loaded cached cloud data.");
+                addLog("📦 Loaded cached cloud data. Sync will continue automatically once Firebase is reachable.");
                 return true;
             }
         } catch {
@@ -63,9 +77,9 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         setSyncStatus("offline");
 
         if (typeof navigator !== "undefined" && navigator.onLine) {
-            addLog(`📡 Browser is online, but Firebase is unreachable (${err?.code || "unknown"}). Check Firestore/network settings.`);
+            addLog(`📡 Firebase is temporarily unreachable (${err?.code || "unknown"}). We'll keep local changes and retry cloud sync automatically.`);
         } else {
-            addLog("📡 You're signed in, but Firebase currently reports an offline/unreachable state. Cloud data will sync when connection stabilizes.");
+            addLog("📡 Device appears offline. Local changes are safe and cloud sync will resume once connection stabilizes.");
         }
 
         return false;
@@ -80,6 +94,16 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         }
 
         if (!targetUid || typeof targetUid !== "string" || !db) return;
+
+        const now = Date.now();
+        const isSameUserRapidRetry =
+            lastFetchRef.current.uid === targetUid &&
+            now - lastFetchRef.current.at < 3000;
+
+        if (isFetchingRef.current || isSameUserRapidRetry) return;
+
+        isFetchingRef.current = true;
+        lastFetchRef.current = { uid: targetUid, at: now };
 
         const docRef = doc(db, "users", targetUid);
 
@@ -110,6 +134,13 @@ export const useCloudSync = (user, localData, setters, showToast) => {
 
             if (isOfflineError) {
                 await loadCachedCloudData(docRef, err);
+            } else if (isFirestorePermissionError(err)) {
+                setSyncStatus("forbidden");
+                addLog("🔒 Cloud sync permission denied. Please sign in with the correct account or update Firestore rules.");
+                if (showToast && !permissionNoticeRef.current) {
+                    showToast("Cloud sync is blocked by Firestore permissions.", "error");
+                    permissionNoticeRef.current = true;
+                }
             } else {
                 setSyncStatus("error");
                 addLog(`❌ Fetch error: ${err.message}`);
@@ -118,13 +149,14 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             setHasLoadedCloud(true);
             loadedUidRef.current = targetUid;
         } finally {
+            isFetchingRef.current = false;
             // Release skip lock after state has settled
             setTimeout(() => {
                 skipCloudSave.current = false;
                 skipUntilRef.current = 0;
             }, 6000); // 6s ensures all state batches settle
         }
-    }, [user?.uid, addLog, loadCachedCloudData, applyCloudData, isFirestoreOfflineError]);
+    }, [user?.uid, addLog, loadCachedCloudData, applyCloudData, isFirestoreOfflineError, isFirestorePermissionError, showToast]);
 
     // Retry cloud fetch when network returns
     useEffect(() => {
@@ -152,11 +184,13 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             skipCloudSave.current = true;
             skipUntilRef.current = Date.now() + 5000;
             fetchFromCloud(user.uid);
+            permissionNoticeRef.current = false;
         } else if (!user) {
             // User signed out — reset sync state
             setHasLoadedCloud(false);
             loadedUidRef.current = null;
             setSyncStatus("idle");
+            permissionNoticeRef.current = false;
             if (syncTimeoutRef.current) {
                 clearTimeout(syncTimeoutRef.current);
                 syncTimeoutRef.current = null;
@@ -200,10 +234,20 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                     skipUntilRef.current = 0;
                 }, 2000);
             }
+        }, (err) => {
+            console.error("Cloud Listener Error:", err);
+            if (isFirestorePermissionError(err)) {
+                setSyncStatus("forbidden");
+                addLog("🔒 Real-time sync disabled due to Firestore permissions.");
+                if (showToast && !permissionNoticeRef.current) {
+                    showToast("Real-time cloud sync is blocked by Firestore permissions.", "error");
+                    permissionNoticeRef.current = true;
+                }
+            }
         });
 
         return unsub;
-    }, [user?.uid, hasLoadedCloud, setters, addLog]);
+    }, [user?.uid, hasLoadedCloud, setters, addLog, isFirestorePermissionError, showToast]);
 
     // Auto-save local changes to cloud (debounced)
     useEffect(() => {
@@ -233,15 +277,27 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                 setLastSync(payload.lastSync);
             } catch (err) {
                 console.error("Cloud Save Error:", err);
-                setSyncStatus("error");
-                addLog(`❌ Save failed: ${err.message}`);
+                if (isFirestoreOfflineError(err)) {
+                    setSyncStatus("offline");
+                    addLog("📡 Cloud save deferred. Local changes are stored and will sync automatically when Firebase reconnects.");
+                } else if (isFirestorePermissionError(err)) {
+                    setSyncStatus("forbidden");
+                    addLog("🔒 Cloud save blocked by Firestore permissions.");
+                    if (showToast && !permissionNoticeRef.current) {
+                        showToast("Cloud save is blocked by Firestore permissions.", "error");
+                        permissionNoticeRef.current = true;
+                    }
+                } else {
+                    setSyncStatus("error");
+                    addLog(`❌ Save failed: ${err.message}`);
+                }
             } finally {
                 isSavingRef.current = false;
             }
         }, 2000);
 
         return () => clearTimeout(syncTimeoutRef.current);
-    }, [user?.uid, localData, hasLoadedCloud, addLog]);
+    }, [user?.uid, localData, hasLoadedCloud, addLog, isFirestoreOfflineError, isFirestorePermissionError, showToast]);
 
     return {
         syncStatus,
