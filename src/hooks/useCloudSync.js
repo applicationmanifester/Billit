@@ -64,6 +64,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         if (data.currency !== undefined) setters.setCurrency(data.currency);
         if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
         if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
+        if (data.theme !== undefined) setters.setTheme(data.theme);
 
         setLastSync(data.lastSync || new Date().toLocaleTimeString());
     }, [setters]);
@@ -267,6 +268,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                         if (data.currency !== undefined) setters.setCurrency(data.currency);
                         if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
                         if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
+                        if (data.theme !== undefined) setters.setTheme(data.theme);
 
                         setLastSync(data.lastSync || new Date().toLocaleTimeString());
 

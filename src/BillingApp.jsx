@@ -158,8 +158,8 @@ export default function BillingApp() {
   }), [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, defaultNote]);
 
   const setters = useMemo(() => ({
-    setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote
-  }), []);
+    setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setTheme
+  }), [setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setTheme]);
 
   const {
     syncStatus, hasLoadedCloud, syncLog, lastSync, fetchFromCloud, addLog
