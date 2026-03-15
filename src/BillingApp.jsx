@@ -549,11 +549,21 @@ export default function BillingApp() {
     const invs = invoices || [];
     const counts = { all: invs.length, paid: 0, sent: 0, draft: 0, overdue: 0 };
     let revenue = { total: 0, pretax: 0, tax: 0, paid: 0, paidPretax: 0, paidTax: 0, awaiting: 0, overdueAmt: 0, draftTotal: 0 };
+    const taxBreakdown = {};
     const clientStats = {};
     invs.forEach(inv => {
       counts[inv.status]++;
       const sub = (inv.items || []).reduce((sum, it) => sum + (it.qty * it.price), 0);
-      const tx = (inv.items || []).reduce((sum, it) => sum + itemTaxTotal(it, taxRates), 0);
+      const itemsTaxes = (inv.items || []).reduce((acc, it) => {
+        const itemTaxes = getItemTaxList(it, taxRates);
+        itemTaxes.forEach(t => {
+          acc.total += t.amount;
+          taxBreakdown[t.label] = (taxBreakdown[t.label] || 0) + t.amount;
+        });
+        return acc;
+      }, { total: 0 });
+
+      const tx = itemsTaxes.total;
       const gtotal = sub + tx;
       revenue.total += gtotal; revenue.pretax += sub; revenue.tax += tx;
       if (inv.status === "paid") { revenue.paid += gtotal; revenue.paidPretax += sub; revenue.paidTax += tx; }
@@ -565,7 +575,7 @@ export default function BillingApp() {
       clientStats[clientId] += gtotal;
     });
     const sortedClients = Object.entries(clientStats).map(([id, amt]) => ({ ...getClient(id), amount: amt })).sort((a, b) => b.amount - a.amount);
-    return { ...revenue, counts, sortedClients, pending: revenue.awaiting, overdue: revenue.overdueAmt };
+    return { ...revenue, counts, sortedClients, taxBreakdown, pending: revenue.awaiting, overdue: revenue.overdueAmt };
   }, [invoices, taxRates, clients]);
 
   const saveProduct = useCallback(() => {
@@ -619,7 +629,7 @@ export default function BillingApp() {
       {tab === "bills" && <InvoiceManager invoices={invoices} filterStatus={filterStatus} setFilterStatus={setFilterStatus} search={search} setSearch={setSearch} isSelectionMode={isSelectionMode} setIsSelectionMode={setIsSelectionMode} selectedInvoices={selectedInvoices} setSelectedInvoices={setSelectedInvoices} toggleSelection={toggleSelection} deleteInvoices={deleteInvoices} batchUpdateStatus={batchUpdateStatus} downloadMultipleInvoices={downloadMultipleInvoices} printMultipleInvoices={printMultipleInvoices} shareMultipleInvoices={shareMultipleInvoices} showBatchPrint={showBatchPrint} showToast={showToast} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} taxRates={taxRates} setSelectedInvoice={setSelectedInvoice} setShowModal={setShowModal} handleNewInvoice={handleNewInvoice} />}
       {tab === "clients" && <ClientManager clients={clients} setClients={setClients} setClientForm={setClientForm} setSelectedClient={setSelectedClient} setShowModal={setShowModal} invoices={invoices} fmt={fmt} setDeleteConfirm={setDeleteConfirm} />}
       {tab === "items" && <InventoryManager inventoryTitle={inventoryTitle} editingInventoryTitle={editingInventoryTitle} setEditingInventoryTitle={setEditingInventoryTitle} setInventoryTitle={setInventoryTitle} downloadInventoryPDF={downloadInventoryPDF} shareInventoryPDF={shareInventoryPDF} setProductForm={setProductForm} setEditingProductId={setEditingProductId} setShowModal={setShowModal} products={products} setProducts={setProducts} setDeleteConfirm={setDeleteConfirm} fmt={fmt} />}
-      {tab === "reports" && <Reports invoices={invoices} clients={clients} fmt={fmt} totalWithTax={totalWithTax} taxRates={taxRates} />}
+      {tab === "reports" && <Reports invoices={invoices} clients={clients} fmt={fmt} totalWithTax={totalWithTax} taxRates={taxRates} statsMemo={statsMemo} />}
       {tab === "settings" && <Settings user={user} seller={seller} setSellerForm={setSellerForm} setShowSellerModal={setShowSellerModal} authLoading={authLoading} syncStatus={syncStatus} lastSync={lastSync} invoices={invoices} clients={clients} products={products} fetchFromCloud={fetchFromCloud} logout={logout} clearLocalState={clearLocalState} signInWithPopup={loginWithPopup} authError={authError} showToast={showToast} syncLog={syncLog} theme={theme} setTheme={setTheme} toggleTheme={toggleTheme} currency={currency} setShowCurrencyPicker={setShowCurrencyPicker} taxRates={taxRates} setTaxRates={setTaxRates} wipeAllData={wipeAllData} settingsTab={settingsTab} setSettingsTab={setSettingsTab} isDark={isDark} exportInvoicesToCSV={exportInvoicesToCSV} exportClientsToCSV={exportClientsToCSV} exportProductsToCSV={exportProductsToCSV} getClient={getClient} defaultNote={defaultNote} setDefaultNote={setDefaultNote} />}
 
       <InvoiceModal showModal={showModal} setShowModal={(val) => { setShowModal(val); if (!val) { setSelectedInvoice(null); resetForm(); } }} form={form} setForm={setForm} clients={clients} products={products} taxRates={taxRates} saveInvoice={saveInvoice} addItem={addItem} removeItem={removeItem} updateItem={updateItem} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} playFeedback={playFeedback} showToast={showToast} selectedInvoice={selectedInvoice} resetForm={resetForm} isSaving={isSaving} />

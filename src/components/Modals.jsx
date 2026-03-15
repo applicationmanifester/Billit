@@ -8,15 +8,27 @@ export const ClientModal = ({ showModal, setShowModal, clientForm, setClientForm
             <div className="premium-card animate-slide-up" style={{ borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
                 <h2 style={{ marginTop: 0 }}>{selectedClient ? "Edit Client" : "New Client"}</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
-                    <input className="input-field" placeholder="Client Name" value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} />
-                    <input className="input-field" placeholder="Email Address" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} />
-                    <input className="input-field" type="tel" placeholder="Phone Number" value={clientForm.phone}
-                        onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9+]/g, '');
-                            setClientForm({ ...clientForm, phone: val });
-                        }}
-                    />
-                    <textarea className="input-field" placeholder="Address" style={{ height: "100px", paddingTop: "12px" }} value={clientForm.address} onChange={(e) => setClientForm({ ...clientForm, address: e.target.value })} />
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Client Name</div>
+                        <input className="input-field" placeholder="Client Name" value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Email Address</div>
+                        <input className="input-field" placeholder="Email Address" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Phone Number</div>
+                        <input className="input-field" type="tel" placeholder="Phone Number" value={clientForm.phone}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9+]/g, '');
+                                setClientForm({ ...clientForm, phone: val });
+                            }}
+                        />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Address</div>
+                        <textarea className="input-field" placeholder="Address" style={{ height: "100px", paddingTop: "12px" }} value={clientForm.address} onChange={(e) => setClientForm({ ...clientForm, address: e.target.value })} />
+                    </div>
                 </div>
                 <button onClick={saveClient} className="primary-btn" style={{ width: "100%", padding: "16px" }}>Save Client</button>
             </div>
@@ -32,8 +44,14 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
             <div className="premium-card animate-slide-up" style={{ borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
                 <h2 style={{ marginTop: 0 }}>{editingProductId ? "Edit Item" : "Add to Inventory"}</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
-                    <input className="input-field" placeholder="Item Name" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} />
-                    <input type="number" className="input-field" placeholder="Price" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} />
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Item Name</div>
+                        <input className="input-field" placeholder="Item Name" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Price</div>
+                        <input type="number" className="input-field" placeholder="Price" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} />
+                    </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                         <input type="checkbox" id="isDefault" checked={productForm.isDefault} onChange={(e) => setProductForm({ ...productForm, isDefault: e.target.checked })} />

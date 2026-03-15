@@ -1,62 +1,32 @@
 import React from "react";
 
-export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates }) => {
+export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsMemo }) => {
     // Top Clients by Lifetime Value
-    const clientLTV = clients.map(client => {
-        const clientInvoices = invoices.filter(inv => inv.clientId === client.id);
-        const ltv = clientInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
-        return { ...client, ltv };
-    }).sort((a, b) => b.ltv - a.ltv).slice(0, 5);
+    const clientLTV = statsMemo.sortedClients.slice(0, 5);
 
-    // Monthly Trends (Simple Simulation for demo)
+    // Monthly Trends
     const monthlyGroups = invoices.reduce((acc, inv) => {
         const month = inv.date.substring(0, 7); // YYYY-MM
-        acc[month] = (acc[month] || 0) + (inv.totalAmount || 0);
+        const amt = inv.totalAmount || totalWithTax(inv.items, taxRates);
+        acc[month] = (acc[month] || 0) + amt;
         return acc;
     }, {});
 
     const sortedMonths = Object.keys(monthlyGroups).sort().slice(-6);
 
-    // Tax Breakdown
-    const taxSummary = invoices.reduce((acc, inv) => {
-        if (!inv.items) return acc;
-        inv.items.forEach(item => {
-            // Priority 1: Use taxSnapshots (historical accuracy)
-            if (item.taxSnapshots && item.taxSnapshots.length > 0) {
-                item.taxSnapshots.forEach(snap => {
-                    if (item.price && item.qty) {
-                        const taxAmt = (item.price * item.qty * (snap.rate || 0)) / 100;
-                        acc[snap.label] = (acc[snap.label] || 0) + taxAmt;
-                    }
-                });
-            } else {
-                // Priority 2: Fallback to current taxRates (legacy support)
-                const itemTaxIds = Array.isArray(item.tax) ? item.tax : (item.taxId ? [item.taxId] : []);
-                itemTaxIds.forEach(tId => {
-                    const tax = taxRates.find(t => t.id === tId);
-                    if (tax && item.price && item.qty) {
-                        const taxAmt = (item.price * item.qty * tax.rate) / 100;
-                        acc[tax.label] = (acc[tax.label] || 0) + taxAmt;
-                    }
-                });
-            }
-        });
-        return acc;
-    }, {});
-
-    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
-    const totalTaxes = Object.values(taxSummary).reduce((sum, val) => sum + val, 0);
-    const totalPretax = totalRevenue - totalTaxes;
+    const totalRevenue = statsMemo.total;
+    const totalTaxes = statsMemo.tax;
+    const totalPretax = statsMemo.pretax;
 
     // Revenue Breakdown
-    const collected = invoices.filter(inv => inv.status === "paid").reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
-    const awaiting = invoices.filter(inv => inv.status === "sent" || inv.status === "draft").reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
-    const overdue = invoices.filter(inv => inv.status === "overdue").reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    const collected = statsMemo.paid;
+    const awaiting = statsMemo.pending;
+    const overdue = statsMemo.overdue;
 
     // Invoice Stats
-    const totalInvoices = invoices.length;
+    const totalInvoices = statsMemo.counts.all;
     const avgInvoiceValue = totalInvoices > 0 ? totalRevenue / totalInvoices : 0;
-    const paidInvoices = invoices.filter(inv => inv.status === "paid").length;
+    const paidInvoices = statsMemo.counts.paid;
     const collectionRate = totalInvoices > 0 ? (paidInvoices / totalInvoices) * 100 : 0;
 
     return (
@@ -126,11 +96,11 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates }) => {
 
             <div className="premium-card" style={{ padding: "20px", marginBottom: "20px" }}>
                 <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", fontWeight: "bold" }}>TAX BREAKDOWN</div>
-                {Object.keys(taxSummary).length === 0 ? (
+                {!statsMemo.taxBreakdown || Object.keys(statsMemo.taxBreakdown).length === 0 ? (
                     <div style={{ fontSize: "14px", opacity: 0.6 }}>No tax data available.</div>
                 ) : (
                     <div style={{ display: "grid", gap: "10px" }}>
-                        {Object.entries(taxSummary).map(([label, amt]) => (
+                        {Object.entries(statsMemo.taxBreakdown).map(([label, amt]) => (
                             <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--bg-primary)", borderRadius: "12px" }}>
                                 <span style={{ fontWeight: "bold" }}>{label}</span>
                                 <span style={{ color: "var(--accent-primary)", fontWeight: "bold" }}>{fmt(amt)}</span>
