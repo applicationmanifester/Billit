@@ -54,13 +54,13 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
                     { id: "items", icon: "📦", label: "Items" }
                 ].map(n => (
                     <button key={n.id} onClick={() => setTab(n.id)} style={{
-                        flex: 1, background: tab === n.id ? "var(--bg-primary)" : "none",
+                        flex: 1, background: tab === n.id ? "var(--accent-primary)" : "none",
                         border: "none", borderRadius: "18px", padding: "10px", cursor: "pointer",
                         display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
                         transition: "all 0.2s"
                     }}>
                         <span style={{ fontSize: "18px" }}>{n.icon}</span>
-                        <span style={{ fontSize: "10px", fontWeight: "bold", color: tab === n.id ? "var(--accent-secondary)" : "var(--text-secondary)", opacity: 0.9 }}>{n.label}</span>
+                        <span style={{ fontSize: "10px", fontWeight: "bold", color: tab === n.id ? "#000" : "var(--text-secondary)", opacity: 0.9 }}>{n.label}</span>
                     </button>
                 ))}
             </div>

@@ -29,7 +29,7 @@
   --status-sent: #818cf8;
   --status-pending: #818cf8;
   --status-overdue: #f87171;
-  --status-draft: #fbbf24;
+  --status-draft: #94a3b8;
 }
 
 [data-theme='dark'] {
