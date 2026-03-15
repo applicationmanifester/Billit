@@ -88,38 +88,40 @@ export const InvoiceViewModal = ({
 
                 <div style={{ marginBottom: "20px" }}>
                     <div style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "12px" }}>Update Status</div>
-                    {statuses.map(s => {
-                        const isActive = inv.status === s;
-                        let activeBg = "var(--bg-secondary)";
-                        if (isActive) {
-                            if (s === "draft") activeBg = "var(--text-muted)";
-                            if (s === "sent") activeBg = "var(--accent-primary)";
-                            if (s === "paid") activeBg = "var(--status-paid)";
-                            if (s === "overdue") activeBg = "#ef4444";
-                        }
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+                        {statuses.map(s => {
+                            const isActive = inv.status === s;
+                            let activeBg = "var(--bg-secondary)";
+                            if (isActive) {
+                                if (s === "draft") activeBg = "var(--text-muted)";
+                                if (s === "sent") activeBg = "var(--accent-primary)";
+                                if (s === "paid") activeBg = "var(--status-paid)";
+                                if (s === "overdue") activeBg = "#ef4444";
+                            }
 
-                        return (
-                            <button
-                                key={s}
-                                onClick={() => updateStatus(inv.id, s)}
-                                className={isActive ? "" : "secondary-btn"}
-                                style={{
-                                    padding: "10px 4px",
-                                    fontSize: "12px",
-                                    textTransform: "capitalize",
-                                    borderRadius: "12px",
-                                    border: isActive ? "none" : `1px solid var(--border-primary)`,
-                                    background: activeBg,
-                                    color: isActive ? (s === "sent" || s === "paid" || s === "overdue" ? "#000" : "#fff") : "var(--text-secondary)",
-                                    fontWeight: "bold",
-                                    cursor: "pointer",
-                                    transition: "all 0.2s"
-                                }}
-                            >
-                                {s}
-                            </button>
-                        );
-                    })}
+                            return (
+                                <button
+                                    key={s}
+                                    onClick={() => updateStatus(inv.id, s)}
+                                    className={isActive ? "" : "secondary-btn"}
+                                    style={{
+                                        padding: "10px 4px",
+                                        fontSize: "12px",
+                                        textTransform: "capitalize",
+                                        borderRadius: "12px",
+                                        border: isActive ? "none" : `1px solid var(--border-primary)`,
+                                        background: activeBg,
+                                        color: isActive ? (s === "sent" || s === "paid" || s === "overdue" ? "#000" : "#fff") : "var(--text-secondary)",
+                                        fontWeight: "bold",
+                                        cursor: "pointer",
+                                        transition: "all 0.2s"
+                                    }}
+                                >
+                                    {s}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "16px" }}>
