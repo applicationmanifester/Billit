@@ -13,7 +13,9 @@ export const Settings = ({
         <div style={{ padding: "16px" }} className="animate-slide-up">
             <div className="premium-card" style={{ padding: "20px", marginBottom: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                    <div style={{ width: "50px", height: "50px", borderRadius: "15px", background: "var(--accent-gradient)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>🏢</div>
+                    <div style={{ width: "50px", height: "50px", borderRadius: "15px", background: "var(--accent-gradient)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", overflow: "hidden" }}>
+                        {seller.logo ? <img src={seller.logo} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "🏢"}
+                    </div>
                     <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: "bold", fontSize: "16px" }}>{seller.name}</div>
                         <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{seller.email}</div>

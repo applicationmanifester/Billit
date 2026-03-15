@@ -15,7 +15,7 @@ export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, s
                             <div style={{ width: "80px", height: "80px", borderRadius: "20px", background: "var(--bg-input)", margin: "0 auto 8px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `2px dashed ${sellerForm.logo ? "var(--accent-primary)" : "var(--border-primary)"}` }}>
                                 {sellerForm.logo ? <img src={sellerForm.logo} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "24px" }}>🖼️</span>}
                             </div>
-                            <div style={{ fontSize: "10px", fontWeight: "bold", color: "var(--accent-primary)" }}>UPLOADING LOGO</div>
+                            <div style={{ fontSize: "10px", fontWeight: "bold", color: "var(--accent-primary)" }}>UPLOAD LOGO</div>
                             <input type="file" hidden accept="image/*" onChange={async (e) => {
                                 if (e.target.files[0]) {
                                     const reader = new FileReader();
