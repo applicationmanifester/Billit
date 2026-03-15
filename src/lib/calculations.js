@@ -36,3 +36,12 @@ export const formatCurrency = (n, currency) => {
         return (currency?.symbol || "$") + (n || 0).toFixed(2);
     }
 };
+
+export const calculateBaseFromTotal = (total, taxPool, appliedTaxIds) => {
+    const ids = (Array.isArray(appliedTaxIds) ? appliedTaxIds : []).map(String);
+    const totalRate = taxPool
+        .filter(tr => ids.includes(String(tr.id)))
+        .reduce((sum, tr) => sum + (Number(tr.rate) || 0), 0);
+
+    return total / (1 + (totalRate / 100));
+};

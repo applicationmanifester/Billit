@@ -1,7 +1,7 @@
 import React from "react";
 
 export const InvoiceModal = ({
-    showModal, setShowModal, form, setForm, clients, products, taxRates, saveInvoice, addItem, removeItem, updateItem, fmt, totalWithTax, itemTaxTotal, playFeedback, showToast, selectedInvoice, isSaving
+    showModal, setShowModal, form, setForm, clients, products, taxRates, saveInvoice, addItem, removeItem, updateItem, fmt, totalWithTax, itemTaxTotal, calculateBaseFromTotal, playFeedback, showToast, selectedInvoice, isSaving
 }) => {
     if (showModal !== "invoice") return null;
 
@@ -101,6 +101,22 @@ export const InvoiceModal = ({
                                 <div>
                                     <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Price</label>
                                     <input type="number" min="0" className="input-field" style={{ width: "100%", padding: "8px" }} value={item.price} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "price", e.target.value)} />
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Price (Incl. Tax)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        className="input-field"
+                                        style={{ width: "100%", padding: "8px", background: "var(--border-accent)" }}
+                                        value={Math.round((item.price + (itemTaxTotal(item, taxRates) / (item.qty || 1))) * 100) / 100}
+                                        onWheel={preventScrollValueChange}
+                                        onChange={(e) => {
+                                            const newVal = Number(e.target.value) || 0;
+                                            const base = calculateBaseFromTotal(newVal, taxRates, item.tax);
+                                            updateItem(idx, "price", base);
+                                        }}
+                                    />
                                 </div>
                                 <div>
                                     <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total</label>
