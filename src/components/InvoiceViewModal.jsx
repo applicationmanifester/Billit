@@ -91,13 +91,7 @@ export const InvoiceViewModal = ({
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
                         {statuses.map(s => {
                             const isActive = inv.status === s;
-                            let activeBg = "var(--bg-secondary)";
-                            if (isActive) {
-                                if (s === "draft") activeBg = "var(--text-muted)";
-                                if (s === "sent") activeBg = "var(--accent-primary)";
-                                if (s === "paid") activeBg = "var(--status-paid)";
-                                if (s === "overdue") activeBg = "#ef4444";
-                            }
+                            const activeBg = `var(--status-${s})`;
 
                             return (
                                 <button
@@ -110,8 +104,8 @@ export const InvoiceViewModal = ({
                                         textTransform: "capitalize",
                                         borderRadius: "12px",
                                         border: isActive ? "none" : `1px solid var(--border-primary)`,
-                                        background: activeBg,
-                                        color: isActive ? (s === "sent" || s === "paid" || s === "overdue" ? "#000" : "#fff") : "var(--text-secondary)",
+                                        background: isActive ? activeBg : "var(--bg-card)",
+                                        color: isActive ? "#000" : "var(--text-secondary)",
                                         fontWeight: "bold",
                                         cursor: "pointer",
                                         transition: "all 0.2s"

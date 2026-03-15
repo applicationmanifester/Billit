@@ -26,7 +26,7 @@ export const Dashboard = ({ statsMemo, fmt, invoices, getClient, totalWithTax, t
                 </div>
                 <div className="premium-card" style={{ padding: "12px" }}>
                     <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Drafts</div>
-                    <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--text-muted)" }}>{fmt(statsMemo.draftTotal)}</div>
+                    <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--status-draft)" }}>{fmt(statsMemo.draftTotal)}</div>
                 </div>
             </div>
 

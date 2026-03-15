@@ -41,15 +41,19 @@ export const InvoiceManager = ({
                     <button onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedInvoices([]); }} className="secondary-btn" style={{ height: "46px", color: "var(--accent-primary)" }}>{isSelectionMode ? "Cancel" : "Select"}</button>
                 </div>
                 <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px", justifyContent: "center" }}>
-                    {["all", "draft", "sent", "paid", "overdue"].map(s => (
-                        <button key={s} onClick={() => setFilterStatus(s)} style={{
-                            height: "32px", padding: "0 16px", borderRadius: "16px", whiteSpace: "nowrap",
-                            border: `1px solid ${filterStatus === s ? "var(--accent-primary)" : "var(--border-primary)"}`,
-                            background: filterStatus === s ? "var(--accent-primary)" : "var(--bg-card)",
-                            color: filterStatus === s ? "#000" : "var(--text-secondary)",
-                            fontSize: "11px", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s"
-                        }}>{s.toUpperCase()}</button>
-                    ))}
+                    {["all", "draft", "sent", "paid", "overdue"].map(s => {
+                        const isActive = filterStatus === s;
+                        const activeColor = s === "all" ? "var(--accent-primary)" : `var(--status-${s})`;
+                        return (
+                            <button key={s} onClick={() => setFilterStatus(s)} style={{
+                                height: "32px", padding: "0 16px", borderRadius: "16px", whiteSpace: "nowrap",
+                                border: `1px solid ${isActive ? activeColor : "var(--border-primary)"}`,
+                                background: isActive ? activeColor : "var(--bg-card)",
+                                color: isActive ? "#000" : "var(--text-secondary)",
+                                fontSize: "11px", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s"
+                            }}>{s.toUpperCase()}</button>
+                        );
+                    })}
                 </div>
 
                 {isSelectionMode && selectedInvoices.length > 0 && (
