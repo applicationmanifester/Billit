@@ -66,15 +66,27 @@ export const useCloudSync = (user, data, setters, showToast) => {
         clearRetryTimer();
         setSyncStatus("syncing");
         addLog("Initiating fetch from cloud...");
+        if (!db) {
+            console.error("Cloud fetch aborted: db is null");
+            addLog("Sync Error: Firestore database not initialized.");
+            setSyncStatus("error");
+            return;
+        }
+
+        console.log(`Fetching data for: ${u.email} (${u.uid})`);
+        addLog(`Fetching data for: ${u.email}`);
         const userDocRef = doc(db, "users", u.uid);
         try {
+            console.log("Requesting document from Firestore...");
             const docSnap = await withTimeout(
                 getDoc(userDocRef),
                 SYNC_REQUEST_TIMEOUT_MS,
                 "Cloud fetch"
             );
+            console.log("Firestore response received. Exists:", docSnap.exists());
             if (docSnap.exists()) {
                 const cloudData = docSnap.data();
+                console.log("Cloud Data Keys:", Object.keys(cloudData));
                 addLog(`Cloud doc found! Invoices: ${cloudData.invoices?.length || 0}`);
 
                 // Set guard BEFORE updating states
@@ -97,6 +109,7 @@ export const useCloudSync = (user, data, setters, showToast) => {
                 addLog("Data successfully merged from cloud.");
                 resetRetryState();
             } else {
+                console.warn("No document exists at path: users/" + u.uid);
                 addLog("No cloud document found for this account.");
                 setSyncStatus("idle");
                 resetRetryState();
@@ -112,7 +125,7 @@ export const useCloudSync = (user, data, setters, showToast) => {
             }, 500); // 500ms safety margin to ensure all effects have run
 
         } catch (err) {
-            console.error("Cloud fetch error:", err);
+            console.error("Cloud fetch error detail:", err);
             addLog(`Fetch error: ${err.message}`);
             setSyncStatus("error");
             setHasLoadedCloud(true);
@@ -150,6 +163,12 @@ export const useCloudSync = (user, data, setters, showToast) => {
                 if (!data.invoices?.length && !data.clients?.length && !data.products?.length) {
                     console.log("No meaningful local data to sync. Skipping.");
                     setSyncStatus("synced");
+                    return;
+                }
+
+                if (!db) {
+                    addLog("Sync Error: Firestore unavailable.");
+                    setSyncStatus("error");
                     return;
                 }
 

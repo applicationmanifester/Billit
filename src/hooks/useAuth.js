@@ -35,7 +35,13 @@ export const useAuth = (showToast) => {
                 }
             } catch (error) {
                 console.error("Redirect Error:", error.code, error.message);
-                setAuthError(`${error.code}: ${error.message}`);
+                let msg = error.message;
+                if (error.code === 'auth/credential-already-in-use') {
+                    msg = "This Google account is already linked to another user.";
+                } else if (error.code === 'auth/network-request-failed') {
+                    msg = "Network error. Please check your connection.";
+                }
+                setAuthError(`${error.code}: ${msg}`);
                 setAuthLoading(false);
             }
         };

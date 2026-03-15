@@ -213,7 +213,7 @@ export default function BillingApp() {
   };
 
   const wipeCloudState = useCallback(async () => {
-    if (!user) return;
+    if (!user || !db) return;
 
     const resetPayload = {
       invoices: [],

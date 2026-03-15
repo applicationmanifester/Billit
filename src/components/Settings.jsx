@@ -96,10 +96,24 @@ export const Settings = ({
 
                                 <button onClick={() => fetchFromCloud(user)} disabled={syncStatus === "syncing" || syncStatus === "waiting"} className="secondary-btn" style={{
                                     width: "100%", color: "var(--accent-primary)", fontSize: "13px",
-                                    opacity: (syncStatus === "syncing" || syncStatus === "waiting") ? 0.5 : 1
+                                    opacity: (syncStatus === "syncing" || syncStatus === "waiting") ? 0.5 : 1,
+                                    marginBottom: "10px"
                                 }}>
                                     {syncStatus === "syncing" ? "Syncing..." : "🔄 Force Fetch from Cloud"}
                                 </button>
+
+                                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "8px", fontWeight: "bold" }}>Recent Sync Activity</div>
+                                <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: "10px", padding: "10px", maxHeight: "150px", overflowY: "auto", fontSize: "11px", fontFamily: "monospace", border: "1px solid var(--border-primary)" }}>
+                                    {syncLog && syncLog.length > 0 ? (
+                                        syncLog.map((log, i) => (
+                                            <div key={i} style={{ marginBottom: "4px", borderBottom: i < syncLog.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", paddingBottom: "2px" }}>
+                                                <span style={{ opacity: 0.5 }}>[{new Date(log.timestamp).toLocaleTimeString()}]</span> {log.message}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div style={{ opacity: 0.5 }}>No sync logs yet.</div>
+                                    )}
+                                </div>
                             </div>
 
                             <button onClick={() => logout().then(clearLocalState)} style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "none", border: `1px solid var(--border-primary)`, color: "#ef4444", fontWeight: "bold", cursor: "pointer" }}>Logout from Account</button>
@@ -107,9 +121,13 @@ export const Settings = ({
                     ) : (
                         <div style={{ textAlign: "center" }}>
                             <h3 style={{ marginTop: 0 }}>Sync Account</h3>
-                            <button onClick={signInWithPopup} className="premium-card" style={{ width: "100%", padding: "16px", background: "#fff", color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer", borderRadius: "12px" }}>
+                            <button onClick={signInWithPopup} className="premium-card" style={{ width: "100%", padding: "16px", background: "#fff", color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer", borderRadius: "12px", marginBottom: "12px" }}>
                                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "20px" }} alt="Google" />
-                                Sign in with Google
+                                Sign in with Google (Popup)
+                            </button>
+                            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "12px" }}>Having trouble with the popup?</div>
+                            <button onClick={signInWithRedirect} className="secondary-btn" style={{ width: "100%", padding: "12px", fontWeight: "bold", cursor: "pointer" }}>
+                                Use Sign-in with Redirect
                             </button>
                         </div>
                     )}
