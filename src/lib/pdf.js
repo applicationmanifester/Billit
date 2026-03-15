@@ -308,8 +308,8 @@ export const getBatchPDF = async (invList, clients, seller, currency, taxRates) 
     return { bytes: finalPdf, blob, url: URL.createObjectURL(blob) };
 };
 
-export const getPDFData = async (inv, client, seller, currency, taxRates) => {
-    // getBatchPDF expects invList and clients list
-    const pdf = await getBatchPDF([inv], [client], seller, currency, taxRates);
+export const getPDFData = async (inv, clients, seller, currency, taxRates) => {
+    // getBatchPDF expects invList and full clients list for robust lookup
+    const pdf = await getBatchPDF([inv], clients, seller, currency, taxRates);
     return pdf.bytes;
 };

@@ -21,14 +21,25 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates }) => {
     const taxSummary = invoices.reduce((acc, inv) => {
         if (!inv.items) return acc;
         inv.items.forEach(item => {
-            const itemTaxIds = Array.isArray(item.tax) ? item.tax : (item.taxId ? [item.taxId] : []);
-            itemTaxIds.forEach(tId => {
-                const tax = taxRates.find(t => t.id === tId);
-                if (tax && item.price && item.qty) {
-                    const taxAmt = (item.price * item.qty * tax.rate) / 100;
-                    acc[tax.label] = (acc[tax.label] || 0) + taxAmt;
-                }
-            });
+            // Priority 1: Use taxSnapshots (historical accuracy)
+            if (item.taxSnapshots && item.taxSnapshots.length > 0) {
+                item.taxSnapshots.forEach(snap => {
+                    if (item.price && item.qty) {
+                        const taxAmt = (item.price * item.qty * (snap.rate || 0)) / 100;
+                        acc[snap.label] = (acc[snap.label] || 0) + taxAmt;
+                    }
+                });
+            } else {
+                // Priority 2: Fallback to current taxRates (legacy support)
+                const itemTaxIds = Array.isArray(item.tax) ? item.tax : (item.taxId ? [item.taxId] : []);
+                itemTaxIds.forEach(tId => {
+                    const tax = taxRates.find(t => t.id === tId);
+                    if (tax && item.price && item.qty) {
+                        const taxAmt = (item.price * item.qty * tax.rate) / 100;
+                        acc[tax.label] = (acc[tax.label] || 0) + taxAmt;
+                    }
+                });
+            }
         });
         return acc;
     }, {});

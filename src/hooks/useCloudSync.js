@@ -71,16 +71,43 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         }
     }, [user, hasLoadedCloud, fetchFromCloud]);
 
-    // Real-time listener for remote changes (optional, but good for multi-device)
+    // Real-time listener for remote changes (multi-device sync)
     useEffect(() => {
-        if (!user?.uid || !db) return;
-        const unsub = onSnapshot(doc(db, "users", user.uid), (doc) => {
-            if (doc.metadata.hasPendingWrites) return; // ignore local changes
-            // Only update if someone else changed it
-            // implementation omitted for brevity: usually we'd diff timestamps here
+        if (!user?.uid || !db || !hasLoadedCloud) return;
+
+        const unsub = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
+            if (snapshot.metadata.hasPendingWrites) return; // ignore local changes
+
+            const data = snapshot.data();
+            if (!data) return;
+
+            // Simple timestamp diff to see if remote is newer
+            // We use localData.updatedAt which might be slightly behind if we just saved, 
+            // but hasPendingWrites helps us ignore our own echo.
+            const remoteTime = new Date(data.updatedAt || 0).getTime();
+            const localTime = new Date(localData.updatedAt || 0).getTime();
+
+            if (remoteTime > localTime) {
+                addLog("Remote change detected. Syncing down...");
+                skipCloudSave.current = true;
+
+                // Batch setters
+                if (data.invoices) setters.setInvoices(data.invoices);
+                if (data.clients) setters.setClients(data.clients);
+                if (data.products) setters.setProducts(data.products);
+                if (data.seller) setters.setSeller(data.seller);
+                if (data.taxRates) setters.setTaxRates(data.taxRates);
+                if (data.currency) setters.setCurrency(data.currency);
+                if (data.inventoryTitle) setters.setInventoryTitle(data.inventoryTitle);
+                if (data.defaultNote) setters.setDefaultNote(data.defaultNote);
+
+                setLastSync(data.lastSync || new Date().toLocaleTimeString());
+                // Short delay to ensure local state updates are recognized before re-enabling save
+                setTimeout(() => { skipCloudSave.current = false; }, 800);
+            }
         });
         return unsub;
-    }, [user?.uid]);
+    }, [user?.uid, hasLoadedCloud, localData.updatedAt, setters, addLog]);
 
     // Auto-save local changes to cloud
     useEffect(() => {

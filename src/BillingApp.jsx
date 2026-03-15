@@ -28,7 +28,7 @@ import { SellerModal } from "./components/SellerModal";
 import { useCallback } from "react";
 
 // Performance Utilities Outside Component
-const hexMap = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0').toUpperCase());
+// No hexMap here, keeping it in pdf.js
 
 const compressImage = async (dataUrl) => {
   return new Promise((resolve) => {
@@ -157,11 +157,13 @@ export default function BillingApp() {
     defaultNote
   }), [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, defaultNote]);
 
+  const setters = useMemo(() => ({
+    setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote
+  }), []);
+
   const {
     syncStatus, hasLoadedCloud, syncLog, lastSync, fetchFromCloud, addLog
-  } = useCloudSync(user, cloudSyncData, {
-    setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote
-  }, showToast);
+  } = useCloudSync(user, cloudSyncData, setters, showToast);
 
   // Auto-overdue detection
   useEffect(() => {
@@ -203,7 +205,18 @@ export default function BillingApp() {
     setInvoices([]);
     setClients(initialClients);
     setProducts([]);
-    setSeller({ name: "My Business", email: "", phone: "", address: "", gstin: "", tagline: "", logo: null, qrCode: null, invoicePrefix: "INV" });
+    setSeller({
+      name: "My Business",
+      tagline: "Professional Billing",
+      email: "biz@example.com",
+      phone: "+1 000-000-0000",
+      address: "123 Street",
+      gstin: "",
+      website: "",
+      qrCode: "",
+      logo: "",
+      invoicePrefix: "INV"
+    });
     setTaxRates([{ id: 1, label: "GST", rate: 18 }]);
     setCurrency(CURRENCIES[0]);
     setInventoryTitle("Inventory List");
@@ -260,14 +273,14 @@ export default function BillingApp() {
   const [isSaving, setIsSaving] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const getInitialItems = () => {
+  const getInitialItems = useCallback(() => {
     const defaults = products.filter(p => p.isDefault);
     const taxIds = taxRates.map(t => t.id);
     if (defaults.length > 0) {
       return defaults.map(p => ({ desc: p.name, qty: 1, price: p.price, tax: taxIds }));
     }
     return [{ desc: "", qty: 1, price: 0, tax: taxIds }];
-  };
+  }, [products, taxRates]);
 
   const [form, setForm] = useState({
     clientId: (clients[0] || initialClients[0] || {}).id || "",
@@ -341,12 +354,12 @@ export default function BillingApp() {
     };
   }, []);
 
-  const downloadReceipt = useCallback(async (inv, client) => {
-    const bytes = await getPDFData(inv, client, seller, currency, taxRates);
+  const downloadReceipt = useCallback(async (inv) => {
+    const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
     const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = `Invoice-${inv.id}.pdf`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }, [seller, currency, taxRates]);
+  }, [clients, seller, currency, taxRates]);
 
   const downloadMultipleInvoices = useCallback(async (invs) => {
     showToast("Preparing PDF bundle...");
@@ -363,18 +376,18 @@ export default function BillingApp() {
     setTimeout(() => URL.revokeObjectURL(pdf.url), 30000);
   }, [clients, seller, currency, taxRates, showBatchPrint, showToast]);
 
-  const printReceipt = useCallback(async (inv, client) => {
+  const printReceipt = useCallback(async (inv) => {
     console.log("Billit: Preparing print for invoice:", inv.id);
-    const bytes = await getPDFData(inv, client, seller, currency, taxRates);
+    const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
     console.log("Billit: PDF data generated, length:", bytes?.length);
     const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
     showBatchPrint(url);
-  }, [seller, currency, taxRates, showBatchPrint]);
+  }, [clients, seller, currency, taxRates, showBatchPrint]);
 
-  const shareReceipt = useCallback(async (inv, client) => {
+  const shareReceipt = useCallback(async (inv) => {
     try {
       showToast("Preparing PDF...");
-      const bytes = await getPDFData(inv, client, seller, currency, taxRates);
+      const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
       const blob = new Blob([bytes], { type: "application/pdf" });
       const file = new File([blob], `Invoice-${inv.id}.pdf`, { type: "application/pdf" });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -389,7 +402,7 @@ export default function BillingApp() {
         showToast("Summary copied to clipboard!");
       }
     } catch (e) { if (e.name !== "AbortError") showToast("Sharing failed", "error"); }
-  }, [seller, currency, taxRates, fmt, showToast]);
+  }, [clients, seller, currency, taxRates, fmt, showToast]);
 
   const shareMultipleInvoices = useCallback(async (invs) => {
     showToast("Preparing PDF bundle...");
@@ -414,7 +427,7 @@ export default function BillingApp() {
       items: getInitialItems(),
       notes: defaultNote
     });
-  }, [clients, defaultNote, products, taxRates]);
+  }, [clients, defaultNote, getInitialItems]);
 
   const handleNewInvoice = useCallback(() => {
     setSelectedInvoice(null);
@@ -463,10 +476,9 @@ export default function BillingApp() {
       }
 
       if (action) {
-        const client = getClient(form.clientId);
-        if (action === "download") await downloadReceipt(finalInv, client);
-        if (action === "share") await shareReceipt(finalInv, client);
-        if (action === "print") await printReceipt(finalInv, client);
+        if (action === "download") await downloadReceipt(finalInv);
+        if (action === "share") await shareReceipt(finalInv);
+        if (action === "print") await printReceipt(finalInv);
       }
 
       showToast(selectedInvoice ? "Invoice updated!" : "Invoice created!");

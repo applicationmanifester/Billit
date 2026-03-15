@@ -1,3 +1,5 @@
+import React from "react";
+
 export const InvoiceModal = ({
     showModal, setShowModal, form, setForm, clients, products, taxRates, saveInvoice, addItem, removeItem, updateItem, fmt, totalWithTax, itemTaxTotal, playFeedback, showToast, selectedInvoice, isSaving
 }) => {
