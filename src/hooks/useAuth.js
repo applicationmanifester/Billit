@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { auth, googleProvider } from "../firebase";
 import {
     onAuthStateChanged,
@@ -13,32 +13,40 @@ export const useAuth = (showToast) => {
     const [authLoading, setAuthLoading] = useState(true);
     const [authError, setAuthError] = useState(null);
 
+    // FIX: Use a ref for showToast so the effect doesn't re-subscribe on every render.
+    // showToast is recreated every render in BillingApp; putting it in deps caused
+    // onAuthStateChanged to be re-subscribed (and getRedirectResult re-called) on
+    // every single render — leaking Firebase listeners.
+    const showToastRef = useRef(showToast);
     useEffect(() => {
-        // 1. Listen for Auth State Changes (Source of Truth)
+        showToastRef.current = showToast;
+    });
+
+    useEffect(() => {
+        // Subscribe once — never re-runs because deps array is empty.
         const unsub = onAuthStateChanged(auth, (u) => {
-            console.log("Verified Auth State Change:", u ? u.email : "Logged Out");
+            console.log("Auth State Change:", u ? u.email : "Logged Out");
             setUser(u);
             setAuthError(null);
             setAuthLoading(false);
         });
 
-        // 2. Handle pending redirect results
+        // Handle pending redirect results (called once on mount)
         const checkRedirect = async () => {
             try {
                 console.log("Checking for Redirect Result...");
                 const result = await getRedirectResult(auth);
                 if (result) {
                     console.log("Redirect sign-in success for:", result.user.email);
-                    // Note: We don't setUser(result.user) here because onAuthStateChanged 
-                    // will catch the new session and update state for us (Bug 1 fix).
-                    if (showToast) showToast("Signed in with Google!");
+                    // onAuthStateChanged will update user state for us
+                    showToastRef.current?.("Signed in with Google!");
                 }
             } catch (error) {
                 console.error("Redirect Error:", error.code, error.message);
                 let msg = error.message;
-                if (error.code === 'auth/credential-already-in-use') {
+                if (error.code === "auth/credential-already-in-use") {
                     msg = "This Google account is already linked to another user.";
-                } else if (error.code === 'auth/network-request-failed') {
+                } else if (error.code === "auth/network-request-failed") {
                     msg = "Network error. Please check your connection.";
                 }
                 setAuthError(`${error.code}: ${msg}`);
@@ -48,31 +56,32 @@ export const useAuth = (showToast) => {
 
         checkRedirect();
         return unsub;
-    }, [showToast]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // intentionally empty — auth listener should be set up once
 
     const loginWithPopup = async () => {
         setAuthError(null);
-        if (showToast) showToast("Opening Sign-in Popup...");
+        showToastRef.current?.("Opening Sign-in Popup...");
         try {
             const result = await signInWithPopup(auth, googleProvider);
             return result.user;
         } catch (err) {
             console.error("Popup Error:", err);
             setAuthError(err.code);
-            if (showToast) showToast(err.message, "error");
+            showToastRef.current?.(err.message, "error");
             throw err;
         }
     };
 
     const loginWithRedirect = async () => {
         setAuthError(null);
-        if (showToast) showToast("Signing in (Redirect Mode)...");
+        showToastRef.current?.("Signing in (Redirect Mode)...");
         try {
             await signInWithRedirect(auth, googleProvider);
         } catch (err) {
             console.error("Sign-In Redirect Error:", err);
             setAuthError(err.code || err.message);
-            if (showToast) showToast(err.message, "error");
+            showToastRef.current?.(err.message, "error");
             throw err;
         }
     };
@@ -82,7 +91,7 @@ export const useAuth = (showToast) => {
             await firebaseSignOut(auth);
         } catch (err) {
             console.error("Sign-Out Error:", err);
-            if (showToast) showToast("Error signing out", "error");
+            showToastRef.current?.("Error signing out", "error");
             throw err;
         }
     };
