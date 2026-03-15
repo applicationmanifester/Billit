@@ -396,7 +396,7 @@ export default function BillingApp() {
           text: `Check attached invoice from ${seller.name}`
         });
       } else {
-        const text = `Invoice ${inv.id} from ${seller.name}  Total: ${fmt(totalWithTax(inv.items, taxRates))}`;
+        const text = `Invoice ${inv.id} from ${seller.name}\nTotal: ${fmt(totalWithTax(inv.items, taxRates))}`;
         await navigator.clipboard.writeText(text);
         showToast("Summary copied to clipboard!");
       }
