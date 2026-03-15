@@ -36,7 +36,7 @@ export const ClientModal = ({ showModal, setShowModal, clientForm, setClientForm
     );
 };
 
-export const ProductModal = ({ showModal, setShowModal, productForm, setProductForm, editingProductId, saveProduct, compressImage }) => {
+export const ProductModal = ({ showModal, setShowModal, productForm, setProductForm, editingProductId, saveProduct, compressImage, taxRates, itemTaxTotal, calculateBaseFromTotal }) => {
     if (showModal !== "product") return null;
 
     return (
@@ -48,9 +48,52 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Item Name</div>
                         <input className="input-field" placeholder="Item Name" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} />
                     </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <div>
+                            <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Price</div>
+                            <input type="number" className="input-field" placeholder="Price" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: Number(e.target.value) || 0 })} />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Total Price (Incl. Tax)</div>
+                            <input
+                                type="number"
+                                className="input-field"
+                                style={{ background: "var(--border-accent)" }}
+                                placeholder="Total Price"
+                                value={Math.round((Number(productForm.price || 0) + (itemTaxTotal({ ...productForm, qty: 1, tax: productForm.tax || [] }, taxRates))) * 100) / 100}
+                                onChange={(e) => {
+                                    const newVal = Number(e.target.value) || 0;
+                                    const base = calculateBaseFromTotal(newVal, taxRates, productForm.tax || []);
+                                    setProductForm({ ...productForm, price: base });
+                                }}
+                            />
+                        </div>
+                    </div>
+
                     <div>
-                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Price</div>
-                        <input type="number" className="input-field" placeholder="Price" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} />
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Total Tax Amount</div>
+                        <div style={{ padding: "8px 12px", fontSize: "14px", fontWeight: "bold", color: "var(--accent-secondary)", background: "var(--bg-input)", borderRadius: "12px", border: "1px solid var(--border-primary)" }}>
+                            {Math.round(itemTaxTotal({ ...productForm, qty: 1, tax: productForm.tax || [] }, taxRates) * 100) / 100}
+                        </div>
+                    </div>
+
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "8px", marginLeft: "4px" }}>Default Taxes</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                            {taxRates.map(tr => (
+                                <button key={tr.id} onClick={() => {
+                                    const taxes = productForm.tax || [];
+                                    const has = taxes.includes(tr.id);
+                                    setProductForm({ ...productForm, tax: has ? taxes.filter(id => id !== tr.id) : [...taxes, tr.id] });
+                                }} style={{
+                                    padding: "6px 12px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold",
+                                    border: `1px solid ${(productForm.tax || []).includes(tr.id) ? "var(--accent-primary)" : "var(--border-primary)"}`,
+                                    background: (productForm.tax || []).includes(tr.id) ? "var(--accent-primary)" : "none",
+                                    color: (productForm.tax || []).includes(tr.id) ? "#000" : "var(--text-secondary)",
+                                    cursor: "pointer"
+                                }}>{tr.label} ({tr.rate}%)</button>
+                            ))}
+                        </div>
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>

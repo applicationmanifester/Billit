@@ -261,7 +261,7 @@ export default function BillingApp() {
   const [showSellerModal, setShowSellerModal] = useState(false);
   const [sellerForm, setSellerForm] = useState(seller);
   const [editingProductId, setEditingProductId] = useState(null);
-  const [productForm, setProductForm] = useState({ name: "", price: 0, isDefault: false, image: null });
+  const [productForm, setProductForm] = useState({ name: "", price: 0, isDefault: false, image: null, tax: taxRates.map(t => t.id) });
 
   const [clientForm, setClientForm] = useState({ name: "", email: "", phone: "", address: "" });
   const [settingsTab, setSettingsTab] = useState("account");
@@ -276,7 +276,7 @@ export default function BillingApp() {
     const defaults = products.filter(p => p.isDefault);
     const taxIds = taxRates.map(t => t.id);
     if (defaults.length > 0) {
-      return defaults.map(p => ({ desc: p.name, qty: 1, price: p.price, tax: taxIds }));
+      return defaults.map(p => ({ desc: p.name, qty: 1, price: p.price, tax: p.tax || taxIds }));
     }
     return [{ desc: "", qty: 1, price: 0, tax: taxIds }];
   }, [products, taxRates]);
@@ -635,7 +635,7 @@ export default function BillingApp() {
       <InvoiceModal showModal={showModal} setShowModal={(val) => { setShowModal(val); if (!val) { setSelectedInvoice(null); resetForm(); } }} form={form} setForm={setForm} clients={clients} products={products} taxRates={taxRates} saveInvoice={saveInvoice} addItem={addItem} removeItem={removeItem} updateItem={updateItem} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} playFeedback={playFeedback} showToast={showToast} selectedInvoice={selectedInvoice} resetForm={resetForm} isSaving={isSaving} />
       <InvoiceViewModal showModal={showModal} setShowModal={setShowModal} selectedInvoice={selectedInvoice} setSelectedInvoice={setSelectedInvoice} setForm={setForm} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} taxRates={taxRates} downloadReceipt={downloadReceipt} printReceipt={printReceipt} shareReceipt={shareReceipt} setDeleteConfirm={setDeleteConfirm} updateStatus={updateInvoiceStatus} showToast={showToast} />
       <ClientModal showModal={showModal} setShowModal={setShowModal} clientForm={clientForm} setClientForm={setClientForm} selectedClient={selectedClient} saveClient={saveClient} />
-      <ProductModal showModal={showModal} setShowModal={setShowModal} productForm={productForm} setProductForm={setProductForm} editingProductId={editingProductId} saveProduct={saveProduct} compressImage={compressImage} />
+      <ProductModal showModal={showModal} setShowModal={setShowModal} productForm={productForm} setProductForm={setProductForm} editingProductId={editingProductId} saveProduct={saveProduct} compressImage={compressImage} taxRates={taxRates} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} />
       <SellerModal showSellerModal={showSellerModal} setShowSellerModal={setShowSellerModal} sellerForm={sellerForm} setSellerForm={setSellerForm} setSeller={setSeller} showToast={showToast} compressImage={compressImage} />
 
       {showCurrencyPicker && (

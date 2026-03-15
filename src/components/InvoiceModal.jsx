@@ -48,7 +48,7 @@ export const InvoiceModal = ({
                             {products.map(p => (
                                 <button key={p.id} onClick={() => {
                                     const taxIds = taxRates.map(t => t.id);
-                                    const newItem = { desc: p.name, qty: 1, price: p.price, tax: taxIds };
+                                    const newItem = { desc: p.name, qty: 1, price: p.price, tax: p.tax || taxIds };
                                     if (form.items.length === 1 && !form.items[0].desc) {
                                         setForm({ ...form, items: [newItem] });
                                     } else {
@@ -103,7 +103,7 @@ export const InvoiceModal = ({
                                     <input type="number" min="0" className="input-field" style={{ width: "100%", padding: "8px" }} value={item.price} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "price", e.target.value)} />
                                 </div>
                                 <div>
-                                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Price (Incl. Tax)</label>
+                                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total Price (Incl. Tax)</label>
                                     <input
                                         type="number"
                                         min="0"
@@ -118,9 +118,12 @@ export const InvoiceModal = ({
                                         }}
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total</label>
-                                    <div style={{ padding: "8px 0", fontSize: "14px", fontWeight: "bold" }}>{fmt(item.qty * item.price)}</div>
+                            </div>
+
+                            <div style={{ marginTop: "12px" }}>
+                                <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total Tax Amount</label>
+                                <div style={{ padding: "8px 12px", fontSize: "16px", fontWeight: "bold", color: "var(--accent-secondary)", background: "var(--bg-input)", borderRadius: "12px", border: "1px solid var(--border-primary)" }}>
+                                    {fmt(itemTaxTotal(item, taxRates))}
                                 </div>
                             </div>
 
