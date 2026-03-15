@@ -17,6 +17,12 @@ export const useCloudSync = (user, localData, setters, showToast) => {
     const skipUntilRef = useRef(0);
     const isSavingRef = useRef(false);
     const permissionNoticeRef = useRef(false);
+    const showToastRef = useRef(showToast);
+
+    // Sync ref with prop
+    useEffect(() => {
+        showToastRef.current = showToast;
+    });
 
     const isFirestoreOfflineError = useCallback((err) => {
         const code = err?.code || "";
@@ -219,50 +225,77 @@ export const useCloudSync = (user, localData, setters, showToast) => {
     useEffect(() => {
         if (!user?.uid || !db || !hasLoadedCloud) return;
 
-        const unsub = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
-            // Ignore our own pending writes echoing back
-            if (snapshot.metadata.hasPendingWrites) return;
-            // Guard: Ignore if we're in the middle of a fetch/load
-            if (skipCloudSave.current || Date.now() < skipUntilRef.current) return;
-            // Guard: Ensure we're only applying data for the current loaded user
-            if (loadedUidRef.current !== user.uid) return;
+        let unsub = null;
+        let retryCount = 0;
+        let isActive = true;
 
-            const data = snapshot.data();
-            if (!data) return;
-
-            addLog("📥 Remote change detected. Applying...");
-            skipCloudSave.current = true;
-            skipUntilRef.current = Date.now() + 2000;
-
-            if (data.invoices !== undefined) setters.setInvoices(data.invoices);
-            if (data.clients !== undefined) setters.setClients(data.clients);
-            if (data.products !== undefined) setters.setProducts(data.products);
-            if (data.seller !== undefined) setters.setSeller(data.seller);
-            if (data.taxRates !== undefined) setters.setTaxRates(data.taxRates);
-            if (data.currency !== undefined) setters.setCurrency(data.currency);
-            if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
-            if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
-
-            setLastSync(data.lastSync || new Date().toLocaleTimeString());
+        const startListener = (delay = 0) => {
+            if (!isActive) return;
 
             setTimeout(() => {
-                skipCloudSave.current = false;
-                skipUntilRef.current = 0;
-            }, 2000);
-        }, (err) => {
-            console.error("Cloud Listener Error:", err);
-            if (isFirestorePermissionError(err)) {
-                setSyncStatus("error");
-                addLog("🔒 Real-time sync disabled due to Firestore permissions.");
-                if (showToast && !permissionNoticeRef.current) {
-                    showToast("Real-time cloud sync is blocked by Firestore permissions.", "error");
-                    permissionNoticeRef.current = true;
-                }
-            }
-        });
+                if (!isActive) return;
 
-        return unsub;
-    }, [user?.uid, hasLoadedCloud, setters, addLog, isFirestorePermissionError, showToast]);
+                try {
+                    unsub = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
+                        // Ignore our own pending writes echoing back
+                        if (snapshot.metadata.hasPendingWrites) return;
+                        // Guard: Ignore if we're in the middle of a fetch/load
+                        if (skipCloudSave.current || Date.now() < skipUntilRef.current) return;
+                        // Guard: Ensure we're only applying data for the current loaded user
+                        if (loadedUidRef.current !== user.uid) return;
+
+                        const data = snapshot.data();
+                        if (!data) return;
+
+                        addLog("📥 Remote change detected. Applying...");
+                        skipCloudSave.current = true;
+                        skipUntilRef.current = Date.now() + 2000;
+
+                        if (data.invoices !== undefined) setters.setInvoices(data.invoices);
+                        if (data.clients !== undefined) setters.setClients(data.clients);
+                        if (data.products !== undefined) setters.setProducts(data.products);
+                        if (data.seller !== undefined) setters.setSeller(data.seller);
+                        if (data.taxRates !== undefined) setters.setTaxRates(data.taxRates);
+                        if (data.currency !== undefined) setters.setCurrency(data.currency);
+                        if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
+                        if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
+
+                        setLastSync(data.lastSync || new Date().toLocaleTimeString());
+
+                        setTimeout(() => {
+                            skipCloudSave.current = false;
+                            skipUntilRef.current = 0;
+                        }, 2000);
+                    }, (err) => {
+                        console.error("Cloud Listener Error:", err);
+                        if (isFirestorePermissionError(err)) {
+                            if (retryCount < 2) {
+                                retryCount++;
+                                addLog(`⚠️ Real-time sync permission issue. Retrying in ${retryCount * 3}s...`);
+                                startListener(retryCount * 3000);
+                            } else {
+                                setSyncStatus("error");
+                                addLog("🔒 Real-time sync disabled due to Firestore permissions.");
+                                if (showToastRef.current && !permissionNoticeRef.current) {
+                                    showToastRef.current("Real-time cloud sync is blocked by Firestore permissions.", "error");
+                                    permissionNoticeRef.current = true;
+                                }
+                            }
+                        }
+                    });
+                } catch (e) {
+                    console.error("Listener startup failed:", e);
+                }
+            }, delay);
+        };
+
+        startListener(1000); // 1s initial delay to let auth settle
+
+        return () => {
+            isActive = false;
+            if (unsub) unsub();
+        };
+    }, [user?.uid, hasLoadedCloud, setters, addLog, isFirestorePermissionError]);
 
     // Auto-save local changes to cloud (debounced)
     useEffect(() => {
