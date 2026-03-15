@@ -55,7 +55,12 @@ export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, s
                     <input className="input-field" placeholder="Business Name" value={sellerForm.name} onChange={(e) => setSellerForm({ ...sellerForm, name: e.target.value })} />
                     <input className="input-field" placeholder="Tagline / Motto" value={sellerForm.tagline} onChange={(e) => setSellerForm({ ...sellerForm, tagline: e.target.value })} />
                     <input className="input-field" placeholder="Email" value={sellerForm.email} onChange={(e) => setSellerForm({ ...sellerForm, email: e.target.value })} />
-                    <input className="input-field" placeholder="Phone" value={sellerForm.phone} onChange={(e) => setSellerForm({ ...sellerForm, phone: e.target.value })} />
+                    <input className="input-field" type="tel" placeholder="Phone" value={sellerForm.phone}
+                        onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9+]/g, '');
+                            setSellerForm({ ...sellerForm, phone: val });
+                        }}
+                    />
                     <input className="input-field" placeholder="GSTIN (Optional)" value={sellerForm.gstin} onChange={(e) => setSellerForm({ ...sellerForm, gstin: e.target.value })} />
                     <input className="input-field" placeholder="Invoice Prefix (e.g. INV)" value={sellerForm.invoicePrefix} onChange={(e) => setSellerForm({ ...sellerForm, invoicePrefix: e.target.value })} />
                     <textarea className="input-field" placeholder="Full Address" style={{ height: "80px", paddingTop: "12px" }} value={sellerForm.address} onChange={(e) => setSellerForm({ ...sellerForm, address: e.target.value })} />

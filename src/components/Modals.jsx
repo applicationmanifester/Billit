@@ -10,7 +10,12 @@ export const ClientModal = ({ showModal, setShowModal, clientForm, setClientForm
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
                     <input className="input-field" placeholder="Client Name" value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} />
                     <input className="input-field" placeholder="Email Address" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} />
-                    <input className="input-field" placeholder="Phone Number" value={clientForm.phone} onChange={(e) => setClientForm({ ...clientForm, phone: e.target.value })} />
+                    <input className="input-field" type="tel" placeholder="Phone Number" value={clientForm.phone}
+                        onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9+]/g, '');
+                            setClientForm({ ...clientForm, phone: val });
+                        }}
+                    />
                     <textarea className="input-field" placeholder="Address" style={{ height: "100px", paddingTop: "12px" }} value={clientForm.address} onChange={(e) => setClientForm({ ...clientForm, address: e.target.value })} />
                 </div>
                 <button onClick={saveClient} className="primary-btn" style={{ width: "100%", padding: "16px" }}>Save Client</button>

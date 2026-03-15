@@ -88,27 +88,52 @@ export const InvoiceViewModal = ({
 
                 <div style={{ marginBottom: "20px" }}>
                     <div style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "12px" }}>Update Status</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
-                        {statuses.map(s => (
+                    {statuses.map(s => {
+                        const isActive = inv.status === s;
+                        let activeBg = "var(--bg-secondary)";
+                        if (isActive) {
+                            if (s === "draft") activeBg = "var(--text-muted)";
+                            if (s === "sent") activeBg = "var(--accent-primary)";
+                            if (s === "paid") activeBg = "var(--status-paid)";
+                            if (s === "overdue") activeBg = "#ef4444";
+                        }
+
+                        return (
                             <button
                                 key={s}
                                 onClick={() => updateStatus(inv.id, s)}
-                                className={inv.status === s ? "primary-btn" : "secondary-btn"}
-                                style={{ padding: "8px 4px", fontSize: "11px", textTransform: "capitalize", opacity: inv.status === s ? 1 : 0.7 }}
+                                className={isActive ? "" : "secondary-btn"}
+                                style={{
+                                    padding: "10px 4px",
+                                    fontSize: "12px",
+                                    textTransform: "capitalize",
+                                    borderRadius: "12px",
+                                    border: isActive ? "none" : `1px solid var(--border-primary)`,
+                                    background: activeBg,
+                                    color: isActive ? (s === "sent" || s === "paid" || s === "overdue" ? "#000" : "#fff") : "var(--text-secondary)",
+                                    fontWeight: "bold",
+                                    cursor: "pointer",
+                                    transition: "all 0.2s"
+                                }}
                             >
                                 {s}
                             </button>
-                        ))}
-                    </div>
+                        );
+                    })}
                 </div>
 
-                <div style={{ marginBottom: "12px" }}>
-                    <button onClick={() => downloadReceipt(inv)} className="primary-btn" style={{ padding: "14px", width: "100%" }}>⬇️ Download Receipt</button>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "16px" }}>
+                    <button onClick={() => downloadReceipt(inv)} className="secondary-btn" style={{
+                        padding: "12px 4px", background: "#fff", color: "#000", fontWeight: "bold", fontSize: "11px", borderRadius: "10px"
+                    }}>Download</button>
+                    <button onClick={() => printReceipt(inv)} className="secondary-btn" style={{ padding: "12px 4px", fontWeight: "bold", fontSize: "11px", borderRadius: "10px" }}>Print</button>
+                    <button onClick={() => shareReceipt(inv)} className="secondary-btn" style={{ padding: "12px 4px", fontWeight: "bold", fontSize: "11px", borderRadius: "10px" }}>Share</button>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "24px" }}>
-                    <button onClick={() => printReceipt(inv)} className="secondary-btn" style={{ padding: "12px", fontSize: "11px" }}>Print</button>
-                    <button onClick={() => shareReceipt(inv)} className="secondary-btn" style={{ padding: "12px", fontSize: "11px" }}>Share</button>
-                    <button onClick={() => setDeleteConfirm({ type: "single", id: inv.id })} className="secondary-btn" style={{ padding: "12px", fontSize: "11px", color: "#ef4444", border: "1px solid #ef4444" }}>Delete</button>
+
+                <div style={{ paddingBottom: "10px" }}>
+                    <button onClick={() => setDeleteConfirm({ type: "single", id: inv.id })} className="secondary-btn" style={{
+                        width: "100%", padding: "14px", color: "#ef4444", border: "1px solid #ef444433", fontWeight: "bold", borderRadius: "12px"
+                    }}>Delete Invoice</button>
                 </div>
             </div>
         </div>

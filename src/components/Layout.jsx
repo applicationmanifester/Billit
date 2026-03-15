@@ -57,7 +57,7 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
                         transition: "all 0.2s"
                     }}>
                         <span style={{ fontSize: "18px" }}>{n.icon}</span>
-                        <span style={{ fontSize: "10px", fontWeight: "bold", color: tab === n.id ? "var(--accent-secondary)" : "var(--text-secondary)" }}>{n.label}</span>
+                        <span style={{ fontSize: "10px", fontWeight: "bold", color: tab === n.id ? "var(--accent-secondary)" : "var(--text-secondary)", opacity: 0.9 }}>{n.label}</span>
                     </button>
                 ))}
             </div>
