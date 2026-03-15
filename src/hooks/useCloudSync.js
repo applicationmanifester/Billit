@@ -15,6 +15,18 @@ export const useCloudSync = (user, localData, setters, showToast) => {
     const skipUntilRef = useRef(0);
     const isSavingRef = useRef(false);
 
+    const isFirestoreOfflineError = useCallback((err) => {
+        const code = err?.code || "";
+        const message = (err?.message || "").toLowerCase();
+
+        return (
+            code === "unavailable" ||
+            code === "deadline-exceeded" ||
+            /client is offline/.test(message) ||
+            /failed to get document because the client is offline/.test(message)
+        );
+    }, []);
+
     const addLog = useCallback((msg) => {
         setSyncLog(prev => [
             { message: msg, timestamp: new Date().toISOString() },
@@ -35,7 +47,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         setLastSync(data.lastSync || new Date().toLocaleTimeString());
     }, [setters]);
 
-    const loadCachedCloudData = useCallback(async (docRef) => {
+    const loadCachedCloudData = useCallback(async (docRef, err) => {
         try {
             const cachedSnap = await getDocFromCache(docRef);
             if (cachedSnap.exists()) {
@@ -49,7 +61,13 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         }
 
         setSyncStatus("offline");
-        addLog("📡 You're signed in, but internet appears unavailable. Cloud data will sync when connection returns.");
+
+        if (typeof navigator !== "undefined" && navigator.onLine) {
+            addLog(`📡 Browser is online, but Firebase is unreachable (${err?.code || "unknown"}). Check Firestore/network settings.`);
+        } else {
+            addLog("📡 You're signed in, but internet appears unavailable. Cloud data will sync when connection returns.");
+        }
+
         return false;
     }, [addLog, applyCloudData]);
 
@@ -88,10 +106,10 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             setSyncStatus("synced");
         } catch (err) {
             console.error("Cloud Fetch Error:", err);
-            const isOfflineError = err?.code === "unavailable" || /client is offline/i.test(err?.message || "");
+            const isOfflineError = isFirestoreOfflineError(err);
 
             if (isOfflineError) {
-                await loadCachedCloudData(docRef);
+                await loadCachedCloudData(docRef, err);
             } else {
                 setSyncStatus("error");
                 addLog(`❌ Fetch error: ${err.message}`);
@@ -106,7 +124,22 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                 skipUntilRef.current = 0;
             }, 6000); // 6s ensures all state batches settle
         }
-    }, [user?.uid, addLog, loadCachedCloudData, applyCloudData]);
+    }, [user?.uid, addLog, loadCachedCloudData, applyCloudData, isFirestoreOfflineError]);
+
+    // Retry cloud fetch when network returns
+    useEffect(() => {
+        if (!user?.uid) return;
+
+        const handleOnline = () => {
+            if (syncStatus === "offline" || syncStatus === "error") {
+                addLog("🌐 Connection restored. Retrying cloud sync...");
+                fetchFromCloud(user.uid);
+            }
+        };
+
+        window.addEventListener("online", handleOnline);
+        return () => window.removeEventListener("online", handleOnline);
+    }, [user?.uid, syncStatus, fetchFromCloud, addLog]);
 
     // Trigger fetch when user signs in
     useEffect(() => {
