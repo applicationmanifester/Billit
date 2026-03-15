@@ -85,7 +85,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         return false;
     }, [addLog, applyCloudData]);
 
-    const fetchFromCloud = useCallback(async (arg) => {
+    const fetchFromCloud = useCallback(async (arg, retryCount = 0) => {
         let targetUid = arg || user?.uid;
 
         // Defensive check: If targetUid is an object, try to extract the string UID
@@ -95,12 +95,17 @@ export const useCloudSync = (user, localData, setters, showToast) => {
 
         if (!targetUid || typeof targetUid !== "string" || !db) return;
 
+        // Wait a small amount of time on first fetch to let auth propagate
+        if (!hasLoadedCloud && retryCount === 0) {
+            await new Promise(r => setTimeout(r, 800));
+        }
+
         const now = Date.now();
         const isSameUserRapidRetry =
             lastFetchRef.current.uid === targetUid &&
-            now - lastFetchRef.current.at < 3000;
+            now - lastFetchRef.current.at < 2000;
 
-        if (isFetchingRef.current || isSameUserRapidRetry) return;
+        if (isFetchingRef.current || (isSameUserRapidRetry && retryCount === 0)) return;
 
         isFetchingRef.current = true;
         lastFetchRef.current = { uid: targetUid, at: now };
@@ -108,7 +113,11 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         const docRef = doc(db, "users", targetUid);
 
         setSyncStatus("loading");
-        addLog(`Fetching cloud data for ${targetUid}...`);
+        if (retryCount > 0) {
+            addLog(`Retrying cloud fetch (${retryCount})...`);
+        } else {
+            addLog(`Fetching cloud data for ${targetUid}...`);
+        }
 
         // Block any auto-save for 5 seconds to let the fetch + state settle
         skipCloudSave.current = true;
@@ -131,10 +140,16 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         } catch (err) {
             console.error("Cloud Fetch Error:", err);
             const isOfflineError = isFirestoreOfflineError(err);
+            const isPermError = isFirestorePermissionError(err);
 
             if (isOfflineError) {
                 await loadCachedCloudData(docRef, err);
-            } else if (isFirestorePermissionError(err)) {
+            } else if (isPermError && retryCount < 2) {
+                isFetchingRef.current = false; // reset to allow retry
+                addLog("⚠️ Permission transiently denied. Retrying in 1.5s...");
+                setTimeout(() => fetchFromCloud(targetUid, retryCount + 1), 1500);
+                return; // Early return as retry is scheduled
+            } else if (isPermError) {
                 setSyncStatus("error");
                 addLog("🔒 Cloud sync permission denied. Please sign in with the correct account or update Firestore rules.");
                 if (showToast && !permissionNoticeRef.current) {
@@ -149,14 +164,16 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             setHasLoadedCloud(true);
             loadedUidRef.current = targetUid;
         } finally {
-            isFetchingRef.current = false;
+            if (retryCount === 0 || syncStatus !== "loading") {
+                isFetchingRef.current = false;
+            }
             // Release skip lock after state has settled
             setTimeout(() => {
                 skipCloudSave.current = false;
                 skipUntilRef.current = 0;
             }, 6000); // 6s ensures all state batches settle
         }
-    }, [user?.uid, addLog, loadCachedCloudData, applyCloudData, isFirestoreOfflineError, isFirestorePermissionError, showToast]);
+    }, [user?.uid, hasLoadedCloud, addLog, loadCachedCloudData, applyCloudData, isFirestoreOfflineError, isFirestorePermissionError, showToast]);
 
     // Retry cloud fetch when network returns
     useEffect(() => {
