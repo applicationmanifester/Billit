@@ -35,6 +35,24 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         setLastSync(data.lastSync || new Date().toLocaleTimeString());
     }, [setters]);
 
+    const loadCachedCloudData = useCallback(async (docRef) => {
+        try {
+            const cachedSnap = await getDocFromCache(docRef);
+            if (cachedSnap.exists()) {
+                applyCloudData(cachedSnap.data());
+                setSyncStatus("synced");
+                addLog("📦 Offline mode: loaded cached cloud data.");
+                return true;
+            }
+        } catch {
+            // No cached data available yet
+        }
+
+        setSyncStatus("offline");
+        addLog("📡 You're signed in, but internet appears unavailable. Cloud data will sync when connection returns.");
+        return false;
+    }, [addLog, applyCloudData]);
+
     const fetchFromCloud = useCallback(async (arg) => {
         let targetUid = arg || user?.uid;
 
@@ -45,6 +63,8 @@ export const useCloudSync = (user, localData, setters, showToast) => {
 
         if (!targetUid || typeof targetUid !== "string" || !db) return;
 
+        const docRef = doc(db, "users", targetUid);
+
         setSyncStatus("loading");
         addLog(`Fetching cloud data for ${targetUid}...`);
 
@@ -53,7 +73,6 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         skipUntilRef.current = Date.now() + 5000;
 
         try {
-            const docRef = doc(db, "users", targetUid);
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists()) {
@@ -69,24 +88,10 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             setSyncStatus("synced");
         } catch (err) {
             console.error("Cloud Fetch Error:", err);
-            const docRef = doc(db, "users", targetUid);
             const isOfflineError = err?.code === "unavailable" || /client is offline/i.test(err?.message || "");
 
             if (isOfflineError) {
-                try {
-                    const cachedSnap = await getDocFromCache(docRef);
-                    if (cachedSnap.exists()) {
-                        applyCloudData(cachedSnap.data());
-                        setSyncStatus("synced");
-                        addLog("📦 Offline mode: loaded cached cloud data.");
-                    } else {
-                        setSyncStatus("offline");
-                        addLog("📡 You're offline and no cached cloud data is available yet.");
-                    }
-                } catch {
-                    setSyncStatus("offline");
-                    addLog("📡 You're offline. Cloud data will sync when connection returns.");
-                }
+                await loadCachedCloudData(docRef);
             } else {
                 setSyncStatus("error");
                 addLog(`❌ Fetch error: ${err.message}`);
@@ -101,7 +106,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                 skipUntilRef.current = 0;
             }, 6000); // 6s ensures all state batches settle
         }
-    }, [user?.uid, addLog, applyCloudData]);
+    }, [user?.uid, addLog, loadCachedCloudData, applyCloudData]);
 
     // Trigger fetch when user signs in
     useEffect(() => {
