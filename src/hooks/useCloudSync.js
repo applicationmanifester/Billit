@@ -135,7 +135,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             if (isOfflineError) {
                 await loadCachedCloudData(docRef, err);
             } else if (isFirestorePermissionError(err)) {
-                setSyncStatus("forbidden");
+                setSyncStatus("error");
                 addLog("🔒 Cloud sync permission denied. Please sign in with the correct account or update Firestore rules.");
                 if (showToast && !permissionNoticeRef.current) {
                     showToast("Cloud sync is blocked by Firestore permissions.", "error");
@@ -213,31 +213,29 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             const data = snapshot.data();
             if (!data) return;
 
-            if (data) {
-                addLog("📥 Remote change detected. Applying...");
-                skipCloudSave.current = true;
-                skipUntilRef.current = Date.now() + 2000;
+            addLog("📥 Remote change detected. Applying...");
+            skipCloudSave.current = true;
+            skipUntilRef.current = Date.now() + 2000;
 
-                if (data.invoices !== undefined) setters.setInvoices(data.invoices);
-                if (data.clients !== undefined) setters.setClients(data.clients);
-                if (data.products !== undefined) setters.setProducts(data.products);
-                if (data.seller !== undefined) setters.setSeller(data.seller);
-                if (data.taxRates !== undefined) setters.setTaxRates(data.taxRates);
-                if (data.currency !== undefined) setters.setCurrency(data.currency);
-                if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
-                if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
+            if (data.invoices !== undefined) setters.setInvoices(data.invoices);
+            if (data.clients !== undefined) setters.setClients(data.clients);
+            if (data.products !== undefined) setters.setProducts(data.products);
+            if (data.seller !== undefined) setters.setSeller(data.seller);
+            if (data.taxRates !== undefined) setters.setTaxRates(data.taxRates);
+            if (data.currency !== undefined) setters.setCurrency(data.currency);
+            if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
+            if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
 
-                setLastSync(data.lastSync || new Date().toLocaleTimeString());
+            setLastSync(data.lastSync || new Date().toLocaleTimeString());
 
-                setTimeout(() => {
-                    skipCloudSave.current = false;
-                    skipUntilRef.current = 0;
-                }, 2000);
-            }
+            setTimeout(() => {
+                skipCloudSave.current = false;
+                skipUntilRef.current = 0;
+            }, 2000);
         }, (err) => {
             console.error("Cloud Listener Error:", err);
             if (isFirestorePermissionError(err)) {
-                setSyncStatus("forbidden");
+                setSyncStatus("error");
                 addLog("🔒 Real-time sync disabled due to Firestore permissions.");
                 if (showToast && !permissionNoticeRef.current) {
                     showToast("Real-time cloud sync is blocked by Firestore permissions.", "error");
@@ -281,7 +279,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                     setSyncStatus("offline");
                     addLog("📡 Cloud save deferred. Local changes are stored and will sync automatically when Firebase reconnects.");
                 } else if (isFirestorePermissionError(err)) {
-                    setSyncStatus("forbidden");
+                    setSyncStatus("error");
                     addLog("🔒 Cloud save blocked by Firestore permissions.");
                     if (showToast && !permissionNoticeRef.current) {
                         showToast("Cloud save is blocked by Firestore permissions.", "error");
