@@ -30,7 +30,7 @@ export const Dashboard = ({ statsMemo, fmt, invoices, getClient, totalWithTax, t
                 </div>
             </div>
 
-            <div className="premium-card" style={{ margin: "16px 0", background: "rgba(245,200,66,0.03)", border: "1px solid var(--border-accent)" }}>
+            <div className="premium-card" style={{ margin: "16px 0", background: "var(--border-accent)", border: "1px solid var(--border-accent)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                     <span style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase" }}>Total Collected</span>
                     <span style={{ fontSize: "11px", color: "var(--status-paid)", fontWeight: "bold" }}>{statsMemo.total > 0 ? Math.round((statsMemo.paid / statsMemo.total) * 100) : 0}%</span>

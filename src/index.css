@@ -45,10 +45,15 @@
 
   --border-primary: #2a2535;
   --border-secondary: #2a2535;
-  --border-accent: rgba(245, 200, 66, 0.1);
+  --border-accent: rgba(204, 255, 153, 0.1);
 
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);
+
+  /* Accent overrides for dark mode */
+  --accent-primary: #ccff99;
+  --accent-secondary: #99ff66;
+  --accent-gradient: linear-gradient(135deg, #ccff99, #99ff66);
 }
 
 * {
@@ -175,6 +180,7 @@ body {
 .animate-slide-up {
   animation: slideUp 0.4s ease-out forwards;
 }
+
 /* Empty State */
 .empty-state {
   display: flex;

@@ -668,7 +668,7 @@ export default function BillingApp() {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    background: currency.code === c.code ? "rgba(255,193,7,0.1)" : "transparent",
+                    background: currency.code === c.code ? "var(--border-accent)" : "transparent",
                     border: `1px solid ${currency.code === c.code ? "var(--accent-primary)" : "transparent"}`,
                     marginBottom: "4px",
                     cursor: "pointer"
