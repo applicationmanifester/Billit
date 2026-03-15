@@ -23,7 +23,7 @@ export const Settings = ({
             </div>
 
             <div style={{ display: "flex", gap: "10px", marginBottom: "16px", overflowX: "auto", paddingBottom: "4px" }}>
-                {["app", "account", "currency", "taxes", "export"].map(s => (
+                {["account", "app", "currency", "taxes", "export"].map(s => (
                     <button key={s} onClick={() => setSettingsTab(s)} style={{
                         padding: "8px 16px", borderRadius: "12px", whiteSpace: "nowrap", border: `1px solid ${settingsTab === s ? "var(--accent-primary)" : "var(--border-primary)"}`,
                         background: settingsTab === s ? "var(--accent-primary)" : "var(--bg-card)", color: settingsTab === s ? "#000" : "var(--text-secondary)", fontSize: "12px", fontWeight: "bold"

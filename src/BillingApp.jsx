@@ -264,7 +264,7 @@ export default function BillingApp() {
   const [productForm, setProductForm] = useState({ name: "", price: 0, isDefault: false, image: null });
 
   const [clientForm, setClientForm] = useState({ name: "", email: "", phone: "", address: "" });
-  const [settingsTab, setSettingsTab] = useState("app");
+  const [settingsTab, setSettingsTab] = useState("account");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const [selectedInvoices, setSelectedInvoices] = useState([]);
