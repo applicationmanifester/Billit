@@ -67,7 +67,7 @@ export const Settings = ({
                                 <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "12px", fontWeight: "bold", textTransform: "uppercase" }}>Cloud Sync Status</div>
                                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                                     <span style={{ fontSize: "14px" }}>Status</span>
-                                    <span style={{ fontSize: "14px", fontWeight: "bold", color: syncStatus === "synced" ? "var(--status-paid)" : syncStatus === "syncing" ? "var(--accent-primary)" : "var(--text-primary)" }}>
+                                    <span style={{ fontSize: "14px", fontWeight: "bold", color: syncStatus === "synced" ? "var(--status-paid)" : ["saving", "loading"].includes(syncStatus) ? "var(--accent-primary)" : syncStatus === "error" ? "#ef4444" : "var(--text-primary)" }}>
                                         {syncStatus.charAt(0).toUpperCase() + syncStatus.slice(1)}
                                     </span>
                                 </div>
@@ -94,12 +94,12 @@ export const Settings = ({
                                     </div>
                                 </div>
 
-                                <button onClick={() => fetchFromCloud(user.uid)} disabled={syncStatus === "syncing" || syncStatus === "waiting"} className="secondary-btn" style={{
+                                <button onClick={() => fetchFromCloud(user.uid)} disabled={["saving", "loading"].includes(syncStatus)} className="secondary-btn" style={{
                                     width: "100%", color: "var(--accent-primary)", fontSize: "13px",
-                                    opacity: (syncStatus === "syncing" || syncStatus === "waiting") ? 0.5 : 1,
+                                    opacity: (["saving", "loading"].includes(syncStatus)) ? 0.5 : 1,
                                     marginBottom: "10px"
                                 }}>
-                                    {syncStatus === "syncing" ? "Syncing..." : "🔄 Force Fetch from Cloud"}
+                                    {["saving", "loading"].includes(syncStatus) ? "Syncing..." : "🔄 Force Fetch from Cloud"}
                                 </button>
 
                                 <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "8px", fontWeight: "bold" }}>Recent Sync Activity</div>
