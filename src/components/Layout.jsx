@@ -13,21 +13,24 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
                 width: "100%", zIndex: 100,
                 background: "var(--bg-header)",
                 padding: "12px 16px", borderBottom: `1px solid var(--border-primary)`,
-                display: "grid", gridTemplateColumns: "100px 1fr 150px", alignItems: "center",
-                boxSizing: "border-box"
+                display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center",
+                boxSizing: "border-box", gap: "10px"
             }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                <div
+                    onClick={() => setTab("home")}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", cursor: "pointer", minWidth: "50px" }}
+                >
                     <div style={{ background: "var(--accent-gradient)", width: "32px", height: "32px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", color: "#000" }}>B</div>
                     <h1 style={{ fontSize: "12px", fontWeight: "900", letterSpacing: "-0.2px", margin: 0, opacity: 0.9 }}>Billit</h1>
                 </div>
 
-                <div style={{ textAlign: "center", fontSize: "16px", fontWeight: "bold", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 10px" }}>
+                <div style={{ textAlign: "center", fontSize: "16px", fontWeight: "bold", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 4px" }}>
                     {seller.name}
                 </div>
 
-                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                     <button onClick={() => setTab("settings")} className="secondary-btn" style={{ padding: "8px", borderRadius: "10px" }}>⚙️</button>
-                    <button className="primary-btn" style={{ fontSize: "12px", padding: "10px 14px" }} onClick={handleNewInvoice}>+ New Invoice</button>
+                    <button className="primary-btn" style={{ fontSize: "11px", padding: "10px 12px", whiteSpace: "nowrap" }} onClick={handleNewInvoice}>+ New Invoice</button>
                 </div>
             </div>
 

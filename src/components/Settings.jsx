@@ -18,7 +18,13 @@ export const Settings = ({
                         <div style={{ fontWeight: "bold", fontSize: "16px" }}>{seller.name}</div>
                         <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{seller.email}</div>
                     </div>
-                    <button onClick={() => { setSellerForm(seller); setShowSellerModal(true); }} style={{ background: "none", border: "none", color: "var(--accent-primary)", fontWeight: "bold" }}>Edit</button>
+                    <button
+                        onClick={() => { setSellerForm(seller); setShowSellerModal(true); }}
+                        className="secondary-btn"
+                        style={{ padding: "8px 16px", borderRadius: "10px", fontSize: "12px", fontWeight: "bold", color: "var(--accent-primary)" }}
+                    >
+                        Edit
+                    </button>
                 </div>
             </div>
 
