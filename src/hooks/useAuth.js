@@ -51,6 +51,7 @@ export const useAuth = (showToast) => {
     }, [showToast]);
 
     const loginWithPopup = async () => {
+        setAuthError(null);
         if (showToast) showToast("Opening Sign-in Popup...");
         try {
             const result = await signInWithPopup(auth, googleProvider);
@@ -64,11 +65,13 @@ export const useAuth = (showToast) => {
     };
 
     const loginWithRedirect = async () => {
+        setAuthError(null);
         if (showToast) showToast("Signing in (Redirect Mode)...");
         try {
             await signInWithRedirect(auth, googleProvider);
         } catch (err) {
             console.error("Sign-In Redirect Error:", err);
+            setAuthError(err.code || err.message);
             if (showToast) showToast(err.message, "error");
             throw err;
         }
