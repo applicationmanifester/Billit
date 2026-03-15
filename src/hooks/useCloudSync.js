@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "../firebase";
-import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, getDocFromCache, setDoc, onSnapshot } from "firebase/firestore";
 
 export const useCloudSync = (user, localData, setters, showToast) => {
     const [syncStatus, setSyncStatus] = useState("idle");
@@ -21,6 +21,19 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             ...prev
         ].slice(0, 50));
     }, []);
+
+    const applyCloudData = useCallback((data) => {
+        if (data.invoices !== undefined) setters.setInvoices(data.invoices);
+        if (data.clients !== undefined) setters.setClients(data.clients);
+        if (data.products !== undefined) setters.setProducts(data.products);
+        if (data.seller !== undefined) setters.setSeller(data.seller);
+        if (data.taxRates !== undefined) setters.setTaxRates(data.taxRates);
+        if (data.currency !== undefined) setters.setCurrency(data.currency);
+        if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
+        if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
+
+        setLastSync(data.lastSync || new Date().toLocaleTimeString());
+    }, [setters]);
 
     const fetchFromCloud = useCallback(async (arg) => {
         let targetUid = arg || user?.uid;
@@ -45,17 +58,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
 
             if (docSnap.exists()) {
                 const data = docSnap.data();
-
-                if (data.invoices !== undefined) setters.setInvoices(data.invoices);
-                if (data.clients !== undefined) setters.setClients(data.clients);
-                if (data.products !== undefined) setters.setProducts(data.products);
-                if (data.seller !== undefined) setters.setSeller(data.seller);
-                if (data.taxRates !== undefined) setters.setTaxRates(data.taxRates);
-                if (data.currency !== undefined) setters.setCurrency(data.currency);
-                if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
-                if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
-
-                setLastSync(data.lastSync || new Date().toLocaleTimeString());
+                applyCloudData(data);
                 addLog("✅ Cloud data applied successfully");
             } else {
                 addLog("No cloud data found for user. Starting fresh.");
@@ -66,8 +69,28 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             setSyncStatus("synced");
         } catch (err) {
             console.error("Cloud Fetch Error:", err);
-            setSyncStatus("error");
-            addLog(`❌ Fetch error: ${err.message}`);
+            const docRef = doc(db, "users", targetUid);
+            const isOfflineError = err?.code === "unavailable" || /client is offline/i.test(err?.message || "");
+
+            if (isOfflineError) {
+                try {
+                    const cachedSnap = await getDocFromCache(docRef);
+                    if (cachedSnap.exists()) {
+                        applyCloudData(cachedSnap.data());
+                        setSyncStatus("synced");
+                        addLog("📦 Offline mode: loaded cached cloud data.");
+                    } else {
+                        setSyncStatus("offline");
+                        addLog("📡 You're offline and no cached cloud data is available yet.");
+                    }
+                } catch {
+                    setSyncStatus("offline");
+                    addLog("📡 You're offline. Cloud data will sync when connection returns.");
+                }
+            } else {
+                setSyncStatus("error");
+                addLog(`❌ Fetch error: ${err.message}`);
+            }
             // Still mark as loaded so app is usable offline
             setHasLoadedCloud(true);
             loadedUidRef.current = targetUid;
@@ -78,7 +101,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                 skipUntilRef.current = 0;
             }, 6000); // 6s ensures all state batches settle
         }
-    }, [user?.uid, addLog, setters]);
+    }, [user?.uid, addLog, applyCloudData]);
 
     // Trigger fetch when user signs in
     useEffect(() => {
