@@ -105,11 +105,20 @@ export const Settings = ({
                                 <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "8px", fontWeight: "bold" }}>Recent Sync Activity</div>
                                 <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: "10px", padding: "10px", maxHeight: "150px", overflowY: "auto", fontSize: "11px", fontFamily: "monospace", border: "1px solid var(--border-primary)" }}>
                                     {syncLog && syncLog.length > 0 ? (
-                                        syncLog.map((log, i) => (
-                                            <div key={i} style={{ marginBottom: "4px", borderBottom: i < syncLog.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", paddingBottom: "2px" }}>
-                                                <span style={{ opacity: 0.5 }}>[{new Date(log.timestamp).toLocaleTimeString()}]</span> {log.message}
-                                            </div>
-                                        ))
+                                        syncLog.map((log, i) => {
+                                            const rawMessage = typeof log === "string" ? log : log?.message;
+                                            const message = rawMessage || "Sync event";
+                                            const timestamp = typeof log === "object" ? log?.timestamp : null;
+                                            const parsedDate = timestamp ? new Date(timestamp) : null;
+                                            const hasValidTime = parsedDate && !Number.isNaN(parsedDate.getTime());
+
+                                            return (
+                                                <div key={i} style={{ marginBottom: "4px", borderBottom: i < syncLog.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", paddingBottom: "2px" }}>
+                                                    {hasValidTime ? <span style={{ opacity: 0.5 }}>[{parsedDate.toLocaleTimeString()}] </span> : null}
+                                                    {message}
+                                                </div>
+                                            );
+                                        })
                                     ) : (
                                         <div style={{ opacity: 0.5 }}>No sync logs yet.</div>
                                     )}

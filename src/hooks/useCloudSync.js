@@ -34,7 +34,7 @@ export const useCloudSync = (user, data, setters, showToast) => {
     const retryTimeoutRef = useRef(null);
     const retryAttemptRef = useRef(0);
 
-    const addLog = (msg) => setSyncLog(prev => [msg, ...prev].slice(0, 10));
+    const addLog = (message) => setSyncLog(prev => [{ timestamp: Date.now(), message }, ...prev].slice(0, 10));
 
     const clearRetryTimer = () => {
         if (retryTimeoutRef.current) {
