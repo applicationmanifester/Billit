@@ -13,6 +13,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
     const syncTimeoutRef = useRef(null);
     // Track how long to keep skipping saves after a cloud load
     const skipUntilRef = useRef(0);
+    const isSavingRef = useRef(false);
 
     const addLog = useCallback((msg) => {
         setSyncLog(prev => [
@@ -72,8 +73,10 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             loadedUidRef.current = targetUid;
         } finally {
             // Release skip lock after state has settled
-            skipCloudSave.current = false; // reset the ref immediately
-            // skipUntilRef already set to Date.now() + 5000, that's the real guard
+            setTimeout(() => {
+                skipCloudSave.current = false;
+                skipUntilRef.current = 0;
+            }, 6000); // 6s ensures all state batches settle
         }
     }, [user?.uid, addLog, setters]);
 
@@ -107,8 +110,10 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         const unsub = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
             // Ignore our own pending writes echoing back
             if (snapshot.metadata.hasPendingWrites) return;
-            // Ignore if we're in the middle of a fetch/load
+            // Guard: Ignore if we're in the middle of a fetch/load
             if (skipCloudSave.current || Date.now() < skipUntilRef.current) return;
+            // Guard: Ensure we're only applying data for the current loaded user
+            if (loadedUidRef.current !== user.uid) return;
 
             const data = snapshot.data();
             if (!data) return;
@@ -149,12 +154,12 @@ export const useCloudSync = (user, localData, setters, showToast) => {
         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
 
         syncTimeoutRef.current = setTimeout(async () => {
+            // Re-check guards right before saving
+            if (skipCloudSave.current || Date.now() < skipUntilRef.current) return;
+            if (isSavingRef.current) return; // Prevent overlapping saves
+
             setSyncStatus("saving");
-            // Re-check guard right before saving (state may have changed during debounce)
-            if (skipCloudSave.current || Date.now() < skipUntilRef.current) {
-                setSyncStatus("synced");
-                return;
-            }
+            isSavingRef.current = true;
             try {
                 const now = new Date();
                 const payload = {
@@ -169,6 +174,8 @@ export const useCloudSync = (user, localData, setters, showToast) => {
                 console.error("Cloud Save Error:", err);
                 setSyncStatus("error");
                 addLog(`❌ Save failed: ${err.message}`);
+            } finally {
+                isSavingRef.current = false;
             }
         }, 2000);
 

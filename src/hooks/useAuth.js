@@ -31,14 +31,14 @@ export const useAuth = (showToast) => {
             setAuthLoading(false);
         });
 
-        // Handle pending redirect results (called once on mount)
+        // Handle pending redirect results (gated by session flag)
         const checkRedirect = async () => {
+            if (sessionStorage.getItem("firebase_redirect_pending") !== "true") return;
             try {
                 console.log("Checking for Redirect Result...");
                 const result = await getRedirectResult(auth);
                 if (result) {
                     console.log("Redirect sign-in success for:", result.user.email);
-                    // onAuthStateChanged will update user state for us
                     showToastRef.current?.("Signed in with Google!");
                 }
             } catch (error) {
@@ -51,6 +51,8 @@ export const useAuth = (showToast) => {
                 }
                 setAuthError(`${error.code}: ${msg}`);
                 setAuthLoading(false);
+            } finally {
+                sessionStorage.removeItem("firebase_redirect_pending");
             }
         };
 
@@ -77,6 +79,7 @@ export const useAuth = (showToast) => {
         setAuthError(null);
         showToastRef.current?.("Signing in (Redirect Mode)...");
         try {
+            sessionStorage.setItem("firebase_redirect_pending", "true");
             await signInWithRedirect(auth, googleProvider);
         } catch (err) {
             console.error("Sign-In Redirect Error:", err);

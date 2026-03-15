@@ -182,7 +182,7 @@ export default function BillingApp() {
       setInvoices(updatedInvoices);
       addLog("Auto-updated overdue statuses");
     }
-  }, [invoices.length]); // Only run when count changes or on mount
+  }, [invoices.map(i => `${i.id}:${i.status}:${i.due}`).join(","), addLog]);
 
   // Local persistence
   useEffect(() => {
