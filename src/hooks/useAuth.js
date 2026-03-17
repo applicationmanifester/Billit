@@ -25,6 +25,16 @@ export const useAuth = (showToast) => {
     useEffect(() => {
         // Subscribe once — never re-runs because deps array is empty.
         const unsub = onAuthStateChanged(auth, (u) => {
+            // STRICT GATING: If user exists but hasn't accepted terms, sign them out immediately.
+            const hasAccepted = localStorage.getItem("billit_hasAcceptedLegal") === "true";
+            
+            if (u && !hasAccepted) {
+                firebaseSignOut(auth);
+                setUser(null);
+                setAuthLoading(false);
+                return;
+            }
+
             // MASKING: Only expose the user if sign-in was explicit in this session
             const isExplicit = sessionStorage.getItem("billit_explicit_signin") === "true";
             

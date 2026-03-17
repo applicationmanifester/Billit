@@ -773,7 +773,9 @@ export default function BillingApp() {
           localStorage.setItem("billit_hasAcceptedLegal", "true");
           sessionStorage.setItem("billit_explicit_signin", "true");
           setShowLegalModal(false);
-          showToast("Terms Accepted! You can now Sync.");
+          showToast("Terms Accepted! Signing in...");
+          // Wait for state to update then trigger login
+          setTimeout(() => loginWithPopup(), 300);
         }}
         onDecline={() => {
           setHasAcceptedLegal(false);
