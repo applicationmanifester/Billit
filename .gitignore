@@ -5,8 +5,6 @@ dist
 *.log
 .gemini
 brain
-*.webp
-*.png
 android/
 ios/
 .env
