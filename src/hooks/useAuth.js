@@ -25,8 +25,15 @@ export const useAuth = (showToast) => {
     useEffect(() => {
         // Subscribe once — never re-runs because deps array is empty.
         const unsub = onAuthStateChanged(auth, (u) => {
-
-            setUser(u);
+            // MASKING: Only expose the user if sign-in was explicit in this session
+            const isExplicit = sessionStorage.getItem("billit_explicit_signin") === "true";
+            
+            if (u && isExplicit) {
+                setUser(u);
+            } else {
+                setUser(null);
+            }
+            
             setAuthError(null);
             setAuthLoading(false);
         });
@@ -89,6 +96,7 @@ export const useAuth = (showToast) => {
 
     const logout = async () => {
         try {
+            sessionStorage.removeItem("billit_explicit_signin");
             await firebaseSignOut(auth);
         } catch (err) {
             console.error("Sign-Out Error:", err);

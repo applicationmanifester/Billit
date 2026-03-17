@@ -172,13 +172,8 @@ export default function BillingApp() {
     user, authLoading, authError, loginWithPopup, logout
   } = useAuth(showToast);
 
-  // Hard-gate: Force logout if user is signed in but hasn't accepted legal terms
-  useEffect(() => {
-    if (user && !hasAcceptedLegal && !authLoading) {
-      logout();
-      showToast("Please accept Terms & Privacy Policy to use Cloud Sync", "error");
-    }
-  }, [user, hasAcceptedLegal, authLoading, logout, showToast]);
+  // The auto-logout logic is removed because useAuth now masks 
+  // the user state until explicit sign-in (and acceptance of terms) occurs.
 
   const cloudSyncData = useMemo(() => ({
     invoices,
@@ -743,6 +738,7 @@ export default function BillingApp() {
       setShowLegalModal(true);
       return;
     }
+    sessionStorage.setItem("billit_explicit_signin", "true");
     return loginWithPopup();
   };
 
@@ -775,6 +771,7 @@ export default function BillingApp() {
         onAccept={() => {
           setHasAcceptedLegal(true);
           localStorage.setItem("billit_hasAcceptedLegal", "true");
+          sessionStorage.setItem("billit_explicit_signin", "true");
           setShowLegalModal(false);
           showToast("Terms Accepted! You can now Sync.");
         }}
