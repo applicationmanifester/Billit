@@ -1,7 +1,7 @@
 import React from "react";
 
 export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoading, loginWithPopup, logout, setShowModal, setShowSellerModal, handleNewInvoice }) => {
-    const brandLogoSrc = `${import.meta.env.BASE_URL}billit_logo.png`;
+    const brandLogoSrc = '/billit_logo.png';
 
     return (
         <div style={{
@@ -23,7 +23,7 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
                         onClick={() => setTab("home")}
                         style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", height: "40px" }}
                     >
-                        <img src={brandLogoSrc} style={{ height: "100%", borderRadius: "8px", objectFit: "contain" }} alt="Billit" />
+                        <img src={brandLogoSrc} onError={(e) => { e.currentTarget.src = "/logo.png"; }} style={{ height: "100%", borderRadius: "8px", objectFit: "contain" }} alt="Billit" />
                     </div>
                 </div>
 
