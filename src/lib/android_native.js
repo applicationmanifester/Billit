@@ -27,7 +27,7 @@ export const initAndroidNative = (callbacks = {}) => {
         style: isDark ? Style.Dark : Style.Light,
       });
       await StatusBar.setBackgroundColor({
-        color: isDark ? '#0a0a0f' : '#ffffff',
+        color: '#00000000',
       });
     } catch (e) {
       console.warn('StatusBar plugin not available', e);

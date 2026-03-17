@@ -87,3 +87,64 @@ export const exportProductsToCSV = (products) => {
     const csv = convertToCSV(data, headers);
     downloadCSV(csv, `Inventory-Export-${new Date().toISOString().split('T')[0]}.csv`);
 };
+
+/**
+ * Exports all application data as a single JSON file.
+ * @param {Object} data 
+ */
+export const exportFullDataJSON = (data) => {
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Billit-Full-Backup-${timestamp}.json`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
+/**
+ * Imports application data from a JSON file.
+ * @param {File} file 
+ * @param {Object} setters 
+ * @param {Function} showToast 
+ */
+export const importFullDataJSON = (file, setters, showToast) => {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            // Basic validation: check if key fields exist
+            if (!data.invoices && !data.clients && !data.products && !data.seller) {
+                throw new Error("Invalid backup file format.");
+            }
+
+            // Apply data using setters
+            if (data.invoices) setters.setInvoices(data.invoices);
+            if (data.clients) setters.setClients(data.clients);
+            if (data.products) setters.setProducts(data.products);
+            if (data.seller) setters.setSeller(data.seller);
+            if (data.taxRates) setters.setTaxRates(data.taxRates);
+            if (data.currency) setters.setCurrency(data.currency);
+            if (data.inventoryTitle) setters.setInventoryTitle(data.inventoryTitle);
+            if (data.defaultNote) setters.setDefaultNote(data.defaultNote);
+            if (data.theme) setters.setTheme(data.theme);
+            if (data.hapticsEnabled !== undefined) setters.setHapticsEnabled(data.hapticsEnabled);
+            if (data.soundEnabled !== undefined) setters.setSoundEnabled(data.soundEnabled);
+
+            showToast("Backup restored successfully!", "success");
+        } catch (error) {
+            console.error("Import Error:", error);
+            showToast(`Failed to restore backup: ${error.message}`, "error");
+        }
+    };
+    reader.readAsText(file);
+};

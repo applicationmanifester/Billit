@@ -21,12 +21,11 @@ export const InventoryManager = ({
 }) => {
     return (
         <div style={{ padding: "16px" }} className="animate-slide-up">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
                 <div style={{
-                    flex: 1, marginRight: "16px",
                     background: "rgba(255, 255, 255, 0.03)",
-                    padding: "0 20px", // Vertically centered by height/alignItems
-                    height: "60px",
+                    padding: "0 16px",
+                    minHeight: "60px",
                     borderRadius: "12px",
                     border: "1px solid rgba(255, 255, 255, 0.05)",
                     display: "flex",
@@ -34,7 +33,7 @@ export const InventoryManager = ({
                     boxSizing: "border-box"
                 }}>
                     {editingInventoryTitle ? (
-                        <div style={{ display: "flex", gap: "10px", alignItems: "center", width: "100%" }}>
+                        <div style={{ display: "flex", gap: "10px", alignItems: "center", width: "100%", padding: "10px 0" }}>
                             <input
                                 autoFocus
                                 className="input-field"
@@ -49,20 +48,19 @@ export const InventoryManager = ({
                                 }}
                             />
                             <button
-                                onMouseDown={(e) => e.preventDefault()} // Prevent blur from triggering before click
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => setEditingInventoryTitle(false)}
                                 style={{
                                     padding: "8px 16px", borderRadius: "8px",
                                     background: "var(--accent-primary)", color: "#000",
-                                    border: "none", fontWeight: "bold", fontSize: "12px",
-                                    cursor: "pointer", transition: "all 0.2s"
+                                    border: "none", fontWeight: "bold", fontSize: "12px"
                                 }}
                             >
                                 Save
                             </button>
                         </div>
                     ) : (
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", justifyContent: "space-between", padding: "10px 0" }}>
                             <h2 style={{ margin: 0, fontSize: "18px", color: "var(--accent-primary)", fontWeight: "bold", flex: 1 }}>
                                 {inventoryTitle}
                             </h2>
@@ -71,8 +69,7 @@ export const InventoryManager = ({
                                 style={{
                                     padding: "8px 16px", borderRadius: "8px",
                                     background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)",
-                                    border: "none", fontWeight: "bold", fontSize: "12px",
-                                    cursor: "pointer", transition: "all 0.2s"
+                                    border: "none", fontWeight: "bold", fontSize: "12px"
                                 }}
                             >
                                 Edit
@@ -80,11 +77,11 @@ export const InventoryManager = ({
                         </div>
                     )}
                 </div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                    <button onClick={printInventoryPDF} className="secondary-btn" style={{ padding: "8px 12px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "12px", borderRadius: "8px" }}>Print</button>
-                    <button onClick={downloadInventoryPDF} className="secondary-btn" style={{ padding: "8px 12px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "12px", borderRadius: "8px" }}>Download</button>
-                    <button onClick={printInventoryThermal} className="secondary-btn" style={{ padding: "8px 12px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "12px", borderRadius: "8px" }}>Thermal Print</button>
-                    <button onClick={shareInventoryPDF} className="secondary-btn" style={{ padding: "8px 12px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "12px", borderRadius: "8px" }}>Share</button>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    <button onClick={printInventoryPDF} className="secondary-btn" style={{ flex: "1 1 auto", minWidth: "80px", padding: "10px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "11px", borderRadius: "8px" }}>Print</button>
+                    <button onClick={downloadInventoryPDF} className="secondary-btn" style={{ flex: "1 1 auto", minWidth: "80px", padding: "10px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "11px", borderRadius: "8px" }}>Download</button>
+                    <button onClick={printInventoryThermal} className="secondary-btn" style={{ flex: "1 1 auto", minWidth: "80px", padding: "10px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "11px", borderRadius: "8px" }}>Thermal</button>
+                    <button onClick={shareInventoryPDF} className="secondary-btn" style={{ flex: "1 1 auto", minWidth: "80px", padding: "10px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "11px", borderRadius: "8px" }}>Share</button>
                 </div>
             </div>
             <button onClick={() => { setProductForm({ name: "", desc: "", price: "", isDefault: false, tax: (taxRates || []).map(t => t.id) }); setEditingProductId(null); setShowModal("product"); }} style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "none", border: `2px dashed var(--border-primary)`, color: "var(--accent-primary)", fontWeight: "bold", marginBottom: "20px" }}>+ Add to Inventory</button>

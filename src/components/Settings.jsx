@@ -6,10 +6,14 @@ export const Settings = ({
     signInWithPopup, authError, showToast,
     syncLog, theme, setTheme, toggleTheme, currency, setShowCurrencyPicker,
     taxRates, setTaxRates, defaultTaxId, setDefaultTaxId, wipeAllData, settingsTab, setSettingsTab, isDark,
-    exportInvoicesToCSV, exportClientsToCSV, exportProductsToCSV, getClient,
+    exportInvoicesToCSV, exportClientsToCSV, exportProductsToCSV,
+    exportFullDataJSON, importFullDataJSON, fullData, setters,
+    getClient,
     defaultNote, setDefaultNote,
+    hapticsEnabled, setHapticsEnabled, soundEnabled, setSoundEnabled,
     hasAcceptedLegal, viewLegal
 }) => {
+    const fileInputRef = React.useRef(null);
     return (
         <div style={{ padding: "16px" }} className="animate-slide-up">
             <div className="premium-card" style={{ padding: "20px", marginBottom: "16px" }}>
@@ -46,6 +50,29 @@ export const Settings = ({
                         <div style={{ fontSize: "14px" }}>Theme Mode</div>
                         <button onClick={toggleTheme} className="secondary-btn" style={{ padding: "8px 12px", fontSize: "16px" }}>{isDark ? "🌙 Dark" : "☀️ Light"}</button>
                     </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0", alignItems: "center", borderBottom: `1px solid var(--border-primary)` }}>
+                        <div style={{ fontSize: "14px" }}>Haptic Feedback</div>
+                        <button 
+                            onClick={() => setHapticsEnabled(!hapticsEnabled)} 
+                            className="secondary-btn" 
+                            style={{ padding: "8px 12px", border: hapticsEnabled ? "1px solid var(--accent-primary)" : "1px solid var(--border-primary)", background: hapticsEnabled ? "rgba(245, 200, 66, 0.1)" : "transparent" }}
+                        >
+                            {hapticsEnabled ? "📳 Enabled" : "🔇 Disabled"}
+                        </button>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0", alignItems: "center", borderBottom: `1px solid var(--border-primary)` }}>
+                        <div style={{ fontSize: "14px" }}>Sound Effects</div>
+                        <button 
+                            onClick={() => setSoundEnabled(!soundEnabled)} 
+                            className="secondary-btn" 
+                            style={{ padding: "8px 12px", border: soundEnabled ? "1px solid var(--accent-primary)" : "1px solid var(--border-primary)", background: soundEnabled ? "rgba(245, 200, 66, 0.1)" : "transparent" }}
+                        >
+                            {soundEnabled ? "🔊 Enabled" : "🔇 Disabled"}
+                        </button>
+                    </div>
+
                     <div style={{ padding: "14px 0" }}>
                         <div style={{ fontSize: "14px", marginBottom: "8px" }}>Predefined Note</div>
                         <textarea
@@ -231,6 +258,31 @@ export const Settings = ({
                             <span>📦 Export Inventory</span>
                             <span style={{ fontSize: "12px", opacity: 0.6 }}>CSV</span>
                         </button>
+
+                        <div style={{ height: "1px", background: "var(--border-color)", margin: "8px 0" }} />
+
+                        <button onClick={() => exportFullDataJSON(fullData)} className="premium-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "12px 16px" }}>
+                            <span>📦 Full Backup</span>
+                            <span style={{ fontSize: "12px", opacity: 0.8 }}>JSON</span>
+                        </button>
+
+                        <button onClick={() => fileInputRef.current?.click()} className="secondary-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span>📥 Restore Backup</span>
+                            <span style={{ fontSize: "12px", opacity: 0.6 }}>JSON</span>
+                        </button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            style={{ display: "none" }}
+                            accept=".json"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    importFullDataJSON(file, setters, showToast);
+                                    e.target.value = ""; // Reset for next selection
+                                }
+                            }}
+                        />
                     </div>
                 </div>
             )}

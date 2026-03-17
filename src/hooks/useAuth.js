@@ -78,12 +78,24 @@ export const useAuth = (showToast) => {
 
     const loginWithPopup = async () => {
         setAuthError(null);
+        const isNative = window.Capacitor?.isNativePlatform;
+        
+        if (isNative) {
+            showToastRef.current?.("Redirecting to Google Sign-in...");
+            return loginWithRedirect();
+        }
+
         showToastRef.current?.("Opening Sign-in Popup...");
         try {
             const result = await signInWithPopup(auth, googleProvider);
             return result.user;
         } catch (err) {
             console.error("Popup Error:", err);
+            // Fallback to redirect if popup is blocked or fails
+            if (err.code === "auth/popup-blocked" || err.code === "auth/operation-not-supported-in-this-environment") {
+                showToastRef.current?.("Popup blocked. Switching to redirect...", "warning");
+                return loginWithRedirect();
+            }
             setAuthError(err.code);
             showToastRef.current?.(err.message, "error");
             throw err;

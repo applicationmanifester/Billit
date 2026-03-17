@@ -1,12 +1,12 @@
 import React from "react";
 
-export const ClientManager = ({ clients, setClients, setClientForm, setSelectedClient, setShowModal, invoices, fmt, setDeleteConfirm }) => {
+export const ClientManager = ({ clients, setClients, setClientForm, setSelectedClient, setShowModal, invoices, fmt, setDeleteConfirm, totalWithTax, taxRates }) => {
     return (
         <div style={{ padding: "16px" }} className="animate-slide-up">
             <button onClick={() => { setClientForm({ name: "", email: "", phone: "", address: "" }); setSelectedClient(null); setShowModal("client"); }} style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "none", border: `2px dashed var(--border-primary)`, color: "var(--accent-primary)", fontWeight: "bold", marginBottom: "20px" }}>+ Add New Client</button>
             {clients.map(c => {
                 const clientInvoices = invoices.filter(inv => inv.clientId === c.id);
-                const ltv = clientInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+                const ltv = clientInvoices.reduce((sum, inv) => sum + (inv.totalAmount || totalWithTax(inv.items, taxRates)), 0);
                 return (
                     <div key={c.id} className="premium-card" style={{ marginBottom: "12px", padding: "16px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
