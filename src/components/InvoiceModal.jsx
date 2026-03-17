@@ -7,6 +7,10 @@ export const InvoiceModal = ({
 
     const isEdit = !!selectedInvoice;
     const preventScrollValueChange = (e) => e.currentTarget.blur();
+    const toNumber = (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
 
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
@@ -105,7 +109,7 @@ export const InvoiceModal = ({
                                     <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Price</label>
                                     <input type="number" min="0" step="any" className="input-field" style={{ width: "100%", padding: "10px" }}
                                         placeholder="0.00"
-                                        value={item.price === "" ? "" : Number(item.price.toFixed(2))}
+                                        value={item.price === "" ? "" : Number(toNumber(item.price).toFixed(2))}
                                         onWheel={preventScrollValueChange}
                                         onFocus={(e) => e.target.select()}
                                         onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
@@ -132,7 +136,7 @@ export const InvoiceModal = ({
                                     className="input-field"
                                     style={{ width: "100%", padding: "12px", background: "var(--bg-input)", fontSize: "18px", fontWeight: "bold", borderRadius: "12px" }}
                                     placeholder="0.00"
-                                    value={item.price === "" ? "" : Number((item.price + (itemTaxTotal(item, taxRates) / (item.qty || 1))).toFixed(2))}
+                                    value={item.price === "" ? "" : Number((toNumber(item.price) + (itemTaxTotal(item, taxRates) / (toNumber(item.qty) || 1))).toFixed(2))}
                                     onWheel={preventScrollValueChange}
                                     onFocus={(e) => e.target.select()}
                                     onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
@@ -185,7 +189,7 @@ export const InvoiceModal = ({
                 <div style={{ background: "var(--bg-input)", borderRadius: "20px", padding: "20px", marginBottom: "32px", border: `1px solid var(--border-primary)` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                         <span style={{ color: "var(--text-secondary)", fontSize: "14px" }}>Subtotal</span>
-                        <span style={{ fontWeight: "bold" }}>{fmt(form.items.reduce((s, i) => s + (i.qty * i.price), 0))}</span>
+                        <span style={{ fontWeight: "bold" }}>{fmt(form.items.reduce((s, i) => s + (toNumber(i.qty) * toNumber(i.price)), 0))}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", paddingBottom: "12px", borderBottom: `1px solid var(--border-primary)` }}>
                         <span style={{ color: "var(--text-secondary)", fontSize: "14px" }}>Taxes</span>
