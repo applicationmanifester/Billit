@@ -6,7 +6,11 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
     return (
         <div style={{
             minHeight: "100vh", background: "var(--bg-primary)", color: "var(--text-primary)", fontFamily: "'Outfit', sans-serif",
-            width: "100%", paddingBottom: "100px", paddingTop: "80px",
+            width: "100%", 
+            paddingBottom: "calc(100px + var(--safe-area-bottom))", 
+            paddingTop: "calc(80px + var(--safe-area-top))",
+            paddingLeft: "var(--safe-area-left)",
+            paddingRight: "var(--safe-area-right)",
             position: "relative", overflowX: "hidden"
         }}>
             {/* Header */}
@@ -14,7 +18,8 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
                 position: "fixed", top: 0, left: 0,
                 width: "100%", zIndex: 100,
                 background: "var(--bg-header)",
-                padding: "12px 16px", borderBottom: `1px solid var(--border-primary)`,
+                padding: "calc(12px + var(--safe-area-top)) 16px 12px", 
+                borderBottom: `1px solid var(--border-primary)`,
                 display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
                 boxSizing: "border-box", gap: "16px"
             }}>
@@ -62,7 +67,7 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
 
             {/* Navigation Bar */}
             <div style={{
-                position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)",
+                position: "fixed", bottom: "calc(20px + var(--safe-area-bottom))", left: "50%", transform: "translateX(-50%)",
                 width: "calc(100% - 40px)", maxWidth: "400px", zIndex: 100,
                 background: "var(--bg-secondary)", borderRadius: "24px",
                 padding: "8px", display: "flex", justifyContent: "space-between",
