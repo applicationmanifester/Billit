@@ -413,18 +413,30 @@ export default function BillingApp() {
   }, []);
 
   const downloadReceipt = useCallback(async (inv) => {
-    const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
-    const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `Billit - Professional Billing_${inv.id}.pdf`; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }, [clients, seller, currency, taxRates]);
+    try {
+      showToast("Preparing Download...");
+      const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
+      const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = `Billit - Professional Billing_${inv.id}.pdf`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      showToast("Download started!");
+    } catch (e) {
+      console.error(e);
+      showToast("Download failed", "error");
+    }
+  }, [clients, seller, currency, taxRates, showToast]);
 
   const downloadMultipleInvoices = useCallback(async (invs) => {
-    showToast("Preparing PDF bundle...");
-    const pdf = await getBatchPDF(invs, clients, seller, currency, taxRates);
-    const a = document.createElement("a"); a.href = pdf.url; a.download = `Billit - Professional Billing_Bundle.pdf`; a.click();
-    showToast("Batch PDF Downloaded!");
-    setTimeout(() => URL.revokeObjectURL(pdf.url), 10000);
+    try {
+      showToast("Preparing PDF bundle...");
+      const pdf = await getBatchPDF(invs, clients, seller, currency, taxRates);
+      const a = document.createElement("a"); a.href = pdf.url; a.download = `Billit - Professional Billing_Bundle.pdf`; a.click();
+      showToast("Batch PDF Downloaded!");
+      setTimeout(() => URL.revokeObjectURL(pdf.url), 10000);
+    } catch (e) {
+      console.error(e);
+      showToast("Batch download failed", "error");
+    }
   }, [clients, seller, currency, taxRates, showToast]);
 
   const printMultipleInvoices = useCallback(async (invs) => {
@@ -452,30 +464,42 @@ export default function BillingApp() {
   }, [clients, seller, currency, taxRates, defaultNote, showBatchPrint, showToast]);
 
   const printReceipt = useCallback(async (inv) => {
-    const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
-    const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
+    try {
+      showToast("Preparing Print...");
+      const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
+      const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
 
-    const oldTitle = document.title;
-    document.title = `Billit - Professional Billing_${inv.id}`;
-    showBatchPrint(url);
-    setTimeout(() => {
-      document.title = oldTitle;
-      URL.revokeObjectURL(url);
-    }, 30000);
-  }, [clients, seller, currency, taxRates, showBatchPrint]);
+      const oldTitle = document.title;
+      document.title = `Billit - Professional Billing_${inv.id}`;
+      showBatchPrint(url);
+      setTimeout(() => {
+        document.title = oldTitle;
+        URL.revokeObjectURL(url);
+      }, 30000);
+    } catch (e) {
+      console.error(e);
+      showToast("Print failed", "error");
+    }
+  }, [clients, seller, currency, taxRates, showBatchPrint, showToast]);
 
   const printReceiptThermal = useCallback(async (inv) => {
-    const bytes = await getThermalPDFData(inv, clients, seller, currency, taxRates, defaultNote);
-    const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
+    try {
+      showToast("Preparing Thermal Print...");
+      const bytes = await getThermalPDFData(inv, clients, seller, currency, taxRates, defaultNote);
+      const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
 
-    const oldTitle = document.title;
-    document.title = `Billit - Professional Billing_${inv.id}`;
-    showBatchPrint(url);
-    setTimeout(() => {
-      document.title = oldTitle;
-      URL.revokeObjectURL(url);
-    }, 30000);
-  }, [clients, seller, currency, taxRates, defaultNote, showBatchPrint]);
+      const oldTitle = document.title;
+      document.title = `Billit - Professional Billing_${inv.id}`;
+      showBatchPrint(url);
+      setTimeout(() => {
+        document.title = oldTitle;
+        URL.revokeObjectURL(url);
+      }, 30000);
+    } catch (e) {
+      console.error(e);
+      showToast("Thermal print failed", "error");
+    }
+  }, [clients, seller, currency, taxRates, defaultNote, showBatchPrint, showToast]);
 
   const printInventoryThermal = useCallback(async () => {
     const bytes = await getThermalInventoryPDFData(seller, currency, products, taxRates, inventoryTitle, defaultNote);

@@ -86,7 +86,7 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
                 <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--border-primary)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                         <span style={{ fontSize: "12px", fontWeight: "bold" }}>Collection Rate</span>
-                        <span style={{ fontSize: "12px", fontWeight: "900" }}>{collectionRate.toFixed(1)}%</span>
+                        <span style={{ fontSize: "12px", fontWeight: "900" }}>{(Number(collectionRate) || 0).toFixed(1)}%</span>
                     </div>
                     <div style={{ height: "8px", background: "var(--bg-primary)", borderRadius: "4px", overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${collectionRate}%`, background: "var(--status-paid)", borderRadius: "4px" }}></div>

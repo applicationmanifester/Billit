@@ -56,7 +56,7 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Price</div>
                             <input type="number" step="any" className="input-field" placeholder="0.00"
-                                value={productForm.price === "" ? "" : Number(productForm.price.toFixed(4))}
+                                value={productForm.price === "" ? "" : Number((Number(productForm.price) || 0).toFixed(4))}
                                 onFocus={(e) => e.target.select()}
                                 onKeyDown={(e) => e.key === "Enter" && saveProduct(false)}
                                 onChange={(e) => {
@@ -81,7 +81,7 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                             className="input-field"
                             style={{ background: "var(--border-accent)" }}
                             placeholder="0.00"
-                            value={productForm.price === "" ? "" : Number((Number(productForm.price || 0) + (itemTaxTotal({ ...productForm, qty: 1, tax: productForm.tax || [] }, taxRates))).toFixed(2))}
+                            value={productForm.price === "" ? "" : Number((Number(Number(productForm.price || 0) + (itemTaxTotal({ ...productForm, qty: 1, tax: productForm.tax || [] }, taxRates))) || 0).toFixed(2))}
                             onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => e.key === "Enter" && saveProduct(false)}
                             onChange={(e) => {

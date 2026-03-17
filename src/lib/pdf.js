@@ -89,9 +89,9 @@ export const getInventoryPDFData = async (seller, currency, products, taxRates, 
     }));
 
     let lns = [];
-    const txt = (t, x, y, f, s) => { lns.push("BT", `/${f} ${s} Tf`, `${x.toFixed(2)} ${y.toFixed(2)} Td`, `(${esc(t)}) Tj`, "ET"); };
-    const rc = (x, y, w, h) => lns.push(`${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re`);
-    const fl = () => lns.push("f"); const rg = (r, g, b) => lns.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg`);
+    const txt = (t, x, y, f, s) => { lns.push("BT", `/${f} ${s} Tf`, `${(Number(x) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} Td`, `(${esc(t)}) Tj`, "ET"); };
+    const rc = (x, y, w, h) => lns.push(`${(Number(x) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} ${(Number(w) || 0).toFixed(2)} ${(Number(h) || 0).toFixed(2)} re`);
+    const fl = () => lns.push("f"); const rg = (r, g, b) => lns.push(`${(Number(r) || 0).toFixed(3)} ${(Number(g) || 0).toFixed(3)} ${(Number(b) || 0).toFixed(3)} rg`);
 
     const xObjMap = {};
     if (logoData) {
@@ -185,9 +185,9 @@ export const getInventoryPDFData = async (seller, currency, products, taxRates, 
         if (curImgData) {
             const curSize = 11;
             lns.push(`q ${curSize} 0 0 ${curSize} ${W - M - 142} ${cy + (p.desc ? (lineCount * 9) : 0) - 1} cm /ImCur Do Q`);
-            txt(totalPrice.toFixed(2), W - M - 130, cy + (p.desc ? (lineCount * 9) : 0), "F2", 11);
+            txt((Number(totalPrice) || 0).toFixed(2), W - M - 130, cy + (p.desc ? (lineCount * 9) : 0), "F2", 11);
         } else {
-            txt(`${pdfCur} ${totalPrice.toFixed(2)}`, W - M - 140, cy + (p.desc ? (lineCount * 9) : 0), "F2", 11);
+            txt(`${pdfCur} ${(Number(totalPrice) || 0).toFixed(2)}`, W - M - 140, cy + (p.desc ? (lineCount * 9) : 0), "F2", 11);
         }
         cy -= 45;
         if (cy < M + 140) break; // Reserve enough space for QR code at bottom
@@ -234,9 +234,9 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     let lns = [];
     const move = (x, y) => lns.push(`${x.toFixed(2)} ${y.toFixed(2)} m`);
     const lto = (x, y) => lns.push(`${x.toFixed(2)} ${y.toFixed(2)} l`);
-    const txt = (t, x, y, f, s) => { lns.push("BT", `/${f} ${s} Tf`, `${x.toFixed(2)} ${y.toFixed(2)} Td`, `(${esc(t)}) Tj`, "ET"); };
-    const rc = (x, y, w, h) => lns.push(`${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re`);
-    const fl = () => lns.push("f"); const rg = (r, g, b) => lns.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg`);
+    const txt = (t, x, y, f, s) => { lns.push("BT", `/${f} ${s} Tf`, `${(Number(x) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} Td`, `(${esc(t)}) Tj`, "ET"); };
+    const rc = (x, y, w, h) => lns.push(`${(Number(x) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} ${(Number(w) || 0).toFixed(2)} ${(Number(h) || 0).toFixed(2)} re`);
+    const fl = () => lns.push("f"); const rg = (r, g, b) => lns.push(`${(Number(r) || 0).toFixed(3)} ${(Number(g) || 0).toFixed(3)} ${(Number(b) || 0).toFixed(3)} rg`);
 
     const qrData = seller.qrCode ? await getQRImage(seller.qrCode) : null;
     const logoData = seller.logo ? await getQRImage(seller.logo) : null;
@@ -313,7 +313,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
             if (curImgData) {
                 const curSize = 12;
                 lns.push(`q ${curSize} 0 0 ${curSize} ${x - 2} ${cy - 3} cm /ImCur Do Q`);
-                txt(val.toFixed(2), x + 11, cy, "F1", 12);
+                txt((Number(val) || 0).toFixed(2), x + 11, cy, "F1", 12);
             } else {
                 txt(fmt(val), x, cy, "F1", 12);
             }
@@ -327,7 +327,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
         if (curImgData) {
             const curSize = 12;
             lns.push(`q ${curSize} 0 0 ${curSize} ${W - M - 102} ${cy - 3} cm /ImCur Do Q`);
-            txt((lineCost + taxAmount).toFixed(2), W - M - 90, cy, "F2", 12);
+            txt((Number(lineCost + taxAmount) || 0).toFixed(2), W - M - 90, cy, "F2", 12);
         } else {
             txt(fmt(lineCost + taxAmount), W - M - 100, cy, "F2", 12);
         }
@@ -377,7 +377,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     if (curImgData) {
         const curSize = 18;
         lns.push(`q ${curSize} 0 0 ${curSize} ${W - M - 102} ${cy + 6} cm /ImCurYellow Do Q`);
-        txt(grandTotal.toFixed(2), W - M - 82, cy + 10, "F2", 18);
+        txt((Number(grandTotal) || 0).toFixed(2), W - M - 82, cy + 10, "F2", 18);
     } else {
         txt(fmt(grandTotal), W - M - 100, cy + 10, "F2", 18);
     }
@@ -505,9 +505,9 @@ export const getThermalInventoryPDFData = async (seller, currency, products, tax
 
     let lns = [];
     const esc = (s) => String(s || "").replace(/[()\\]/g, (c) => "\\" + c);
-    const txt = (t, x, y, f, s) => { lns.push("BT", `/${f} ${s} Tf`, `${x.toFixed(2)} ${y.toFixed(2)} Td`, `(${esc(t)}) Tj`, "ET"); };
-    const rg = (r, g, b) => lns.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg`);
-    const line = (x1, y, x2) => lns.push(`${x1.toFixed(2)} ${y.toFixed(2)} m ${x2.toFixed(2)} ${y.toFixed(2)} l s`);
+    const txt = (t, x, y, f, s) => { lns.push("BT", `/${f} ${s} Tf`, `${(Number(x) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} Td`, `(${esc(t)}) Tj`, "ET"); };
+    const rg = (r, g, b) => lns.push(`${(Number(r) || 0).toFixed(3)} ${(Number(g) || 0).toFixed(3)} ${(Number(b) || 0).toFixed(3)} rg`);
+    const line = (x1, y, x2) => lns.push(`${(Number(x1) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} m ${(Number(x2) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} l s`);
 
     let cy = H - 30;
     rg(0, 0, 0);
@@ -552,7 +552,7 @@ export const getThermalInventoryPDFData = async (seller, currency, products, tax
         txt(p.name.substring(0, 25), M, cy, "F1", 8);
         const taxes = p.tax || (taxRates || []).map(t => t.id);
         const taxAmt = itemTaxTotal({ ...p, qty: 1, tax: taxes }, taxRates);
-        const price = (Number(p.price || 0) + taxAmt).toFixed(2);
+        const price = (Number(Number(p.price || 0) + taxAmt) || 0).toFixed(2);
         txt(`${pdfCur}${price}`, W - M - 40, cy, "F1", 8);
         cy -= 12;
         if (p.desc) {
@@ -602,9 +602,9 @@ export const getThermalInvoicePageStream = async (inv, clients, seller, currency
 
     let lns = [];
     const esc = (s) => String(s || "").replace(/[()\\]/g, (c) => "\\" + c);
-    const txt = (t, x, y, f, s) => { lns.push("BT", `/${f} ${s} Tf`, `${x.toFixed(2)} ${y.toFixed(2)} Td`, `(${esc(t)}) Tj`, "ET"); };
-    const rg = (r, g, b) => lns.push(`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg`);
-    const line = (x1, y, x2) => lns.push(`${x1.toFixed(2)} ${y.toFixed(2)} m ${x2.toFixed(2)} ${y.toFixed(2)} l s`);
+    const txt = (t, x, y, f, s) => { lns.push("BT", `/${f} ${s} Tf`, `${(Number(x) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} Td`, `(${esc(t)}) Tj`, "ET"); };
+    const rg = (r, g, b) => lns.push(`${(Number(r) || 0).toFixed(3)} ${(Number(g) || 0).toFixed(3)} ${(Number(b) || 0).toFixed(3)} rg`);
+    const line = (x1, y, x2) => lns.push(`${(Number(x1) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} m ${(Number(x2) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} l s`);
 
     let cy = H - 30;
     rg(0, 0, 0);
@@ -656,15 +656,15 @@ export const getThermalInvoicePageStream = async (inv, clients, seller, currency
     inv.items.forEach(it => {
         txt(it.desc.substring(0, 20), M, cy, "F1", 8);
         txt(String(it.qty), W - M - 78, cy, "F1", 8);
-        txt(Number(it.price).toFixed(2), W - M - 58, cy, "F1", 8);
-        const totalAmt = (it.qty * it.price + itemTaxTotal(it, taxRates)).toFixed(2);
+        txt((Number(it.price) || 0).toFixed(2), W - M - 58, cy, "F1", 8);
+        const totalAmt = (Number(it.qty * it.price + itemTaxTotal(it, taxRates)) || 0).toFixed(2);
         txt(totalAmt, W - M - 30, cy, "F1", 8);
         cy -= 12;
     });
 
     cy -= 10;
     line(M, cy, W - M); cy -= 15;
-    const sub = total(inv.items).toFixed(2);
+    const sub = (Number(total(inv.items)) || 0).toFixed(2);
     const subStr = `Sub Total : ${sub}`;
     txt(subStr, W - M - (subStr.length * 9 * 0.5), cy, "F1", 9); cy -= 12;
 
@@ -677,18 +677,18 @@ export const getThermalInvoicePageStream = async (inv, clients, seller, currency
     });
 
     Object.entries(taxBreakdown).forEach(([label, amount]) => {
-        const lineStr = `${label} : ${amount.toFixed(2)}`;
+        const lineStr = `${label} : ${(Number(amount) || 0).toFixed(2)}`;
         txt(lineStr, W - M - (lineStr.length * 8 * 0.5), cy, "F1", 8);
         cy -= 10;
     });
 
-    const taxGrand = (inv.items || []).reduce((s, it) => s + itemTaxTotal(it, taxRates), 0).toFixed(2);
+    const taxGrand = (Number((inv.items || []).reduce((s, it) => s + itemTaxTotal(it, taxRates), 0)) || 0).toFixed(2);
     const taxStr = `Tax Total : ${taxGrand}`;
     txt(taxStr, W - M - (taxStr.length * 9 * 0.5), cy, "F2", 9); cy -= 15;
 
     line(M, cy, W - M); cy -= 20;
 
-    const grand = totalWithTax(inv.items, taxRates).toFixed(2);
+    const grand = (Number(totalWithTax(inv.items, taxRates)) || 0).toFixed(2);
     txt("Total :", M + 20, cy, "F2", 12);
     const grandStr = grand;
     txt(grandStr, W - M - (grandStr.length * 12 * 0.6), cy, "F2", 12); cy -= 30;
