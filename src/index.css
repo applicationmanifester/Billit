@@ -78,6 +78,8 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none; /* Prevent pull-to-refresh / bounce if not needed */
 }
 
 /* Scrollbar */
@@ -103,6 +105,8 @@ body {
   padding: 20px;
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  -webkit-user-select: none;
+  user-select: none; /* Prevent accidental text selection on cards */
 }
 
 .premium-card:active {
@@ -117,13 +121,21 @@ body {
   border-radius: 12px;
   padding: 0 16px;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 16px; /* Prevent iOS auto-zoom on focus */
   outline: none;
   transition: border-color 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none; /* Consistent styling on iOS */
 }
 
 .input-field:focus {
   border-color: var(--accent-primary);
+}
+
+.primary-btn, .secondary-btn, .badge {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* Disable callout on long press */
 }
 
 .primary-btn {
