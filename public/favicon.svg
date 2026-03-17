@@ -3,7 +3,7 @@
   <rect width="100" height="100" rx="18" fill="#F7C733"/>
   
   <!-- Main Brand Name (Zoomed Out) -->
-  <text id="brandName" x="50" y="52" 
+  <text id="brandName" x="50" y="54" 
         text-anchor="middle" 
         font-family="system-ui, -apple-system, sans-serif" 
         font-weight="900" 
@@ -12,8 +12,8 @@
     <tspan fill="#FF5411">Bill</tspan><tspan fill="#000000">it</tspan>
   </text>
   
-  <!-- Tagline matched exactly to the width of 'Billit' (Zoomed Out) -->
-  <text x="50" y="68" 
+  <!-- Tagline matched exactly to the width of 'Billit' (Reduced Gap) -->
+  <text x="50" y="65" 
         text-anchor="middle" 
         font-family="system-ui, -apple-system, sans-serif" 
         font-weight="700" 
