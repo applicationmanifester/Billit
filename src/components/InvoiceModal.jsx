@@ -150,17 +150,20 @@ export const InvoiceModal = ({
                             </div>
 
                             <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                                {taxRates.map(tr => (
-                                    <button key={tr.id} onClick={() => {
-                                        const has = item.tax.includes(tr.id);
-                                        updateItem(idx, "tax", has ? item.tax.filter(id => id !== tr.id) : [...item.tax, tr.id]);
-                                    }} style={{
-                                        padding: "4px 10px", borderRadius: "8px", fontSize: "10px", fontWeight: "bold",
-                                        border: `1px solid ${item.tax.includes(tr.id) ? "var(--accent-primary)" : "var(--border-primary)"}`,
-                                        background: item.tax.includes(tr.id) ? "var(--accent-primary)" : "none",
-                                        color: item.tax.includes(tr.id) ? "#000" : "var(--text-secondary)"
-                                    }}>{tr.label} ({tr.rate}%)</button>
-                                ))}
+                                {taxRates.map(tr => {
+                                    const taxArr = Array.isArray(item.tax) ? item.tax : (item.tax ? [item.tax] : []);
+                                    const isActive = taxArr.includes(tr.id);
+                                    return (
+                                        <button key={tr.id} onClick={() => {
+                                            updateItem(idx, "tax", isActive ? taxArr.filter(id => id !== tr.id) : [...taxArr, tr.id]);
+                                        }} style={{
+                                            padding: "4px 10px", borderRadius: "8px", fontSize: "10px", fontWeight: "bold",
+                                            border: `1px solid ${isActive ? "var(--accent-primary)" : "var(--border-primary)"}`,
+                                            background: isActive ? "var(--accent-primary)" : "none",
+                                            color: isActive ? "#000" : "var(--text-secondary)"
+                                        }}>{tr.label} ({tr.rate}%)</button>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}

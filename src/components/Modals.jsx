@@ -100,19 +100,21 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "8px", marginLeft: "4px" }}>Default Taxes</div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                            {taxRates.map(tr => (
-                                <button key={tr.id} onClick={() => {
-                                    const taxes = productForm.tax || [];
-                                    const has = taxes.includes(tr.id);
-                                    setProductForm({ ...productForm, tax: has ? taxes.filter(id => id !== tr.id) : [...taxes, tr.id] });
-                                }} style={{
-                                    padding: "6px 12px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold",
-                                    border: `1px solid ${(productForm.tax || []).includes(tr.id) ? "var(--accent-primary)" : "var(--border-primary)"}`,
-                                    background: (productForm.tax || []).includes(tr.id) ? "var(--accent-primary)" : "none",
-                                    color: (productForm.tax || []).includes(tr.id) ? "#000" : "var(--text-secondary)",
-                                    cursor: "pointer"
-                                }}>{tr.label} ({tr.rate}%)</button>
-                            ))}
+                            {taxRates.map(tr => {
+                                const taxArr = Array.isArray(productForm.tax) ? productForm.tax : (productForm.tax ? [productForm.tax] : []);
+                                const isActive = taxArr.includes(tr.id);
+                                return (
+                                    <button key={tr.id} onClick={() => {
+                                        setProductForm({ ...productForm, tax: isActive ? taxArr.filter(id => id !== tr.id) : [...taxArr, tr.id] });
+                                    }} style={{
+                                        padding: "6px 12px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold",
+                                        border: `1px solid ${isActive ? "var(--accent-primary)" : "var(--border-primary)"}`,
+                                        background: isActive ? "var(--accent-primary)" : "none",
+                                        color: isActive ? "#000" : "var(--text-secondary)",
+                                        cursor: "pointer"
+                                    }}>{tr.label} ({tr.rate}%)</button>
+                                );
+                            })}
                         </div>
                     </div>
 

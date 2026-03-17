@@ -117,7 +117,17 @@ export default function BillingApp() {
   };
 
   // State
-  const [invoices, setInvoices] = useState(() => getStorage("invoices", initialInvoices));
+  const [invoices, setInvoices] = useState(() => {
+    const raw = getStorage("invoices", initialInvoices);
+    // Normalize tax: ensure it's always an array
+    return raw.map(inv => ({
+      ...inv,
+      items: (inv.items || []).map(it => ({
+        ...it,
+        tax: Array.isArray(it.tax) ? it.tax : (it.tax ? [it.tax] : [])
+      }))
+    }));
+  });
   const [clients, setClients] = useState(() => getStorage("clients", initialClients));
   const { theme, setTheme, toggleTheme } = useTheme();
   const [currency, setCurrency] = useState(() => getStorage("currency", CURRENCIES[0]));
@@ -128,7 +138,14 @@ export default function BillingApp() {
     }
     return saved.length === 0 ? [{ id: 1, label: "GST", rate: 18 }] : saved;
   });
-  const [products, setProducts] = useState(() => getStorage("products", []));
+  const [products, setProducts] = useState(() => {
+    const raw = getStorage("products", []);
+    // Normalize tax for products as well
+    return raw.map(p => ({
+      ...p,
+      tax: Array.isArray(p.tax) ? p.tax : (p.tax ? [p.tax] : [])
+    }));
+  });
   const [seller, setSeller] = useState(() => getStorage("seller", {
     name: "Business Name",
     tagline: "Professional Billing",
@@ -304,8 +321,8 @@ export default function BillingApp() {
   }, [showModal, showSellerModal, showCurrencyPicker, deleteConfirm, openItemPicker]);
 
   const getInitialItems = useCallback(() => {
-    const defaults = products.filter(p => p.isDefault);
-    const taxIds = taxRates.map(t => t.id);
+    const defaults = (products || []).filter(p => p.isDefault);
+    const taxIds = (taxRates || []).map(t => t.id);
     if (defaults.length > 0) {
       return defaults.map(p => ({ desc: p.name, qty: 1, price: p.price, tax: p.tax || taxIds }));
     }
@@ -313,12 +330,22 @@ export default function BillingApp() {
   }, [products, taxRates]);
 
   const [form, setForm] = useState({
-    clientId: (clients[0] || initialClients[0] || {}).id || "",
+    clientId: (clients && clients[0] ? clients[0].id : (initialClients[0] || {}).id) || "",
     date: getLocalISODate(),
     due: getLocalISODate(),
     items: getInitialItems(),
     notes: defaultNote
   });
+
+  const resetForm = useCallback(() => {
+    setForm({
+      clientId: (clients && clients[0] ? clients[0].id : (initialClients[0] || {}).id) || "",
+      date: getLocalISODate(),
+      due: getLocalISODate(),
+      items: getInitialItems(),
+      notes: defaultNote
+    });
+  }, [clients, getInitialItems, defaultNote]);
 
   const updateItem = (index, field, value) => {
     const newItems = [...form.items];
@@ -497,16 +524,6 @@ export default function BillingApp() {
       showToast("Download started (Share unsupported)");
     }
   }, [clients, seller, currency, taxRates, showToast]);
-
-  const resetForm = useCallback(() => {
-    setForm({
-      clientId: (clients[0] || initialClients[0] || {}).id || "",
-      date: getLocalISODate(),
-      due: getLocalISODate(),
-      items: getInitialItems(),
-      notes: defaultNote
-    });
-  }, [clients, defaultNote, getInitialItems]);
 
   const handleNewInvoice = useCallback(() => {
     setSelectedInvoice(null);
