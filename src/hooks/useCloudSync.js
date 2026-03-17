@@ -305,7 +305,7 @@ export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLeg
             isActive = false;
             if (unsub) unsub();
         };
-    }, [user?.uid, hasLoadedCloud, setters, addLog, isFirestorePermissionError]);
+    }, [user?.uid, hasLoadedCloud, setters, addLog, isFirestorePermissionError, hasAcceptedLegal]);
 
     // Auto-save local changes to cloud (debounced)
     useEffect(() => {
@@ -348,7 +348,7 @@ export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLeg
         }, 2000);
 
         return () => clearTimeout(syncTimeoutRef.current);
-    }, [user?.uid, localData, hasLoadedCloud, addLog, isFirestoreOfflineError, forceSave]);
+    }, [user?.uid, localData, hasLoadedCloud, addLog, isFirestoreOfflineError, forceSave, hasAcceptedLegal]);
 
     return {
         syncStatus,

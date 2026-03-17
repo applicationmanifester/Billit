@@ -118,8 +118,8 @@ export default function BillingApp() {
 
   // State
   const [invoices, setInvoices] = useState(() => {
+    if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return [];
     const raw = getStorage("invoices", initialInvoices);
-    // Normalize tax: ensure it's always an array
     return raw.map(inv => ({
       ...inv,
       items: (inv.items || []).map(it => ({
@@ -128,7 +128,10 @@ export default function BillingApp() {
       }))
     }));
   });
-  const [clients, setClients] = useState(() => getStorage("clients", initialClients));
+  const [clients, setClients] = useState(() => {
+    if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return initialClients;
+    return getStorage("clients", initialClients);
+  });
   const { theme, setTheme, toggleTheme } = useTheme();
   const [currency, setCurrency] = useState(() => getStorage("currency", CURRENCIES[0]));
   const [taxRates, setTaxRates] = useState(() => {
@@ -139,6 +142,7 @@ export default function BillingApp() {
     return saved.length === 0 ? [{ id: 1, label: "GST", rate: 18 }] : saved;
   });
   const [products, setProducts] = useState(() => {
+    if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return [];
     const raw = getStorage("products", []);
     // Normalize tax for products as well
     return raw.map(p => ({
@@ -146,18 +150,22 @@ export default function BillingApp() {
       tax: Array.isArray(p.tax) ? p.tax : (p.tax ? [p.tax] : [])
     }));
   });
-  const [seller, setSeller] = useState(() => getStorage("seller", {
-    name: "Business Name",
-    tagline: "Professional Billing",
-    email: "biz@example.com",
-    phone: "+1 000-000-0000",
-    address: "123 Street",
-    gstin: "",
-    website: "",
-    qrCode: "",
-    logo: "",
-    invoicePrefix: "INV"
-  }));
+  const [seller, setSeller] = useState(() => {
+    const defaultSeller = {
+      name: "Business Name",
+      tagline: "Professional Billing",
+      email: "biz@example.com",
+      phone: "+1 000-000-0000",
+      address: "123 Street",
+      gstin: "",
+      website: "",
+      qrCode: "",
+      logo: "",
+      invoicePrefix: "INV"
+    };
+    if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return defaultSeller;
+    return getStorage("seller", defaultSeller);
+  });
   const [inventoryTitle, setInventoryTitle] = useState(() => getStorage("inventoryTitle", "Inventory List"));
   const [defaultNote, setDefaultNote] = useState(() => getStorage("defaultNote", ""));
   const [editingInventoryTitle, setEditingInventoryTitle] = useState(false);
@@ -216,8 +224,44 @@ export default function BillingApp() {
     }
   }, [invoices.map(i => `${i.id}:${i.status}:${i.due}`).join(","), addLog]);
 
-  // Local persistence
+  // Reactive Data Loading: When consent is granted, load data from localStorage
   useEffect(() => {
+    if (hasAcceptedLegal) {
+      const storedInvoices = getStorage("invoices", initialInvoices);
+      const normalizedInvoices = storedInvoices.map(inv => ({
+        ...inv,
+        items: (inv.items || []).map(it => ({
+          ...it,
+          tax: Array.isArray(it.tax) ? it.tax : (it.tax ? [it.tax] : [])
+        }))
+      }));
+      setInvoices(normalizedInvoices);
+      setClients(getStorage("clients", initialClients));
+      
+      const storedProducts = getStorage("products", []);
+      const normalizedProducts = storedProducts.map(p => ({
+        ...p,
+        tax: Array.isArray(p.tax) ? p.tax : (p.tax ? [p.tax] : [])
+      }));
+      setProducts(normalizedProducts);
+
+      setSeller(getStorage("seller", {
+        name: "Business Name", tagline: "Professional Billing", email: "biz@example.com",
+        phone: "+1 000-000-0000", address: "123 Street", gstin: "", website: "", qrCode: "", logo: "", invoicePrefix: "INV"
+      }));
+      setCurrency(getStorage("currency", CURRENCIES[0]));
+      setTaxRates(getStorage("taxRates", [{ id: 1, label: "GST", rate: 18 }]));
+      setInventoryTitle(getStorage("inventoryTitle", "Inventory List"));
+      setDefaultNote(getStorage("defaultNote", ""));
+    }
+  }, [hasAcceptedLegal]);
+
+  // Local persistence: Only save if we have consent
+  useEffect(() => {
+    if (!hasAcceptedLegal) {
+      localStorage.setItem("billit_hasAcceptedLegal", JSON.stringify(false));
+      return;
+    }
     localStorage.setItem("billit_invoices", JSON.stringify(invoices));
     localStorage.setItem("billit_clients", JSON.stringify(clients));
     localStorage.setItem("billit_products", JSON.stringify(products));
@@ -460,6 +504,7 @@ export default function BillingApp() {
     showBatchPrint(url);
     setTimeout(() => {
       document.title = oldTitle;
+      URL.revokeObjectURL(url);
     }, 30000);
   }, [clients, seller, currency, taxRates, showBatchPrint]);
 
@@ -570,6 +615,7 @@ export default function BillingApp() {
         if (action === "share") await shareReceipt(finalInv);
         if (action === "print") await printReceipt(finalInv);
         if (action === "thermal") await printReceiptThermal(finalInv);
+        if (action === "download") await downloadReceipt(finalInv);
       }
 
       showToast(selectedInvoice ? "Invoice updated!" : "Invoice created!");
