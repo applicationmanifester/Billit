@@ -14,6 +14,7 @@ export const InvoiceManager = ({
     deleteInvoices,
     downloadMultipleInvoices,
     printMultipleInvoices,
+    printMultipleInvoicesThermal,
     shareMultipleInvoices,
     showBatchPrint,
     showToast,
@@ -33,10 +34,18 @@ export const InvoiceManager = ({
     ).slice().reverse();
 
     return (
-        <div style={{ paddingTop: isSelectionMode && selectedInvoices.length > 0 ? "255px" : "195px", transition: "padding 0.2s" }} className="animate-slide-up">
+        <div style={{ paddingTop: isSelectionMode && selectedInvoices.length > 0 ? "280px" : "220px", transition: "padding 0.2s" }} className="animate-slide-up">
             <div style={{ padding: "16px", position: "fixed", top: "72px", left: 0, width: "100%", background: "var(--bg-primary)", zIndex: 190, borderBottom: `1px solid var(--border-primary)`, boxSizing: "border-box" }}>
                 <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
-                    <input className="input-field" style={{ flex: 1 }} placeholder="Search invoices..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                    <div style={{ flex: 1, position: "relative" }}>
+                        <input className="input-field" style={{ width: "100%", paddingRight: search ? "40px" : "12px" }} placeholder="Search invoices..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                        {search && (
+                            <button
+                                onClick={() => setSearch("")}
+                                style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-secondary)", fontSize: "16px", cursor: "pointer", padding: "4px" }}
+                            >✕</button>
+                        )}
+                    </div>
                     <button onClick={handleNewInvoice} className="primary-btn" style={{ height: "46px", padding: "0 16px", borderRadius: "12px", fontSize: "12px" }}>+ New</button>
                     <button onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedInvoices([]); }} className="secondary-btn" style={{ height: "46px", color: "var(--accent-primary)" }}>{isSelectionMode ? "Cancel" : "Select"}</button>
                 </div>
@@ -60,24 +69,28 @@ export const InvoiceManager = ({
                     <div style={{
                         padding: "12px 0 0",
                         display: "grid",
-                        gridTemplateColumns: "repeat(4, 1fr)",
-                        gap: "8px",
+                        gridTemplateColumns: "repeat(5, 1fr)",
+                        gap: "6px",
                         borderTop: `1px solid var(--border-primary)`,
                         marginTop: "12px"
                     }}>
-                        <button onClick={deleteInvoices} style={{ padding: "10px 4px", borderRadius: "10px", background: "#ef4444", color: "#fff", border: "none", fontWeight: "bold", fontSize: "11px", cursor: "pointer" }}>🗑 Delete</button>
+                        <button onClick={deleteInvoices} className="secondary-btn" style={{ padding: "10px 2px", fontSize: "10px", color: "#ef4444" }}>🗑 Delete</button>
                         <button onClick={() => {
                             const selectedInvs = invoices.filter(i => selectedInvoices.includes(i.id));
                             downloadMultipleInvoices(selectedInvs);
-                        }} className="primary-btn" style={{ padding: "10px 4px", fontSize: "11px" }}>⬇ Download</button>
-                        <button onClick={() => {
-                            const selectedInvs = invoices.filter(i => selectedInvoices.includes(i.id));
-                            printMultipleInvoices(selectedInvs);
-                        }} className="primary-btn" style={{ padding: "10px 4px", fontSize: "11px" }}>🖨️ Print</button>
+                        }} className="secondary-btn" style={{ padding: "10px 2px", fontSize: "10px", color: "var(--accent-primary)" }}>⬇ Download</button>
                         <button onClick={() => {
                             const selectedInvs = invoices.filter(i => selectedInvoices.includes(i.id));
                             shareMultipleInvoices(selectedInvs);
-                        }} className="secondary-btn" style={{ padding: "10px 4px", fontSize: "11px", color: "var(--accent-primary)" }}>📨 Share</button>
+                        }} className="secondary-btn" style={{ padding: "10px 2px", fontSize: "10px", color: "var(--accent-primary)" }}>📨 Share</button>
+                        <button onClick={() => {
+                            const selectedInvs = invoices.filter(i => selectedInvoices.includes(i.id));
+                            printMultipleInvoices(selectedInvs);
+                        }} className="secondary-btn" style={{ padding: "10px 2px", fontSize: "10px", color: "var(--accent-primary)" }}>🖨️ Print</button>
+                        <button onClick={() => {
+                            const selectedInvs = invoices.filter(i => selectedInvoices.includes(i.id));
+                            printMultipleInvoicesThermal(selectedInvs);
+                        }} className="secondary-btn" style={{ padding: "10px 2px", fontSize: "10px", color: "var(--accent-primary)" }}>🧾 Thermal</button>
                     </div>
                 )}
             </div>

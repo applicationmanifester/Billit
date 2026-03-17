@@ -25,6 +25,7 @@ import { InvoiceModal } from "./components/InvoiceModal";
 import { InvoiceViewModal } from "./components/InvoiceViewModal";
 import { ClientModal, ProductModal } from "./components/Modals";
 import { SellerModal } from "./components/SellerModal";
+import { LegalModal } from "./components/LegalModal";
 import { useCallback } from "react";
 
 // Performance Utilities Outside Component
@@ -139,11 +140,21 @@ export default function BillingApp() {
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [currencySearch, setCurrencySearch] = useState("");
   const [openItemPicker, setOpenItemPicker] = useState(null);
+  const [hasAcceptedLegal, setHasAcceptedLegal] = useState(() => getStorage("hasAcceptedLegal", false));
+  const [showLegalModal, setShowLegalModal] = useState(false);
 
   // Hooks
   const {
     user, authLoading, authError, loginWithPopup, logout
   } = useAuth(showToast);
+
+  // Hard-gate: Force logout if user is signed in but hasn't accepted legal terms
+  useEffect(() => {
+    if (user && !hasAcceptedLegal && !authLoading) {
+      logout();
+      showToast("Please accept Terms & Privacy Policy to use Cloud Sync", "error");
+    }
+  }, [user, hasAcceptedLegal, authLoading, logout, showToast]);
 
   const cloudSyncData = useMemo(() => ({
     invoices,
@@ -163,7 +174,9 @@ export default function BillingApp() {
 
   const {
     syncStatus, hasLoadedCloud, syncLog, lastSync, fetchFromCloud, addLog
-  } = useCloudSync(user, cloudSyncData, setters, showToast);
+  } = useCloudSync(user, cloudSyncData, setters, showToast,
+    hasAcceptedLegal
+  );
 
   // Auto-overdue detection
   useEffect(() => {
@@ -194,7 +207,8 @@ export default function BillingApp() {
     localStorage.setItem("billit_currency", JSON.stringify(currency));
     localStorage.setItem("billit_inventoryTitle", JSON.stringify(inventoryTitle));
     localStorage.setItem("billit_defaultNote", JSON.stringify(defaultNote));
-  }, [invoices, clients, products, seller, taxRates, currency, inventoryTitle, defaultNote]);
+    localStorage.setItem("billit_hasAcceptedLegal", JSON.stringify(hasAcceptedLegal));
+  }, [invoices, clients, products, seller, taxRates, currency, inventoryTitle, defaultNote, hasAcceptedLegal]);
 
   // Derived Utils
   const fmt = (n) => formatCurrency(n, currency);
@@ -220,6 +234,7 @@ export default function BillingApp() {
     setCurrency(CURRENCIES[0]);
     setInventoryTitle("Inventory List");
     setDefaultNote("");
+    setHasAcceptedLegal(false);
     localStorage.clear();
   }, [setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote]);
 
@@ -261,7 +276,7 @@ export default function BillingApp() {
   const [showSellerModal, setShowSellerModal] = useState(false);
   const [sellerForm, setSellerForm] = useState(seller);
   const [editingProductId, setEditingProductId] = useState(null);
-  const [productForm, setProductForm] = useState({ name: "", price: 0, isDefault: false, image: null, tax: taxRates.map(t => t.id) });
+  const [productForm, setProductForm] = useState({ name: "", desc: "", price: 0, isDefault: false, image: null, tax: taxRates.map(t => t.id) });
 
   const [clientForm, setClientForm] = useState({ name: "", email: "", phone: "", address: "" });
   const [settingsTab, setSettingsTab] = useState("account");
@@ -271,6 +286,15 @@ export default function BillingApp() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isSaving, setIsSaving] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Background scroll lock
+  useEffect(() => {
+    if (showModal || showSellerModal || showCurrencyPicker || deleteConfirm || openItemPicker) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  }, [showModal, showSellerModal, showCurrencyPicker, deleteConfirm, openItemPicker]);
 
   const getInitialItems = useCallback(() => {
     const defaults = products.filter(p => p.isDefault);
@@ -320,11 +344,17 @@ export default function BillingApp() {
   const removeItem = (index) => {
     if (form.items.length > 1) {
       setForm({ ...form, items: form.items.filter((_, i) => i !== index) });
+    } else {
+      setForm({
+        ...form,
+        items: [{ desc: "", qty: 1, price: 0, tax: taxRates.map(t => t.id) }]
+      });
     }
   };
 
+
   const showBatchPrint = useCallback((url) => {
-    console.log("Billit: Starting print for URL:", url);
+
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
     iframe.style.right = "-1000px";
@@ -337,12 +367,12 @@ export default function BillingApp() {
     document.body.appendChild(iframe);
 
     iframe.onload = () => {
-      console.log("Billit: Print iframe loaded");
+
       setTimeout(() => {
         try {
           iframe.contentWindow.focus();
           iframe.contentWindow.print();
-          console.log("Billit: Print dialog triggered");
+
         } catch (e) {
           console.error("Billit: Print failure:", e);
         }
@@ -356,14 +386,14 @@ export default function BillingApp() {
   const downloadReceipt = useCallback(async (inv) => {
     const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
     const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `Invoice-${inv.id}.pdf`; a.click();
+    const a = document.createElement("a"); a.href = url; a.download = `Billit - Professional Billing_${inv.id}.pdf`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }, [clients, seller, currency, taxRates]);
 
   const downloadMultipleInvoices = useCallback(async (invs) => {
     showToast("Preparing PDF bundle...");
     const pdf = await getBatchPDF(invs, clients, seller, currency, taxRates);
-    const a = document.createElement("a"); a.href = pdf.url; a.download = `Invoices-Bundle.pdf`; a.click();
+    const a = document.createElement("a"); a.href = pdf.url; a.download = `Billit - Professional Billing_Bundle.pdf`; a.click();
     showToast("Batch PDF Downloaded!");
     setTimeout(() => URL.revokeObjectURL(pdf.url), 10000);
   }, [clients, seller, currency, taxRates, showToast]);
@@ -371,24 +401,69 @@ export default function BillingApp() {
   const printMultipleInvoices = useCallback(async (invs) => {
     showToast("Preparing PDF for print...");
     const pdf = await getBatchPDF(invs, clients, seller, currency, taxRates);
+    const oldTitle = document.title;
+    document.title = `Billit - Professional Billing_Bundle`;
     showBatchPrint(pdf.url);
-    setTimeout(() => URL.revokeObjectURL(pdf.url), 30000);
+    setTimeout(() => {
+      document.title = oldTitle;
+      URL.revokeObjectURL(pdf.url);
+    }, 30000);
   }, [clients, seller, currency, taxRates, showBatchPrint, showToast]);
 
+  const printMultipleInvoicesThermal = useCallback(async (invs) => {
+    showToast("Preparing Thermal PDF bundle...");
+    const { getBatchThermalPDF } = await import("./lib/pdf");
+    const pdf = await getBatchThermalPDF(invs, clients, seller, currency, taxRates, defaultNote);
+    const oldTitle = document.title;
+    document.title = `Billit - Professional Billing_Bundle`;
+    showBatchPrint(pdf.url);
+    setTimeout(() => {
+      document.title = oldTitle;
+      URL.revokeObjectURL(pdf.url);
+    }, 30000);
+  }, [clients, seller, currency, taxRates, defaultNote, showBatchPrint, showToast]);
+
   const printReceipt = useCallback(async (inv) => {
-    console.log("Billit: Preparing print for invoice:", inv.id);
     const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
-    console.log("Billit: PDF data generated, length:", bytes?.length);
+    const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
+
+    const oldTitle = document.title;
+    document.title = `Billit - Professional Billing_${inv.id}`;
+    showBatchPrint(url);
+    setTimeout(() => {
+      document.title = oldTitle;
+    }, 30000);
+  }, [clients, seller, currency, taxRates, showBatchPrint]);
+
+  const printReceiptThermal = useCallback(async (inv) => {
+    const { getThermalPDFData } = await import("./lib/pdf");
+    const bytes = await getThermalPDFData(inv, clients, seller, currency, taxRates, defaultNote);
+    const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
+
+    const oldTitle = document.title;
+    document.title = `Billit - Professional Billing_${inv.id}`;
+    showBatchPrint(url);
+    setTimeout(() => {
+      document.title = oldTitle;
+      URL.revokeObjectURL(url);
+    }, 30000);
+  }, [clients, seller, currency, taxRates, defaultNote, showBatchPrint]);
+
+  const printInventoryThermal = useCallback(async () => {
+    const { getThermalInventoryPDFData } = await import("./lib/pdf");
+    const bytes = await getThermalInventoryPDFData(seller, currency, products, taxRates, inventoryTitle, defaultNote);
     const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
     showBatchPrint(url);
-  }, [clients, seller, currency, taxRates, showBatchPrint]);
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }, [seller, currency, products, taxRates, inventoryTitle, defaultNote, showBatchPrint]);
 
   const shareReceipt = useCallback(async (inv) => {
     try {
       showToast("Preparing PDF...");
       const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
       const blob = new Blob([bytes], { type: "application/pdf" });
-      const file = new File([blob], `Invoice-${inv.id}.pdf`, { type: "application/pdf" });
+      const filename = `Billit - Professional Billing_${inv.id}.pdf`;
+      const file = new File([blob], filename, { type: "application/pdf" });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -406,14 +481,15 @@ export default function BillingApp() {
   const shareMultipleInvoices = useCallback(async (invs) => {
     showToast("Preparing PDF bundle...");
     const pdf = await getBatchPDF(invs, clients, seller, currency, taxRates);
-    const file = new File([pdf.blob], `Invoices-Bundle.pdf`, { type: "application/pdf" });
+    const filename = `Billit - Professional Billing_Bundle.pdf`;
+    const file = new File([pdf.blob], filename, { type: "application/pdf" });
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: `Multiple Invoices`, text: `Check attached invoices from ${seller.name}` });
       } catch (e) { if (e.name !== "AbortError") showToast("Sharing failed", "error"); }
     } else {
       const url = URL.createObjectURL(pdf.blob);
-      const a = document.createElement("a"); a.href = url; a.download = `Invoices-Bundle.pdf`; a.click();
+      const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
       showToast("Download started (Share unsupported)");
     }
   }, [clients, seller, currency, taxRates, showToast]);
@@ -475,9 +551,9 @@ export default function BillingApp() {
       }
 
       if (action) {
-        if (action === "download") await downloadReceipt(finalInv);
         if (action === "share") await shareReceipt(finalInv);
         if (action === "print") await printReceipt(finalInv);
+        if (action === "thermal") await printReceiptThermal(finalInv);
       }
 
       showToast(selectedInvoice ? "Invoice updated!" : "Invoice created!");
@@ -578,12 +654,23 @@ export default function BillingApp() {
     return { ...revenue, counts, sortedClients, taxBreakdown, pending: revenue.awaiting, overdue: revenue.overdueAmt };
   }, [invoices, taxRates, clients]);
 
-  const saveProduct = useCallback(() => {
+  const saveProduct = useCallback((stayOpen = false) => {
     if (!productForm.name) return showToast("Name is required", "error");
-    if (editingProductId) { setProducts(prev => prev.map(p => p.id === editingProductId ? { ...productForm, id: p.id } : p)); showToast("Item updated!"); }
-    else { setProducts(prev => [...prev, { ...productForm, id: crypto.randomUUID() }]); showToast("Item saved to inventory!"); }
-    setShowModal(null);
-  }, [productForm, editingProductId, showToast]);
+    if (editingProductId) {
+      setProducts(prev => prev.map(p => p.id === editingProductId ? { ...productForm, id: p.id } : p));
+      showToast("Item updated!");
+    } else {
+      setProducts(prev => [...prev, { ...productForm, id: crypto.randomUUID() }]);
+      showToast("Item saved to inventory!");
+    }
+
+    if (stayOpen) {
+      setProductForm({ name: "", desc: "", price: 0, isDefault: false, image: null, tax: taxRates.map(t => t.id) });
+      setEditingProductId(null);
+    } else {
+      setShowModal(null);
+    }
+  }, [productForm, editingProductId, showToast, taxRates]);
 
   const saveClient = useCallback(() => {
     if (!clientForm.name) return showToast("Name is required", "error");
@@ -593,49 +680,91 @@ export default function BillingApp() {
   }, [clientForm, selectedClient, showToast]);
 
   const downloadInventoryPDF = useCallback(async () => {
-    const bytes = await getInventoryPDFData(seller, currency, products);
+    const bytes = await getInventoryPDFData(seller, currency, products, taxRates, inventoryTitle);
     const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `inventory-list.pdf`; a.click();
+    const a = document.createElement("a"); a.href = url; a.download = `Billit - Professional Billing_Inventory.pdf`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     showToast("Inventory PDF generated!");
-  }, [seller, currency, products, showToast]);
+  }, [seller, currency, products, taxRates, showToast]);
+
+  const printInventoryPDF = useCallback(async () => {
+    showToast("Preparing Inventory for print...");
+    const bytes = await getInventoryPDFData(seller, currency, products, taxRates, inventoryTitle);
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const oldTitle = document.title;
+    document.title = `Billit - Professional Billing_Inventory`;
+    showBatchPrint(url);
+    setTimeout(() => {
+      document.title = oldTitle;
+    }, 30000);
+  }, [seller, currency, products, taxRates, showBatchPrint, showToast]);
 
   const shareInventoryPDF = useCallback(async () => {
     showToast("Preparing Inventory PDF...");
     try {
-      const bytes = await getInventoryPDFData(seller, currency, products);
+      const bytes = await getInventoryPDFData(seller, currency, products, taxRates, inventoryTitle);
       const blob = new Blob([bytes], { type: "application/pdf" });
-      const file = new File([blob], "Inventory-List.pdf", { type: "application/pdf" });
+      const filename = `Billit - Professional Billing_Inventory.pdf`;
+      const file = new File([blob], filename, { type: "application/pdf" });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: 'Inventory List', text: `Check our inventory list from ${seller.name}` });
       } else {
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = "Inventory-List.pdf"; a.click();
+        const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
         showToast("PDF Downloaded (Share unsupported)");
       }
     } catch (e) { if (e.name !== "AbortError") showToast("Sharing failed", "error"); }
   }, [seller, currency, products, showToast]);
 
-  const wipeAllData = () => setDeleteConfirm({ type: "wipe" });
+  const handleGatedLogin = async () => {
+    if (!hasAcceptedLegal) {
+      setShowLegalModal(true);
+      return;
+    }
+    return loginWithPopup();
+  };
 
+  const wipeAllData = () => setDeleteConfirm({ type: "wipe" });
 
   return (
     <Layout
       seller={seller} setTab={setTab} tab={tab} isDark={isDark} setShowModal={setShowModal}
-      user={user} authLoading={authLoading} loginWithPopup={loginWithPopup} logout={logout}
+      setShowSellerModal={setShowSellerModal}
+      user={user} authLoading={authLoading}
+      loginWithPopup={handleGatedLogin}
+      logout={logout}
       handleNewInvoice={handleNewInvoice}
     >
       {tab === "home" && <Dashboard statsMemo={statsMemo} fmt={fmt} invoices={invoices} getClient={getClient} totalWithTax={totalWithTax} taxRates={taxRates} setSelectedInvoice={setSelectedInvoice} setShowModal={setShowModal} setTab={setTab} />}
-      {tab === "bills" && <InvoiceManager invoices={invoices} filterStatus={filterStatus} setFilterStatus={setFilterStatus} search={search} setSearch={setSearch} isSelectionMode={isSelectionMode} setIsSelectionMode={setIsSelectionMode} selectedInvoices={selectedInvoices} setSelectedInvoices={setSelectedInvoices} toggleSelection={toggleSelection} deleteInvoices={deleteInvoices} batchUpdateStatus={batchUpdateStatus} downloadMultipleInvoices={downloadMultipleInvoices} printMultipleInvoices={printMultipleInvoices} shareMultipleInvoices={shareMultipleInvoices} showBatchPrint={showBatchPrint} showToast={showToast} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} taxRates={taxRates} setSelectedInvoice={setSelectedInvoice} setShowModal={setShowModal} handleNewInvoice={handleNewInvoice} />}
+      {tab === "bills" && <InvoiceManager invoices={invoices} filterStatus={filterStatus} setFilterStatus={setFilterStatus} search={search} setSearch={setSearch} isSelectionMode={isSelectionMode} setIsSelectionMode={setIsSelectionMode} selectedInvoices={selectedInvoices} setSelectedInvoices={setSelectedInvoices} toggleSelection={toggleSelection} deleteInvoices={deleteInvoices} batchUpdateStatus={batchUpdateStatus} downloadMultipleInvoices={downloadMultipleInvoices} printMultipleInvoices={printMultipleInvoices} printMultipleInvoicesThermal={printMultipleInvoicesThermal} shareMultipleInvoices={shareMultipleInvoices} showBatchPrint={showBatchPrint} showToast={showToast} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} taxRates={taxRates} setSelectedInvoice={setSelectedInvoice} setShowModal={setShowModal} handleNewInvoice={handleNewInvoice} />}
       {tab === "clients" && <ClientManager clients={clients} setClients={setClients} setClientForm={setClientForm} setSelectedClient={setSelectedClient} setShowModal={setShowModal} invoices={invoices} fmt={fmt} setDeleteConfirm={setDeleteConfirm} />}
-      {tab === "items" && <InventoryManager inventoryTitle={inventoryTitle} editingInventoryTitle={editingInventoryTitle} setEditingInventoryTitle={setEditingInventoryTitle} setInventoryTitle={setInventoryTitle} downloadInventoryPDF={downloadInventoryPDF} shareInventoryPDF={shareInventoryPDF} setProductForm={setProductForm} setEditingProductId={setEditingProductId} setShowModal={setShowModal} products={products} setProducts={setProducts} setDeleteConfirm={setDeleteConfirm} fmt={fmt} />}
+      {tab === "items" && <InventoryManager inventoryTitle={inventoryTitle} editingInventoryTitle={editingInventoryTitle} setEditingInventoryTitle={setEditingInventoryTitle} setInventoryTitle={setInventoryTitle} downloadInventoryPDF={downloadInventoryPDF} printInventoryPDF={printInventoryPDF} printInventoryThermal={printInventoryThermal} shareInventoryPDF={shareInventoryPDF} setProductForm={setProductForm} setEditingProductId={setEditingProductId} setShowModal={setShowModal} products={products} setProducts={setProducts} setDeleteConfirm={setDeleteConfirm} fmt={fmt} taxRates={taxRates} itemTaxTotal={itemTaxTotal} />}
       {tab === "reports" && <Reports invoices={invoices} clients={clients} fmt={fmt} totalWithTax={totalWithTax} taxRates={taxRates} statsMemo={statsMemo} />}
-      {tab === "settings" && <Settings user={user} seller={seller} setSellerForm={setSellerForm} setShowSellerModal={setShowSellerModal} authLoading={authLoading} syncStatus={syncStatus} lastSync={lastSync} invoices={invoices} clients={clients} products={products} fetchFromCloud={fetchFromCloud} logout={logout} clearLocalState={clearLocalState} signInWithPopup={loginWithPopup} authError={authError} showToast={showToast} syncLog={syncLog} theme={theme} setTheme={setTheme} toggleTheme={toggleTheme} currency={currency} setShowCurrencyPicker={setShowCurrencyPicker} taxRates={taxRates} setTaxRates={setTaxRates} wipeAllData={wipeAllData} settingsTab={settingsTab} setSettingsTab={setSettingsTab} isDark={isDark} exportInvoicesToCSV={exportInvoicesToCSV} exportClientsToCSV={exportClientsToCSV} exportProductsToCSV={exportProductsToCSV} getClient={getClient} defaultNote={defaultNote} setDefaultNote={setDefaultNote} />}
+      {tab === "settings" && <Settings user={user} seller={seller} setSellerForm={setSellerForm} setShowSellerModal={setShowSellerModal} authLoading={authLoading} syncStatus={syncStatus} lastSync={lastSync} invoices={invoices} clients={clients} products={products} fetchFromCloud={fetchFromCloud} logout={logout} clearLocalState={clearLocalState} signInWithPopup={handleGatedLogin} authError={authError} showToast={showToast} syncLog={syncLog} theme={theme} setTheme={setTheme} toggleTheme={toggleTheme} currency={currency} setShowCurrencyPicker={setShowCurrencyPicker} taxRates={taxRates} setTaxRates={setTaxRates} wipeAllData={wipeAllData} settingsTab={settingsTab} setSettingsTab={setSettingsTab} isDark={isDark} exportInvoicesToCSV={exportInvoicesToCSV} exportClientsToCSV={exportClientsToCSV} exportProductsToCSV={exportProductsToCSV} getClient={getClient} defaultNote={defaultNote} setDefaultNote={setDefaultNote} hasAcceptedLegal={hasAcceptedLegal} viewLegal={() => setShowLegalModal(true)} />}
 
       <InvoiceModal showModal={showModal} setShowModal={(val) => { setShowModal(val); if (!val) { setSelectedInvoice(null); resetForm(); } }} form={form} setForm={setForm} clients={clients} products={products} taxRates={taxRates} saveInvoice={saveInvoice} addItem={addItem} removeItem={removeItem} updateItem={updateItem} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} playFeedback={playFeedback} showToast={showToast} selectedInvoice={selectedInvoice} resetForm={resetForm} isSaving={isSaving} />
-      <InvoiceViewModal showModal={showModal} setShowModal={setShowModal} selectedInvoice={selectedInvoice} setSelectedInvoice={setSelectedInvoice} setForm={setForm} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} taxRates={taxRates} downloadReceipt={downloadReceipt} printReceipt={printReceipt} shareReceipt={shareReceipt} setDeleteConfirm={setDeleteConfirm} updateStatus={updateInvoiceStatus} showToast={showToast} />
+      <InvoiceViewModal showModal={showModal} setShowModal={setShowModal} selectedInvoice={selectedInvoice} setSelectedInvoice={setSelectedInvoice} setForm={setForm} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} taxRates={taxRates} downloadReceipt={downloadReceipt} printReceipt={printReceipt} printReceiptThermal={printReceiptThermal} shareReceipt={shareReceipt} setDeleteConfirm={setDeleteConfirm} updateStatus={updateInvoiceStatus} showToast={showToast} />
       <ClientModal showModal={showModal} setShowModal={setShowModal} clientForm={clientForm} setClientForm={setClientForm} selectedClient={selectedClient} saveClient={saveClient} />
       <ProductModal showModal={showModal} setShowModal={setShowModal} productForm={productForm} setProductForm={setProductForm} editingProductId={editingProductId} saveProduct={saveProduct} compressImage={compressImage} taxRates={taxRates} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} />
+
+      <LegalModal
+        show={showLegalModal}
+        hasAcceptedLegal={hasAcceptedLegal}
+        onAccept={() => {
+          setHasAcceptedLegal(true);
+          localStorage.setItem("billit_hasAcceptedLegal", "true");
+          setShowLegalModal(false);
+          showToast("Terms Accepted! You can now Sync.");
+        }}
+        onDecline={() => {
+          setHasAcceptedLegal(false);
+          localStorage.removeItem("billit_hasAcceptedLegal");
+          setShowLegalModal(false);
+          showToast("Consent revoked. Cloud Sync disabled.", "warning");
+        }}
+        onClose={() => setShowLegalModal(false)}
+      />
       <SellerModal showSellerModal={showSellerModal} setShowSellerModal={setShowSellerModal} sellerForm={sellerForm} setSellerForm={setSellerForm} setSeller={setSeller} showToast={showToast} compressImage={compressImage} />
 
       {showCurrencyPicker && (

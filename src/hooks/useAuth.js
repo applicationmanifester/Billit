@@ -25,7 +25,7 @@ export const useAuth = (showToast) => {
     useEffect(() => {
         // Subscribe once — never re-runs because deps array is empty.
         const unsub = onAuthStateChanged(auth, (u) => {
-            console.log("Auth State Change:", u ? u.email : "Logged Out");
+
             setUser(u);
             setAuthError(null);
             setAuthLoading(false);
@@ -35,10 +35,8 @@ export const useAuth = (showToast) => {
         const checkRedirect = async () => {
             if (sessionStorage.getItem("firebase_redirect_pending") !== "true") return;
             try {
-                console.log("Checking for Redirect Result...");
                 const result = await getRedirectResult(auth);
                 if (result) {
-                    console.log("Redirect sign-in success for:", result.user.email);
                     showToastRef.current?.("Signed in with Google!");
                 }
             } catch (error) {

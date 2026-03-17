@@ -9,8 +9,8 @@ export const InvoiceModal = ({
     const preventScrollValueChange = (e) => e.currentTarget.blur();
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
-            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "480px", maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 40px" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
+            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
                 <div style={{ width: "40px", height: "4px", background: "var(--border-primary)", borderRadius: "2px", margin: "0 auto 24px" }} />
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
@@ -24,7 +24,7 @@ export const InvoiceModal = ({
 
                 <div style={{ marginBottom: "20px" }}>
                     <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Select Client</label>
-                    <select className="input-field" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })} style={{ width: "100%", height: "50px", appearance: "none" }}>
+                    <select className="input-field" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%", height: "50px", appearance: "none" }}>
                         {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                 </div>
@@ -32,11 +32,11 @@ export const InvoiceModal = ({
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
                     <div>
                         <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Date</label>
-                        <input type="date" className="input-field" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} style={{ width: "100%" }} />
+                        <input type="date" className="input-field" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
                     </div>
                     <div>
                         <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Due Date</label>
-                        <input type="date" className="input-field" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} style={{ width: "100%" }} />
+                        <input type="date" className="input-field" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
                     </div>
                 </div>
 
@@ -59,7 +59,7 @@ export const InvoiceModal = ({
                                     flexShrink: 0, padding: "10px 14px", borderRadius: "12px", background: "var(--bg-input)",
                                     border: `1px solid var(--border-primary)`, textAlign: "left", cursor: "pointer", maxWidth: "140px"
                                 }}>
-                                    <div style={{ fontSize: "13px", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
+                                    <div style={{ fontSize: "13px", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "var(--text-primary)" }}>{p.name}</div>
                                     <div style={{ fontSize: "11px", color: "var(--accent-primary)" }}>{fmt(p.price)}</div>
                                 </button>
                             ))}
@@ -81,11 +81,13 @@ export const InvoiceModal = ({
                                     style={{ flex: 1, background: "none", borderBottom: `1px solid var(--border-primary)`, borderRadius: 0, padding: "4px 0" }}
                                     placeholder="Item description"
                                     value={item.desc}
+                                    onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         const found = products.find(p => p.name === val);
                                         if (found) {
-                                            updateItem(idx, { desc: found.name, price: found.price });
+                                            const taxIds = (found.tax && found.tax.length > 0) ? found.tax : taxRates.map(t => t.id);
+                                            updateItem(idx, { desc: found.name, price: found.price, tax: taxIds });
                                         } else {
                                             updateItem(idx, "desc", val);
                                         }
@@ -93,38 +95,58 @@ export const InvoiceModal = ({
                                 />
                                 <button onClick={() => removeItem(idx)} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>Remove</button>
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.5fr", gap: "12px", alignItems: "flex-end" }}>
                                 <div>
                                     <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Qty</label>
-                                    <input type="number" min="0" className="input-field" style={{ width: "100%", padding: "8px" }} value={item.qty} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "qty", e.target.value)} />
+                                    <input type="number" min="1" className="input-field" style={{ width: "100%", padding: "10px" }} value={item.qty} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "qty", e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} />
                                 </div>
                                 <div>
                                     <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Price</label>
-                                    <input type="number" min="0" className="input-field" style={{ width: "100%", padding: "8px" }} value={item.price} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "price", e.target.value)} />
-                                </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total Price (Incl. Tax)</label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        className="input-field"
-                                        style={{ width: "100%", padding: "8px", background: "var(--border-accent)" }}
-                                        value={Math.round((item.price + (itemTaxTotal(item, taxRates) / (item.qty || 1))) * 100) / 100}
+                                    <input type="number" min="0" step="any" className="input-field" style={{ width: "100%", padding: "10px" }}
+                                        placeholder="0.00"
+                                        value={item.price === "" ? "" : Number(item.price.toFixed(2))}
                                         onWheel={preventScrollValueChange}
+                                        onFocus={(e) => e.target.select()}
+                                        onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
                                         onChange={(e) => {
-                                            const newVal = Number(e.target.value) || 0;
-                                            const base = calculateBaseFromTotal(newVal, taxRates, item.tax);
-                                            updateItem(idx, "price", base);
+                                            const raw = e.target.value;
+                                            updateItem(idx, "price", raw === "" ? "" : parseFloat(raw) || 0);
                                         }}
                                     />
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total Tax Amount</label>
+                                    <div style={{ padding: "10px 12px", fontSize: "14px", fontWeight: "bold", color: "var(--accent-secondary)", background: "var(--bg-input)", borderRadius: "10px", border: "1px solid var(--border-primary)", height: "42px", display: "flex", alignItems: "center" }}>
+                                        {fmt(itemTaxTotal(item, taxRates))}
+                                    </div>
                                 </div>
                             </div>
 
                             <div style={{ marginTop: "12px" }}>
-                                <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total Tax Amount</label>
-                                <div style={{ padding: "8px 12px", fontSize: "16px", fontWeight: "bold", color: "var(--accent-secondary)", background: "var(--bg-input)", borderRadius: "12px", border: "1px solid var(--border-primary)" }}>
-                                    {fmt(itemTaxTotal(item, taxRates))}
-                                </div>
+                                <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total Price (Incl. Tax)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    className="input-field"
+                                    style={{ width: "100%", padding: "12px", background: "var(--bg-input)", fontSize: "18px", fontWeight: "bold", borderRadius: "12px" }}
+                                    placeholder="0.00"
+                                    value={item.price === "" ? "" : Number((item.price + (itemTaxTotal(item, taxRates) / (item.qty || 1))).toFixed(2))}
+                                    onWheel={preventScrollValueChange}
+                                    onFocus={(e) => e.target.select()}
+                                    onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
+                                    onChange={(e) => {
+                                        const raw = e.target.value;
+                                        if (raw === "") {
+                                            updateItem(idx, "price", "");
+                                            return;
+                                        }
+                                        const newVal = Number(raw) || 0;
+                                        const base = calculateBaseFromTotal(newVal, taxRates, item.tax);
+                                        updateItem(idx, "price", base);
+                                    }}
+                                />
                             </div>
 
                             <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -153,6 +175,7 @@ export const InvoiceModal = ({
                         placeholder="Add some notes for the seller..."
                         value={form.notes}
                         onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                        onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
                     />
                 </div>
 
@@ -172,15 +195,18 @@ export const InvoiceModal = ({
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-                        <button disabled={!!isSaving} onClick={() => saveInvoice("download")} className="secondary-btn" style={{ padding: "14px", fontSize: "12px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.2fr", gap: "10px" }}>
+                        <button disabled={!!isSaving} onClick={() => saveInvoice("download")} className="secondary-btn" style={{ padding: "14px 4px", fontSize: "10px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
                             {isSaving === "download" ? "..." : "⬇ Download"}
                         </button>
-                        <button disabled={!!isSaving} onClick={() => saveInvoice("print")} className="secondary-btn" style={{ padding: "14px", fontSize: "12px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
+                        <button disabled={!!isSaving} onClick={() => saveInvoice("share")} className="secondary-btn" style={{ padding: "14px 4px", fontSize: "10px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
+                            {isSaving === "share" ? "..." : "📨 Share"}
+                        </button>
+                        <button disabled={!!isSaving} onClick={() => saveInvoice("print")} className="secondary-btn" style={{ padding: "14px 4px", fontSize: "10px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
                             {isSaving === "print" ? "..." : "🖨️ Print"}
                         </button>
-                        <button disabled={!!isSaving} onClick={() => saveInvoice("share")} className="secondary-btn" style={{ padding: "14px", fontSize: "12px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
-                            {isSaving === "share" ? "..." : "📨 Share"}
+                        <button disabled={!!isSaving} onClick={() => saveInvoice("thermal")} className="secondary-btn" style={{ padding: "14px 4px", fontSize: "10px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
+                            {isSaving === "thermal" ? "..." : "🧾 Thermal"}
                         </button>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "../firebase";
 import { doc, getDoc, getDocFromCache, setDoc, onSnapshot } from "firebase/firestore";
 
-export const useCloudSync = (user, localData, setters, showToast) => {
+export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLegal) => {
     const [syncStatus, setSyncStatus] = useState("idle");
     const [hasLoadedCloud, setHasLoadedCloud] = useState(false);
     const [syncLog, setSyncLog] = useState([]);
@@ -101,7 +101,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
             targetUid = targetUid.uid || targetUid.id || null;
         }
 
-        if (!targetUid || typeof targetUid !== "string" || !db) return;
+        if (!targetUid || typeof targetUid !== "string" || !db || !hasAcceptedLegal) return;
 
         // Wait a small amount of time on first fetch to let auth propagate
         if (!hasLoadedCloud && retryCount === 0) {
@@ -207,7 +207,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
 
     // Trigger fetch when user signs in
     useEffect(() => {
-        if (user?.uid && !hasLoadedCloud) {
+        if (user?.uid && !hasLoadedCloud && hasAcceptedLegal) {
             // Cancel any pending auto-save immediately
             if (syncTimeoutRef.current) {
                 clearTimeout(syncTimeoutRef.current);
@@ -232,7 +232,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
 
     // Real-time listener for remote changes (multi-device sync)
     useEffect(() => {
-        if (!user?.uid || !db || !hasLoadedCloud) return;
+        if (!user?.uid || !db || !hasLoadedCloud || !hasAcceptedLegal) return;
 
         let unsub = null;
         let retryCount = 0;
@@ -309,7 +309,7 @@ export const useCloudSync = (user, localData, setters, showToast) => {
 
     // Auto-save local changes to cloud (debounced)
     useEffect(() => {
-        if (!user?.uid || !db || !hasLoadedCloud) return;
+        if (!user?.uid || !db || !hasLoadedCloud || !hasAcceptedLegal) return;
         if (loadedUidRef.current !== user.uid) return;
         // Guard: don't save while we're loading from cloud
         if (skipCloudSave.current || Date.now() < skipUntilRef.current) return;

@@ -43,5 +43,5 @@ export const calculateBaseFromTotal = (total, taxPool, appliedTaxIds) => {
         .filter(tr => ids.includes(String(tr.id)))
         .reduce((sum, tr) => sum + (Number(tr.rate) || 0), 0);
 
-    return total / (1 + (totalRate / 100));
+    return Math.round((total / (1 + (totalRate / 100))) * 1000000) / 1000000;
 };

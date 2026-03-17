@@ -1,6 +1,6 @@
 import React from "react";
 
-export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoading, loginWithPopup, logout, setShowModal, handleNewInvoice }) => {
+export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoading, loginWithPopup, logout, setShowModal, setShowSellerModal, handleNewInvoice }) => {
     return (
         <div style={{
             minHeight: "100vh", background: "var(--bg-primary)", color: "var(--text-primary)", fontFamily: "'Outfit', sans-serif",
@@ -13,21 +13,41 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
                 width: "100%", zIndex: 100,
                 background: "var(--bg-header)",
                 padding: "12px 16px", borderBottom: `1px solid var(--border-primary)`,
-                display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center",
-                boxSizing: "border-box", gap: "10px"
+                display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
+                boxSizing: "border-box", gap: "16px"
             }}>
+                <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                    <div
+                        onClick={() => setTab("home")}
+                        style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", height: "40px" }}
+                    >
+                        <img src="/billit_logo.png" style={{ height: "100%", borderRadius: "8px", objectFit: "contain" }} alt="Billit" />
+                    </div>
+                </div>
+
+                {/* Business Profile Section (Centered & Clickable) */}
                 <div
-                    onClick={() => setTab("home")}
-                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", cursor: "pointer", minWidth: "50px" }}
+                    onClick={() => setShowSellerModal(true)}
+                    className="clickable-header-profile"
+                    style={{
+                        display: "flex", alignItems: "center", gap: "10px",
+                        padding: "4px 12px", background: "var(--bg-secondary)",
+                        borderRadius: "16px", border: "1px solid var(--border-primary)",
+                        maxWidth: "320px", minWidth: "150px", flexShrink: 0, overflow: "hidden", cursor: "pointer",
+                        transition: "all 0.2s ease"
+                    }}
                 >
-                    <div style={{ background: "var(--accent-gradient)", width: "32px", height: "32px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", color: "#000" }}>B</div>
-                    <h1 style={{ fontSize: "12px", fontWeight: "900", letterSpacing: "-0.2px", margin: 0, opacity: 0.9 }}>Billit</h1>
+                    {seller.logo ? (
+                        <img src={seller.logo} style={{ width: "32px", height: "32px", borderRadius: "8px", objectFit: "cover" }} alt="" />
+                    ) : (
+                        <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "var(--bg-input)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🏢</div>
+                    )}
+                    <div style={{ fontSize: "14px", fontWeight: "bold", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {seller.name}
+                    </div>
                 </div>
 
-                <div style={{ textAlign: "center", fontSize: "16px", fontWeight: "bold", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 4px" }}>
-                    {seller.name}
-                </div>
-
+                {/* Header Actions */}
                 <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                     <button onClick={() => setTab("settings")} className="secondary-btn" style={{ padding: "8px", borderRadius: "10px" }}>⚙️</button>
                     <button className="primary-btn" style={{ fontSize: "11px", padding: "10px 12px", whiteSpace: "nowrap" }} onClick={handleNewInvoice}>+ New Invoice</button>

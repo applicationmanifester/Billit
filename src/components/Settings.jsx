@@ -7,7 +7,8 @@ export const Settings = ({
     syncLog, theme, setTheme, toggleTheme, currency, setShowCurrencyPicker,
     taxRates, setTaxRates, defaultTaxId, setDefaultTaxId, wipeAllData, settingsTab, setSettingsTab, isDark,
     exportInvoicesToCSV, exportClientsToCSV, exportProductsToCSV, getClient,
-    defaultNote, setDefaultNote
+    defaultNote, setDefaultNote,
+    hasAcceptedLegal, viewLegal
 }) => {
     return (
         <div style={{ padding: "16px" }} className="animate-slide-up">
@@ -138,9 +139,42 @@ export const Settings = ({
                     ) : (
                         <div style={{ textAlign: "center" }}>
                             <h3 style={{ marginTop: 0 }}>Sync Account</h3>
-                            <button onClick={signInWithPopup} className="premium-card" style={{ width: "100%", padding: "16px", background: "#fff", color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer", borderRadius: "12px", marginBottom: "12px" }}>
-                                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "20px" }} alt="Google" />
-                                Sign in with Google (Popup)
+                            {!hasAcceptedLegal && (
+                                <div style={{ background: "rgba(245, 158, 11, 0.1)", border: "1px solid var(--accent-primary)", borderRadius: "12px", padding: "16px", marginBottom: "16px", textAlign: "left", fontSize: "13px" }}>
+                                    <span style={{ fontWeight: "bold", display: "block", marginBottom: "4px", color: "var(--accent-primary)" }}>⚠️ Action Required</span>
+                                    You must accept the Terms & Privacy Policy before enabling Google Cloud Sync.
+                                </div>
+                            )}
+                            {hasAcceptedLegal ? (
+                                <button onClick={signInWithPopup} className="premium-card" style={{ width: "100%", padding: "16px", background: "#fff", color: "#000", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", cursor: "pointer", borderRadius: "12px", marginBottom: "12px" }}>
+                                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "20px" }} alt="Google" />
+                                    Sign in with Google (Popup)
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => showToast("Please accept Terms & Privacy Policy in the link below first!", "error")}
+                                    className="premium-card"
+                                    style={{
+                                        width: "100%", padding: "16px", background: "var(--bg-input)", color: "var(--text-secondary)",
+                                        fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
+                                        cursor: "not-allowed", borderRadius: "12px", marginBottom: "12px", border: "1px dashed var(--border-primary)",
+                                        opacity: 0.7
+                                    }}
+                                >
+                                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{ width: "20px", opacity: 0.5 }} alt="Google" />
+                                    Please Accept Terms to Enable Sign In
+                                </button>
+                            )}
+
+                            <button
+                                onClick={viewLegal}
+                                style={{
+                                    background: "none", border: "none", color: "var(--accent-primary)",
+                                    fontSize: "12px", textDecoration: "underline", cursor: "pointer",
+                                    marginTop: "8px"
+                                }}
+                            >
+                                View Billit - Terms & Privacy Policy
                             </button>
                             {authError && (
                                 <div style={{ marginTop: "10px", fontSize: "12px", color: "#ef4444", fontWeight: "600" }}>

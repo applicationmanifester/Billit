@@ -4,21 +4,22 @@ export const ClientModal = ({ showModal, setShowModal, clientForm, setClientForm
     if (showModal !== "client") return null;
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
-            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
+            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
                 <h2 style={{ marginTop: 0 }}>{selectedClient ? "Edit Client" : "New Client"}</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Client Name</div>
-                        <input className="input-field" placeholder="Client Name" value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} />
+                        <input className="input-field" placeholder="Client Name" value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveClient()} />
                     </div>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Email Address</div>
-                        <input className="input-field" placeholder="Email Address" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} />
+                        <input className="input-field" placeholder="Email Address" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveClient()} />
                     </div>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Phone Number</div>
                         <input className="input-field" type="tel" placeholder="Phone Number" value={clientForm.phone}
+                            onKeyDown={(e) => e.key === "Enter" && saveClient()}
                             onChange={(e) => {
                                 const val = e.target.value.replace(/[^0-9+]/g, '');
                                 setClientForm({ ...clientForm, phone: val });
@@ -27,7 +28,10 @@ export const ClientModal = ({ showModal, setShowModal, clientForm, setClientForm
                     </div>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Address</div>
-                        <textarea className="input-field" placeholder="Address" style={{ height: "100px", paddingTop: "12px" }} value={clientForm.address} onChange={(e) => setClientForm({ ...clientForm, address: e.target.value })} />
+                        <textarea className="input-field" placeholder="Address" style={{ height: "100px", paddingTop: "12px" }} value={clientForm.address}
+                            onChange={(e) => setClientForm({ ...clientForm, address: e.target.value })}
+                            onKeyDown={(e) => e.key === "Enter" && saveClient()}
+                        />
                     </div>
                 </div>
                 <button onClick={saveClient} className="primary-btn" style={{ width: "100%", padding: "16px" }}>Save Client</button>
@@ -40,41 +44,57 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
     if (showModal !== "product") return null;
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
-            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
+            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
                 <h2 style={{ marginTop: 0 }}>{editingProductId ? "Edit Item" : "Add to Inventory"}</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Item Name</div>
-                        <input className="input-field" placeholder="Item Name" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} />
+                        <input className="input-field" placeholder="Item Name" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveProduct(false)} />
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Price</div>
-                            <input type="number" className="input-field" placeholder="Price" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: Number(e.target.value) || 0 })} />
-                        </div>
-                        <div>
-                            <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Total Price (Incl. Tax)</div>
-                            <input
-                                type="number"
-                                className="input-field"
-                                style={{ background: "var(--border-accent)" }}
-                                placeholder="Total Price"
-                                value={Math.round((Number(productForm.price || 0) + (itemTaxTotal({ ...productForm, qty: 1, tax: productForm.tax || [] }, taxRates))) * 100) / 100}
+                            <input type="number" step="any" className="input-field" placeholder="0.00"
+                                value={productForm.price === "" ? "" : Number(productForm.price.toFixed(4))}
+                                onFocus={(e) => e.target.select()}
+                                onKeyDown={(e) => e.key === "Enter" && saveProduct(false)}
                                 onChange={(e) => {
-                                    const newVal = Number(e.target.value) || 0;
-                                    const base = calculateBaseFromTotal(newVal, taxRates, productForm.tax || []);
-                                    setProductForm({ ...productForm, price: base });
+                                    const raw = e.target.value;
+                                    setProductForm({ ...productForm, price: raw === "" ? "" : parseFloat(raw) || 0 });
                                 }}
                             />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Total Tax Amount</div>
+                            <div style={{ padding: "8px 12px", fontSize: "14px", fontWeight: "bold", color: "var(--accent-secondary)", background: "var(--bg-input)", borderRadius: "12px", border: "1px solid var(--border-primary)", height: "42px", display: "flex", alignItems: "center" }}>
+                                {Math.round(itemTaxTotal({ ...productForm, qty: 1, tax: productForm.tax || [] }, taxRates) * 100) / 100}
+                            </div>
                         </div>
                     </div>
 
                     <div>
-                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Total Tax Amount</div>
-                        <div style={{ padding: "8px 12px", fontSize: "14px", fontWeight: "bold", color: "var(--accent-secondary)", background: "var(--bg-input)", borderRadius: "12px", border: "1px solid var(--border-primary)" }}>
-                            {Math.round(itemTaxTotal({ ...productForm, qty: 1, tax: productForm.tax || [] }, taxRates) * 100) / 100}
-                        </div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Total Price (Incl. Tax)</div>
+                        <input
+                            type="number"
+                            step="any"
+                            className="input-field"
+                            style={{ background: "var(--border-accent)" }}
+                            placeholder="0.00"
+                            value={productForm.price === "" ? "" : Number((Number(productForm.price || 0) + (itemTaxTotal({ ...productForm, qty: 1, tax: productForm.tax || [] }, taxRates))).toFixed(2))}
+                            onFocus={(e) => e.target.select()}
+                            onKeyDown={(e) => e.key === "Enter" && saveProduct(false)}
+                            onChange={(e) => {
+                                const raw = e.target.value;
+                                if (raw === "") {
+                                    setProductForm({ ...productForm, price: "" });
+                                    return;
+                                }
+                                const newVal = Number(raw) || 0;
+                                const base = calculateBaseFromTotal(newVal, taxRates, productForm.tax || []);
+                                setProductForm({ ...productForm, price: base });
+                            }}
+                        />
                     </div>
 
                     <div>
@@ -101,6 +121,14 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                         <label htmlFor="isDefault" style={{ fontSize: "14px" }}>Include in New Invoices by default</label>
                     </div>
 
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Description</div>
+                        <textarea className="input-field" placeholder="Item Description" style={{ height: "60px", paddingTop: "12px" }} value={productForm.desc}
+                            onChange={(e) => setProductForm({ ...productForm, desc: e.target.value })}
+                            onKeyDown={(e) => e.key === "Enter" && saveProduct(false)}
+                        />
+                    </div>
+
                     <div style={{ border: "1px dashed var(--border-primary)", borderRadius: "12px", padding: "20px", textAlign: "center" }}>
                         {productForm.image ? (
                             <div style={{ position: "relative" }}>
@@ -125,7 +153,12 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                         )}
                     </div>
                 </div>
-                <button onClick={saveProduct} className="primary-btn" style={{ width: "100%", padding: "16px" }}>Save Item</button>
+                <div style={{ display: "flex", gap: "10px" }}>
+                    {!editingProductId && (
+                        <button onClick={() => saveProduct(true)} className="secondary-btn" style={{ flex: 1, padding: "16px", color: "var(--accent-primary)" }}>+ Add Another</button>
+                    )}
+                    <button onClick={() => saveProduct(false)} className="primary-btn" style={{ flex: 1, padding: "16px" }}>{editingProductId ? "Update Item" : "Save Item"}</button>
+                </div>
             </div>
         </div>
     );

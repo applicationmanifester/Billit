@@ -4,8 +4,8 @@ export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, s
     if (!showSellerModal) return null;
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={(e) => e.target === e.currentTarget && setShowSellerModal(false)}>
-            <div className="premium-card animate-scale-in" style={{ width: "100%", maxWidth: "440px", maxHeight: "90vh", overflowY: "auto", padding: "32px", position: "relative" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 400, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowSellerModal(false)}>
+            <div className="premium-card animate-scale-in" style={{ width: "100%", maxWidth: "440px", padding: "32px", position: "relative" }}>
                 <button onClick={() => setShowSellerModal(false)} style={{ position: "absolute", top: "20px", right: "20px", background: "none", border: "none", fontSize: "24px", cursor: "pointer" }}>✕</button>
                 <h2 style={{ marginTop: 0, marginBottom: "24px", textAlign: "center" }}>Business Profile</h2>
 
@@ -54,19 +54,20 @@ export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, s
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Business Name</div>
-                        <input className="input-field" placeholder="Business Name" value={sellerForm.name} onChange={(e) => setSellerForm({ ...sellerForm, name: e.target.value })} />
+                        <input className="input-field" placeholder="Business Name" value={sellerForm.name} onChange={(e) => setSellerForm({ ...sellerForm, name: e.target.value })} onKeyDown={(e) => e.key === "Enter" && (setSeller(sellerForm), setShowSellerModal(false), showToast("Profile updated!"))} />
                     </div>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Tagline / Motto</div>
-                        <input className="input-field" placeholder="Tagline / Motto" value={sellerForm.tagline} onChange={(e) => setSellerForm({ ...sellerForm, tagline: e.target.value })} />
+                        <input className="input-field" placeholder="Tagline / Motto" value={sellerForm.tagline} onChange={(e) => setSellerForm({ ...sellerForm, tagline: e.target.value })} onKeyDown={(e) => e.key === "Enter" && (setSeller(sellerForm), setShowSellerModal(false), showToast("Profile updated!"))} />
                     </div>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Email</div>
-                        <input className="input-field" placeholder="Email" value={sellerForm.email} onChange={(e) => setSellerForm({ ...sellerForm, email: e.target.value })} />
+                        <input className="input-field" placeholder="Email" value={sellerForm.email} onChange={(e) => setSellerForm({ ...sellerForm, email: e.target.value })} onKeyDown={(e) => e.key === "Enter" && (setSeller(sellerForm), setShowSellerModal(false), showToast("Profile updated!"))} />
                     </div>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Phone</div>
                         <input className="input-field" type="tel" placeholder="Phone" value={sellerForm.phone}
+                            onKeyDown={(e) => e.key === "Enter" && (setSeller(sellerForm), setShowSellerModal(false), showToast("Profile updated!"))}
                             onChange={(e) => {
                                 const val = e.target.value.replace(/[^0-9+]/g, '');
                                 setSellerForm({ ...sellerForm, phone: val });
@@ -75,15 +76,18 @@ export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, s
                     </div>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>GSTIN (Optional)</div>
-                        <input className="input-field" placeholder="GSTIN (Optional)" value={sellerForm.gstin} onChange={(e) => setSellerForm({ ...sellerForm, gstin: e.target.value })} />
+                        <input className="input-field" placeholder="GSTIN (Optional)" value={sellerForm.gstin} onChange={(e) => setSellerForm({ ...sellerForm, gstin: e.target.value })} onKeyDown={(e) => e.key === "Enter" && (setSeller(sellerForm), setShowSellerModal(false), showToast("Profile updated!"))} />
                     </div>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Invoice Prefix</div>
-                        <input className="input-field" placeholder="Invoice Prefix (e.g. INV)" value={sellerForm.invoicePrefix} onChange={(e) => setSellerForm({ ...sellerForm, invoicePrefix: e.target.value })} />
+                        <input className="input-field" placeholder="Invoice Prefix (e.g. INV)" value={sellerForm.invoicePrefix} onChange={(e) => setSellerForm({ ...sellerForm, invoicePrefix: e.target.value })} onKeyDown={(e) => e.key === "Enter" && (setSeller(sellerForm), setShowSellerModal(false), showToast("Profile updated!"))} />
                     </div>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Full Address</div>
-                        <textarea className="input-field" placeholder="Full Address" style={{ height: "80px", paddingTop: "12px" }} value={sellerForm.address} onChange={(e) => setSellerForm({ ...sellerForm, address: e.target.value })} />
+                        <textarea className="input-field" placeholder="Full Address" style={{ height: "80px", paddingTop: "12px" }} value={sellerForm.address}
+                            onChange={(e) => setSellerForm({ ...sellerForm, address: e.target.value })}
+                            onKeyDown={(e) => e.key === "Enter" && (setSeller(sellerForm), setShowSellerModal(false), showToast("Profile updated!"))}
+                        />
                     </div>
                 </div>
 

@@ -3,7 +3,7 @@ import React from "react";
 export const InvoiceViewModal = ({
     showModal, setShowModal, selectedInvoice, setSelectedInvoice,
     setForm, getClient, fmt, totalWithTax, itemTaxTotal, taxRates,
-    downloadReceipt, printReceipt, shareReceipt, setDeleteConfirm,
+    downloadReceipt, printReceipt, printReceiptThermal, shareReceipt, setDeleteConfirm,
     updateStatus, showToast
 }) => {
     if (showModal !== "view" || !selectedInvoice) return null;
@@ -17,8 +17,8 @@ export const InvoiceViewModal = ({
     const statuses = ["draft", "sent", "paid", "overdue"];
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
-            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "480px", maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 40px" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
+            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
                 <div style={{ width: "40px", height: "4px", background: "var(--border-primary)", borderRadius: "2px", margin: "0 auto 24px" }} />
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
@@ -116,14 +116,14 @@ export const InvoiceViewModal = ({
                             );
                         })}
                     </div>
+                    <div style={{ height: "1px", background: "var(--border-primary)", margin: "20px 0 0" }} />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "16px" }}>
-                    <button onClick={() => downloadReceipt(inv)} className="secondary-btn" style={{
-                        padding: "12px 4px", background: "#fff", color: "#000", fontWeight: "bold", fontSize: "11px", borderRadius: "10px"
-                    }}>Download</button>
-                    <button onClick={() => printReceipt(inv)} className="secondary-btn" style={{ padding: "12px 4px", fontWeight: "bold", fontSize: "11px", borderRadius: "10px" }}>Print</button>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", marginBottom: "16px" }}>
+                    <button onClick={() => downloadReceipt(inv)} className="secondary-btn" style={{ padding: "12px 4px", fontWeight: "bold", fontSize: "11px", borderRadius: "10px" }}>Download</button>
                     <button onClick={() => shareReceipt(inv)} className="secondary-btn" style={{ padding: "12px 4px", fontWeight: "bold", fontSize: "11px", borderRadius: "10px" }}>Share</button>
+                    <button onClick={() => printReceipt(inv)} className="secondary-btn" style={{ padding: "12px 4px", fontWeight: "bold", fontSize: "11px", borderRadius: "10px" }}>Print</button>
+                    <button onClick={() => printReceiptThermal(inv)} className="secondary-btn" style={{ padding: "12px 4px", fontWeight: "bold", fontSize: "11px", borderRadius: "10px" }}>Thermal Print</button>
                 </div>
 
                 <div style={{ paddingBottom: "10px" }}>
