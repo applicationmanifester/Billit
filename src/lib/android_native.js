@@ -1,6 +1,7 @@
 import { App } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Keyboard } from '@capacitor/keyboard';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export const initAndroidNative = (callbacks = {}) => {
   const { onBack, theme } = callbacks;
@@ -37,5 +38,18 @@ export const initAndroidNative = (callbacks = {}) => {
     updateStatusBar(theme === 'dark');
   }
 
-  return { updateStatusBar };
+  const vibrate = async (type = 'click') => {
+    try {
+      if (type === 'error') {
+        await Haptics.vibrate();
+      } else {
+        await Haptics.impact({ style: ImpactStyle.Light });
+      }
+    } catch (e) {
+      // Fallback
+      if (navigator.vibrate) navigator.vibrate(type === 'error' ? [50, 50, 50] : 10);
+    }
+  };
+
+  return { updateStatusBar, vibrate };
 };

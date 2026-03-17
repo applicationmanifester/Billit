@@ -132,10 +132,32 @@ body {
   border-color: var(--accent-primary);
 }
 
-.primary-btn, .secondary-btn, .badge {
-  -webkit-user-select: none;
-  user-select: none;
   -webkit-touch-callout: none; /* Disable callout on long press */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom scrollbar for better look on Android/Desktop */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+.primary-btn:active, .secondary-btn:active {
+  opacity: 0.7;
+  transform: scale(0.98);
 }
 
 .primary-btn {

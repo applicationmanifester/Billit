@@ -82,10 +82,15 @@ export default function BillingApp() {
     } catch (e) { return def; }
   };
 
+  const nativeRef = useRef(null);
+
   const playFeedback = (type = "click") => {
-    if (typeof navigator !== "undefined" && navigator.vibrate) {
+    if (nativeRef.current?.vibrate) {
+      nativeRef.current.vibrate(type);
+    } else if (typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate(type === "error" ? [50, 50, 50] : 10);
     }
+    // ... sound feedback follows
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = audioCtx.createOscillator();
@@ -133,7 +138,7 @@ export default function BillingApp() {
 
   // Android Native Integration
   useEffect(() => {
-    const { updateStatusBar } = initAndroidNative({
+    const native = initAndroidNative({
       theme,
       onBack: () => {
         if (showModal) {
@@ -147,6 +152,7 @@ export default function BillingApp() {
         }
       }
     });
+    nativeRef.current = native;
 
     return () => {
       // Cleanup if needed (listeners are usually persistent in Capacitor)
