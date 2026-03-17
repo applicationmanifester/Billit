@@ -1,5 +1,17 @@
 {
   "appId": "com.billit.app",
   "appName": "Billit-Professional BIlling App",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "Keyboard": {
+      "resize": "body",
+      "style": "dark",
+      "resizeOnFullScreen": true
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0a0a0f",
+      "overlaysWebView": false
+    }
+  }
 }

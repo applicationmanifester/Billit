@@ -31,9 +31,9 @@ import { Reports } from "./components/Reports";
 import { InvoiceModal } from "./components/InvoiceModal";
 import { InvoiceViewModal } from "./components/InvoiceViewModal";
 import { ClientModal, ProductModal } from "./components/Modals";
-import { SellerModal } from "./components/SellerModal";
-import { LegalModal } from "./components/LegalModal";
+import { LegalModal } from "./components/SellerModal";
 import { useCallback } from "react";
+import { initAndroidNative } from "./lib/android_native";
 
 // Performance Utilities Outside Component
 // No hexMap here, keeping it in pdf.js
@@ -130,6 +130,28 @@ export default function BillingApp() {
   const [clients, setClients] = useState(() => getStorage("clients", initialClients));
   const { theme, setTheme, toggleTheme } = useTheme();
   const [currency, setCurrency] = useState(() => getStorage("currency", CURRENCIES[0]));
+
+  // Android Native Integration
+  useEffect(() => {
+    const { updateStatusBar } = initAndroidNative({
+      theme,
+      onBack: () => {
+        if (showModal) {
+          setShowModal(null);
+        } else if (showSellerModal) {
+          setShowSellerModal(false);
+        } else if (tab !== 'home') {
+          setTab('home');
+        } else {
+          // Allow default exit behavior
+        }
+      }
+    });
+
+    return () => {
+      // Cleanup if needed (listeners are usually persistent in Capacitor)
+    };
+  }, [theme, showModal, showSellerModal, tab]); // Re-bind onBack to latest state
   const [taxRates, setTaxRates] = useState(() => {
     const saved = getStorage("taxRates", [{ id: 1, label: "GST", rate: 18 }]);
     if (saved.length > 0 && !saved.some(t => t.rate === 18)) {
