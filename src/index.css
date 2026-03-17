@@ -132,7 +132,10 @@ body {
   border-color: var(--accent-primary);
 }
 
-  -webkit-touch-callout: none; /* Disable callout on long press */
+.primary-btn, .secondary-btn, .badge {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
 
