@@ -132,9 +132,13 @@ export default function BillingApp() {
     if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return initialClients;
     return getStorage("clients", initialClients);
   });
-  const { theme, setTheme, toggleTheme } = useTheme();
-  const [currency, setCurrency] = useState(() => getStorage("currency", CURRENCIES[0]));
+  const { theme, setTheme, toggleTheme } = useTheme(hasAcceptedLegal);
+  const [currency, setCurrency] = useState(() => {
+    if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return CURRENCIES[0];
+    return getStorage("currency", CURRENCIES[0]);
+  });
   const [taxRates, setTaxRates] = useState(() => {
+    if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return [{ id: 1, label: "GST", rate: 18 }];
     const saved = getStorage("taxRates", [{ id: 1, label: "GST", rate: 18 }]);
     if (saved.length > 0 && !saved.some(t => t.rate === 18)) {
       return [...saved, { id: 1, label: "GST", rate: 18 }];
@@ -166,8 +170,14 @@ export default function BillingApp() {
     if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return defaultSeller;
     return getStorage("seller", defaultSeller);
   });
-  const [inventoryTitle, setInventoryTitle] = useState(() => getStorage("inventoryTitle", "Inventory List"));
-  const [defaultNote, setDefaultNote] = useState(() => getStorage("defaultNote", ""));
+  const [inventoryTitle, setInventoryTitle] = useState(() => {
+    if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return "Inventory List";
+    return getStorage("inventoryTitle", "Inventory List");
+  });
+  const [defaultNote, setDefaultNote] = useState(() => {
+    if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return "";
+    return getStorage("defaultNote", "");
+  });
   const [editingInventoryTitle, setEditingInventoryTitle] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [currencySearch, setCurrencySearch] = useState("");

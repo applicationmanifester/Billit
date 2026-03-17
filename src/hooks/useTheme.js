@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 
-export const useTheme = () => {
+export const useTheme = (hasAcceptedLegal) => {
     const [theme, setTheme] = useState(() => {
+        if (hasAcceptedLegal === false) return "light"; // Force light if explicitly not accepted
         try {
             const saved = localStorage.getItem("billit_theme");
             return saved || "light";
@@ -9,6 +10,14 @@ export const useTheme = () => {
             return "light";
         }
     });
+
+    // Reactive Loading: When consent is granted, load from localStorage
+    useEffect(() => {
+        if (hasAcceptedLegal) {
+            const saved = localStorage.getItem("billit_theme");
+            if (saved) setTheme(saved);
+        }
+    }, [hasAcceptedLegal]);
 
     useEffect(() => {
         const root = window.document.documentElement;
@@ -18,8 +27,12 @@ export const useTheme = () => {
         } else {
             root.setAttribute("data-theme", theme);
         }
-        localStorage.setItem("billit_theme", theme);
-    }, [theme]);
+        
+        // Gate Persistence: Only save if consent is granted
+        if (hasAcceptedLegal) {
+            localStorage.setItem("billit_theme", theme);
+        }
+    }, [theme, hasAcceptedLegal]);
 
     const toggleTheme = () => {
         setTheme(prev => prev === "light" ? "dark" : "light");
