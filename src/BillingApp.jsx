@@ -11,7 +11,14 @@ import { exportInvoicesToCSV, exportClientsToCSV, exportProductsToCSV } from "./
 // Constants & Libs
 import { initialClients, initialInvoices, statusColors, CURRENCIES } from "./lib/constants";
 import { total, getItemTaxList, itemTaxTotal, totalWithTax, formatCurrency, calculateBaseFromTotal } from "./lib/calculations";
-import { getInventoryPDFData, getPDFData, getBatchPDF } from "./lib/pdf";
+import {
+  getInventoryPDFData,
+  getPDFData,
+  getBatchPDF,
+  getBatchThermalPDF,
+  getThermalPDFData,
+  getThermalInventoryPDFData
+} from "./lib/pdf";
 
 // Components
 import { Layout } from "./components/Layout";
@@ -412,7 +419,6 @@ export default function BillingApp() {
 
   const printMultipleInvoicesThermal = useCallback(async (invs) => {
     showToast("Preparing Thermal PDF bundle...");
-    const { getBatchThermalPDF } = await import("./lib/pdf");
     const pdf = await getBatchThermalPDF(invs, clients, seller, currency, taxRates, defaultNote);
     const oldTitle = document.title;
     document.title = `Billit - Professional Billing_Bundle`;
@@ -436,7 +442,6 @@ export default function BillingApp() {
   }, [clients, seller, currency, taxRates, showBatchPrint]);
 
   const printReceiptThermal = useCallback(async (inv) => {
-    const { getThermalPDFData } = await import("./lib/pdf");
     const bytes = await getThermalPDFData(inv, clients, seller, currency, taxRates, defaultNote);
     const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
 
@@ -450,7 +455,6 @@ export default function BillingApp() {
   }, [clients, seller, currency, taxRates, defaultNote, showBatchPrint]);
 
   const printInventoryThermal = useCallback(async () => {
-    const { getThermalInventoryPDFData } = await import("./lib/pdf");
     const bytes = await getThermalInventoryPDFData(seller, currency, products, taxRates, inventoryTitle, defaultNote);
     const blob = new Blob([bytes], { type: "application/pdf" }), url = URL.createObjectURL(blob);
     showBatchPrint(url);
