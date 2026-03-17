@@ -1,24 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Billit Logo with Tagline">
-  <!-- Yellow Background with Curved Edges -->
+  <!-- Yellow Background with Rounded Corners -->
   <rect width="100" height="100" rx="18" fill="#F7C733"/>
   
-  <!-- Main Brand Name (Zoomed Out) -->
-  <text id="brandName" x="50" y="54" 
-        text-anchor="middle" 
-        font-family="system-ui, -apple-system, sans-serif" 
+  <!-- Main Brand Name - Fixed at x=12 -->
+  <text x="12" y="54" 
+        text-anchor="start" 
+        font-family="sans-serif" 
         font-weight="900" 
         font-size="28"
-        letter-spacing="-1.2">
+        textLength="76"
+        lengthAdjust="spacingAndGlyphs">
     <tspan fill="#FF5411">Bill</tspan><tspan fill="#000000">it</tspan>
   </text>
   
-  <!-- Tagline matched exactly to the width of 'Billit' (Reduced Gap) -->
-  <text x="50" y="65" 
-        text-anchor="middle" 
-        font-family="system-ui, -apple-system, sans-serif" 
-        font-weight="700" 
-        font-size="5.5"
+  <!-- Tagline - Indented slightly right (x=14) but flush at end (length=74) -->
+  <text x="14" y="65" 
+        text-anchor="start" 
+        font-family="sans-serif" 
+        font-weight="900" 
+        font-size="5.8"
         fill="#000000"
-        textLength="58"
+        textLength="74"
         lengthAdjust="spacingAndGlyphs">Professional Billing App</text>
 </svg>
