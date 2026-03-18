@@ -1,22 +1,14 @@
 import { App } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { Keyboard } from '@capacitor/keyboard';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export const initAndroidNative = (callbacks = {}) => {
   const { onBack, theme } = callbacks;
 
   // Handle Hardware Back Button
-  App.addListener('backButton', (data) => {
+  const backListener = App.addListener('backButton', (data) => {
     if (onBack) {
       onBack(data);
-    } else {
-      // Default behavior: go back in history or exit
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        App.exitApp();
-      }
     }
   });
 
@@ -51,5 +43,5 @@ export const initAndroidNative = (callbacks = {}) => {
     }
   };
 
-  return { updateStatusBar, vibrate };
+  return { updateStatusBar, vibrate, backListener };
 };

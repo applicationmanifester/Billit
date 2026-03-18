@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "../firebase";
 import { doc, getDoc, getDocFromCache, setDoc, onSnapshot } from "firebase/firestore";
 
-export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLegal) => {
+export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLegal, isEditingRef) => {
     const [syncStatus, setSyncStatus] = useState("idle");
     const [hasLoadedCloud, setHasLoadedCloud] = useState(false);
     const [syncLog, setSyncLog] = useState([]);
@@ -19,10 +19,12 @@ export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLeg
     const isSavingRef = useRef(false);
     const permissionNoticeRef = useRef(false);
     const showToastRef = useRef(showToast);
+    const fetchFromCloudRef = useRef(null);
 
     // Sync ref with prop
     useEffect(() => {
         showToastRef.current = showToast;
+        fetchFromCloudRef.current = fetchFromCloud;
     });
 
     const isFirestoreOfflineError = useCallback((err) => {
@@ -56,9 +58,22 @@ export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLeg
     }, []);
 
     const applyCloudData = useCallback((data) => {
-        if (data.invoices !== undefined) setters.setInvoices(data.invoices);
+        if (data.invoices !== undefined) {
+            setters.setInvoices(data.invoices.map(inv => ({
+                ...inv,
+                items: (inv.items || []).map(it => ({
+                    ...it,
+                    tax: Array.isArray(it.tax) ? it.tax : (it.tax ? [it.tax] : [])
+                }))
+            })));
+        }
         if (data.clients !== undefined) setters.setClients(data.clients);
-        if (data.products !== undefined) setters.setProducts(data.products);
+        if (data.products !== undefined) {
+            setters.setProducts(data.products.map(p => ({
+                ...p,
+                tax: Array.isArray(p.tax) ? p.tax : (p.tax ? [p.tax] : [])
+            })));
+        }
         if (data.seller !== undefined) setters.setSeller(data.seller);
         if (data.taxRates !== undefined) setters.setTaxRates(data.taxRates);
         if (data.currency !== undefined) setters.setCurrency(data.currency);
@@ -215,7 +230,7 @@ export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLeg
             }
             skipCloudSave.current = true;
             skipUntilRef.current = Date.now() + 5000;
-            fetchFromCloud(user.uid);
+            if (fetchFromCloudRef.current) fetchFromCloudRef.current(user.uid);
             permissionNoticeRef.current = false;
         } else if (!user) {
             // User signed out — reset sync state
@@ -228,7 +243,7 @@ export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLeg
                 syncTimeoutRef.current = null;
             }
         }
-    }, [user, hasLoadedCloud, fetchFromCloud]);
+    }, [user?.uid, hasLoadedCloud, hasAcceptedLegal]);
 
     // Real-time listener for remote changes (multi-device sync)
     useEffect(() => {
@@ -248,8 +263,8 @@ export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLeg
                     unsub = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
                         // Ignore our own pending writes echoing back
                         if (snapshot.metadata.hasPendingWrites) return;
-                        // Guard: Ignore if we're in the middle of a fetch/load
-                        if (skipCloudSave.current || Date.now() < skipUntilRef.current) return;
+                        // Guard: Ignore if we're in the middle of a fetch/load OR user is editing
+                        if (skipCloudSave.current || Date.now() < skipUntilRef.current || isEditingRef?.current) return;
                         // Guard: Ensure we're only applying data for the current loaded user
                         if (loadedUidRef.current !== user.uid) return;
 
@@ -260,16 +275,7 @@ export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLeg
                         skipCloudSave.current = true;
                         skipUntilRef.current = Date.now() + 2000;
 
-                        if (data.invoices !== undefined) setters.setInvoices(data.invoices);
-                        if (data.clients !== undefined) setters.setClients(data.clients);
-                        if (data.products !== undefined) setters.setProducts(data.products);
-                        if (data.seller !== undefined) setters.setSeller(data.seller);
-                        if (data.taxRates !== undefined) setters.setTaxRates(data.taxRates);
-                        if (data.currency !== undefined) setters.setCurrency(data.currency);
-                        if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
-                        if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
-                        if (data.theme !== undefined) setters.setTheme(data.theme);
-
+                        applyCloudData(data);
                         setLastSync(data.lastSync || new Date().toLocaleTimeString());
 
                         setTimeout(() => {
@@ -325,11 +331,26 @@ export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLeg
             isSavingRef.current = true;
             try {
                 const now = new Date();
+                
+                // Point 2 & 24 Fix: Strip large device-local or redundant data to stay under 1MB Firestore limit
+                const syncSeller = { ...localData.seller };
+                // Keep images local only for better scalability/speed
+                if (syncSeller.logo) syncSeller.logo = "[stored locally]";
+                if (syncSeller.qrCode) syncSeller.qrCode = "[stored locally]";
+
                 const payload = {
                     ...localData,
+                    seller: syncSeller,
                     lastSync: now.toLocaleTimeString(),
                     updatedAt: now.toISOString()
                 };
+
+                // Add size warning for document limit (1MB)
+                const payloadSize = new Blob([JSON.stringify(payload)]).size;
+                if (payloadSize > 900000) {
+                    addLog("⚠️ Data approaching cloud sync limit (1MB). Consider archiving old invoices.");
+                }
+
                 await setDoc(doc(db, "users", user.uid), payload, { merge: true });
                 setSyncStatus("synced");
                 setLastSync(payload.lastSync);

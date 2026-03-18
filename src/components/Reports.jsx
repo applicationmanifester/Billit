@@ -1,11 +1,13 @@
 import React from "react";
 
-export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsMemo }) => {
+export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsMemo, reportRange, setReportRange }) => {
+    const invs = statsMemo.invs || invoices;
+
     // Top Clients by Lifetime Value
     const clientLTV = statsMemo.sortedClients.slice(0, 5);
 
     // Monthly Trends
-    const monthlyGroups = invoices.reduce((acc, inv) => {
+    const monthlyGroups = invs.reduce((acc, inv) => {
         const month = inv.date.substring(0, 7); // YYYY-MM
         const amt = inv.totalAmount || totalWithTax(inv.items, taxRates);
         acc[month] = (acc[month] || 0) + amt;
@@ -29,9 +31,41 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
     const paidInvoices = statsMemo.counts.paid;
     const collectionRate = totalInvoices > 0 ? (paidInvoices / totalInvoices) * 100 : 0;
 
+    const rangeLabels = {
+        month: "This Month",
+        year: "This Year",
+        "30d": "Last 30 Days",
+        "90d": "Last 90 Days",
+        all: "All Time"
+    };
+
     return (
         <div style={{ padding: "16px" }} className="animate-slide-up">
-            <h2 style={{ fontSize: "18px", marginBottom: "20px", fontWeight: "900" }}>Financial Reports</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h2 style={{ fontSize: "18px", margin: 0, fontWeight: "900" }}>Financial Reports</h2>
+                <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--accent-primary)", background: "var(--bg-card)", padding: "4px 10px", borderRadius: "8px", border: "1px solid var(--border-primary)" }}>
+                    {rangeLabels[reportRange]}
+                </div>
+            </div>
+
+            {/* Range Selector */}
+            <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "16px", scrollbarWidth: "none" }}>
+                {Object.entries(rangeLabels).map(([key, label]) => (
+                    <button
+                        key={key}
+                        onClick={() => setReportRange(key)}
+                        style={{
+                            padding: "8px 16px", borderRadius: "20px", fontSize: "11px", fontWeight: "bold",
+                            whiteSpace: "nowrap", border: "1px solid var(--border-primary)",
+                            background: reportRange === key ? "var(--accent-primary)" : "var(--bg-card)",
+                            color: reportRange === key ? "#000" : "var(--text-secondary)",
+                            cursor: "pointer", transition: "all 0.2s"
+                        }}
+                    >
+                        {label.toUpperCase()}
+                    </button>
+                ))}
+            </div>
 
             {/* Quick Stats Grid */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
@@ -47,7 +81,7 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
 
             {/* Main Revenue Card */}
             <div className="premium-card" style={{ padding: "20px", marginBottom: "20px", background: "var(--accent-gradient)", color: "#000" }}>
-                <div style={{ fontSize: "11px", fontWeight: "900", opacity: 0.7, marginBottom: "4px" }}>TOTAL REVENUE (ALL TIME)</div>
+                <div style={{ fontSize: "11px", fontWeight: "900", opacity: 0.7, marginBottom: "4px" }}>TOTAL REVENUE ({rangeLabels[reportRange].toUpperCase()})</div>
                 <div style={{ fontSize: "28px", fontWeight: "900" }}>{fmt(totalRevenue)}</div>
             </div>
 
@@ -97,7 +131,7 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
             <div className="premium-card" style={{ padding: "20px", marginBottom: "20px" }}>
                 <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", fontWeight: "bold" }}>TAX BREAKDOWN</div>
                 {!statsMemo.taxBreakdown || Object.keys(statsMemo.taxBreakdown).length === 0 ? (
-                    <div style={{ fontSize: "14px", opacity: 0.6 }}>No tax data available.</div>
+                    <div style={{ fontSize: "14px", opacity: 0.6 }}>No tax data available for this period.</div>
                 ) : (
                     <div style={{ display: "grid", gap: "10px" }}>
                         {Object.entries(statsMemo.taxBreakdown).map(([label, amt]) => (
@@ -119,7 +153,7 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
                             <div style={{ fontWeight: "bold", fontSize: "14px" }}>{fmt(client.ltv)}</div>
                         </div>
                     ))}
-                    {clientLTV.length === 0 && <div style={{ fontSize: "14px", opacity: 0.6 }}>No client data available.</div>}
+                    {clientLTV.length === 0 && <div style={{ fontSize: "14px", opacity: 0.6 }}>No client data available for this period.</div>}
                 </div>
             </div>
 
@@ -136,7 +170,7 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
                             return (
                                 <div key={month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
                                     <div style={{ fontSize: "8px", fontWeight: "bold" }}>{fmt(val)}</div>
-                                    <div style={{ width: "100%", background: "var(--accent-gradient)", height: `${height}%`, borderRadius: "4px 4px 0 0", minHeight: "2px" }}></div>
+                                    <div style={{ width: "100%", background: "var(--accent-secondary)", height: `${height}%`, borderRadius: "4px 4px 0 0", minHeight: "2px" }}></div>
                                     <div style={{ fontSize: "8px", color: "var(--text-secondary)" }}>{month}</div>
                                 </div>
                             );
@@ -144,6 +178,6 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
                     </div>
                 )}
             </div>
-        </div >
+        </div>
     );
 };

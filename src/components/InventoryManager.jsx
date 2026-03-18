@@ -1,4 +1,6 @@
 import React from "react";
+import { ProductImage } from "./ProductImage";
+import { getProductImage } from "../lib/db";
 
 export const InventoryManager = ({
     inventoryTitle,
@@ -14,11 +16,20 @@ export const InventoryManager = ({
     setShowModal,
     products,
     setProducts,
+    inventorySort,
+    setInventorySort,
     setDeleteConfirm,
     fmt,
     taxRates,
-    itemTaxTotal
+    itemTaxTotal,
+    invoices,
+    search
 }) => {
+    const filteredProducts = (products || []).filter(p => {
+        if (!search) return true;
+        const s = search.toLowerCase();
+        return (p.name || "").toLowerCase().includes(s) || (p.desc || "").toLowerCase().includes(s);
+    });
     return (
         <div style={{ padding: "16px" }} className="animate-slide-up">
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
@@ -84,15 +95,44 @@ export const InventoryManager = ({
                     <button onClick={shareInventoryPDF} className="secondary-btn" style={{ flex: "1 1 auto", minWidth: "80px", padding: "10px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "11px", borderRadius: "8px" }}>Share</button>
                 </div>
             </div>
-            <button onClick={() => { setProductForm({ name: "", desc: "", price: "", isDefault: false, tax: (taxRates || []).map(t => t.id) }); setEditingProductId(null); setShowModal("product"); }} style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "none", border: `2px dashed var(--border-primary)`, color: "var(--accent-primary)", fontWeight: "bold", marginBottom: "20px" }}>+ Add to Inventory</button>
-            {(products || []).map(p => (
+            <div style={{ display: "flex", gap: "10px", marginBottom: "20px", alignItems: "center" }}>
+                <button onClick={() => { setProductForm({ name: "", desc: "", price: "", isDefault: false, tax: (taxRates || []).map(t => t.id) }); setEditingProductId(null); setShowModal("product"); }} style={{ flex: 1, padding: "14px", borderRadius: "12px", background: "none", border: `2px dashed var(--border-primary)`, color: "var(--accent-primary)", fontWeight: "bold" }}>+ Add to Inventory</button>
+                <select
+                  value={inventorySort}
+                  onChange={(e) => setInventorySort(e.target.value)}
+                  style={{
+                    height: "46px", padding: "0 12px", borderRadius: "12px",
+                    background: "var(--bg-card)", color: "var(--text-primary)",
+                    border: "1px solid var(--border-primary)", fontSize: "12px", fontWeight: "bold",
+                    outline: "none", cursor: "pointer"
+                  }}
+                >
+                  <option value="nameAsc">Name (A-Z)</option>
+                  <option value="nameDesc">Name (Z-A)</option>
+                  <option value="priceAsc">Price (Low)</option>
+                  <option value="priceDesc">Price (High)</option>
+                  <option value="default">Default First</option>
+                </select>
+            </div>
+            {filteredProducts.slice().sort((a, b) => {
+                if (inventorySort === "nameAsc") return a.name.localeCompare(b.name);
+                if (inventorySort === "nameDesc") return b.name.localeCompare(a.name);
+                if (inventorySort === "priceAsc") return (a.price || 0) - (b.price || 0);
+                if (inventorySort === "priceDesc") return (b.price || 0) - (a.price || 0);
+                if (inventorySort === "default") return (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0);
+                return 0;
+            }).map(p => (
                 <div key={p.id} className="premium-card" style={{ marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px" }}>
                     <div style={{ display: "flex", alignItems: "center" }}>
-                        {p.image && <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "var(--bg-input)", overflow: "hidden", marginRight: "10px" }}><img src={p.image} style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>}
+                        {p.image && (
+                            <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "var(--bg-input)", overflow: "hidden", marginRight: "10px" }}>
+                                <ProductImage productId={p.id} fallbackImage={p.image !== true ? p.image : null} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                        )}
                         <div>
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                 <div style={{ fontSize: "15px", fontWeight: "bold" }}>{p.name}</div>
-                                {p.isDefault && <span style={{ fontSize: "10px", background: "var(--border-accent)", color: "var(--accent-primary)", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold" }}>DEFAULT</span>}
+                                {p.isDefault && <span style={{ fontSize: "10px", background: "var(--border-accent)", color: "var(--accent-primary)", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold" }}>⚡ AUTO</span>}
                             </div>
                             {p.desc && <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>{p.desc}</div>}
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginTop: "4px" }}>
@@ -109,26 +149,34 @@ export const InventoryManager = ({
                         </div>
                     </div>
                     <div style={{ display: "flex", gap: "8px" }}>
-                        <button onClick={() => {
-                            const pWithTaxes = { ...p, tax: (p.tax && p.tax.length > 0) ? p.tax : (taxRates || []).map(t => t.id) };
+                        <button onClick={async () => {
+                            let pWithImage = { ...p };
+                            if (p.image === true) {
+                                const stored = await getProductImage(p.id);
+                                if (stored) pWithImage.image = stored;
+                            }
+                            const pWithTaxes = { ...pWithImage, tax: (p.tax && p.tax.length > 0) ? p.tax : (taxRates || []).map(t => t.id) };
                             setProductForm(pWithTaxes);
                             setEditingProductId(p.id);
                             setShowModal("product");
-                        }} style={{
-                            padding: "8px 12px", borderRadius: "10px", background: "var(--accent-primary)", color: "#000", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "all 0.2s"
+                            }} style={{
+                            padding: "10px 16px", borderRadius: "10px", background: "var(--accent-primary)", color: "#000", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "all 0.2s", minHeight: "44px"
                         }}>Edit</button>
-                        <button onClick={() => setDeleteConfirm({ type: "product", id: p.id, name: p.name })} style={{
-                            padding: "8px 12px", borderRadius: "10px", background: "#ef4444", color: "#fff", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "all 0.2s"
+                        <button onClick={() => {
+                            const usedInInvoices = (invoices || []).filter(inv => (inv.items || []).some(it => it.desc === p.name || it.desc === p.desc)).length;
+                            setDeleteConfirm({ type: "product", id: p.id, name: p.name, usedInInvoices });
+                        }} style={{
+                            padding: "10px 16px", borderRadius: "10px", background: "#ef4444", color: "#fff", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "all 0.2s", minHeight: "44px"
                         }}>Delete</button>
                     </div>
                 </div>
             ))}
-            {products.length === 0 && (
+            {filteredProducts.length === 0 && (
                 <div className="empty-state">
-                    <div className="empty-state-icon">📦</div>
-                    <div className="empty-state-title">Your inventory is empty</div>
-                    <p className="empty-state-text">Add your products or services to speed up invoice creation with pre-filled details.</p>
-                    <button onClick={() => { setProductForm({ name: "", price: "", isDefault: false, tax: (taxRates || []).map(t => t.id) }); setEditingProductId(null); setShowModal("product"); }} className="primary-btn">Add First Item</button>
+                    <div className="empty-state-icon">{search ? "🔍" : "📦"}</div>
+                    <div className="empty-state-title">{search ? "No matches found" : "Your inventory is empty"}</div>
+                    <p className="empty-state-text">{search ? `We couldn't find any items matching "${search}"` : "Add your products or services to speed up invoice creation with pre-filled details."}</p>
+                    {!search && <button onClick={() => { setProductForm({ name: "", price: "", isDefault: false, tax: (taxRates || []).map(t => t.id) }); setEditingProductId(null); setShowModal("product"); }} className="primary-btn">Add First Item</button>}
                 </div>
             )}
         </div>

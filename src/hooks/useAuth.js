@@ -23,6 +23,15 @@ export const useAuth = (showToast) => {
     });
 
     useEffect(() => {
+        let authSettled = false;
+        let redirectSettled = false;
+
+        const finalize = () => {
+            if (authSettled && redirectSettled) {
+                setAuthLoading(false);
+            }
+        };
+
         // Subscribe once — never re-runs because deps array is empty.
         const unsub = onAuthStateChanged(auth, (u) => {
             // STRICT GATING: If user exists but hasn't accepted terms, sign them out immediately.
@@ -31,7 +40,8 @@ export const useAuth = (showToast) => {
             if (u && !hasAccepted) {
                 firebaseSignOut(auth);
                 setUser(null);
-                setAuthLoading(false);
+                authSettled = true;
+                finalize();
                 return;
             }
 
@@ -45,30 +55,33 @@ export const useAuth = (showToast) => {
             }
             
             setAuthError(null);
-            setAuthLoading(false);
+            authSettled = true;
+            finalize();
         });
 
         // Handle pending redirect results (gated by session flag)
         const checkRedirect = async () => {
-            if (sessionStorage.getItem("firebase_redirect_pending") !== "true") return;
-            try {
-                const result = await getRedirectResult(auth);
-                if (result) {
-                    showToastRef.current?.("Signed in with Google!");
+            if (sessionStorage.getItem("firebase_redirect_pending") === "true") {
+                try {
+                    const result = await getRedirectResult(auth);
+                    if (result) {
+                        showToastRef.current?.("Signed in with Google!");
+                    }
+                } catch (error) {
+                    console.error("Redirect Error:", error.code, error.message);
+                    let msg = error.message;
+                    if (error.code === "auth/credential-already-in-use") {
+                        msg = "This Google account is already linked to another user.";
+                    } else if (error.code === "auth/network-request-failed") {
+                        msg = "Network error. Please check your connection.";
+                    }
+                    setAuthError(`${error.code}: ${msg}`);
+                } finally {
+                    sessionStorage.removeItem("firebase_redirect_pending");
                 }
-            } catch (error) {
-                console.error("Redirect Error:", error.code, error.message);
-                let msg = error.message;
-                if (error.code === "auth/credential-already-in-use") {
-                    msg = "This Google account is already linked to another user.";
-                } else if (error.code === "auth/network-request-failed") {
-                    msg = "Network error. Please check your connection.";
-                }
-                setAuthError(`${error.code}: ${msg}`);
-                setAuthLoading(false);
-            } finally {
-                sessionStorage.removeItem("firebase_redirect_pending");
             }
+            redirectSettled = true;
+            finalize();
         };
 
         checkRedirect();
@@ -78,7 +91,7 @@ export const useAuth = (showToast) => {
 
     const loginWithPopup = async () => {
         setAuthError(null);
-        const isNative = window.Capacitor?.isNativePlatform;
+        const isNative = typeof window.Capacitor !== 'undefined' && window.Capacitor.isNativePlatform?.() === true;
         
         if (isNative) {
             showToastRef.current?.("Redirecting to Google Sign-in...");
@@ -92,8 +105,16 @@ export const useAuth = (showToast) => {
         } catch (err) {
             console.error("Popup Error:", err);
             // Fallback to redirect if popup is blocked or fails
-            if (err.code === "auth/popup-blocked" || err.code === "auth/operation-not-supported-in-this-environment") {
-                showToastRef.current?.("Popup blocked. Switching to redirect...", "warning");
+            const fallbackCodes = [
+                "auth/popup-blocked",
+                "auth/popup-closed-by-user",
+                "auth/operation-not-supported-in-this-environment",
+                "auth/internal-error",
+                "auth/unauthorized-domain"
+            ];
+
+            if (fallbackCodes.includes(err.code)) {
+                showToastRef.current?.("Login interrupted. Switching to redirect...", "warning");
                 return loginWithRedirect();
             }
             setAuthError(err.code);

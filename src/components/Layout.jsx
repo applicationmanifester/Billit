@@ -1,6 +1,7 @@
 import React from "react";
+import { SearchBar } from "./SearchBar";
 
-export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoading, loginWithPopup, logout, setShowModal, setShowSellerModal, handleNewInvoice }) => {
+export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoading, loginWithPopup, logout, setShowModal, setShowSellerModal, handleNewInvoice, search, setSearch }) => {
     const brandLogoSrc = '/billit_logo.png';
 
     return (
@@ -13,16 +14,19 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
             paddingRight: "var(--safe-area-right)",
             position: "relative", overflowX: "hidden"
         }}>
-            {/* Header */}
-            <div style={{
-                position: "fixed", top: 0, left: 0,
-                width: "100%", zIndex: 100,
-                background: "var(--bg-header)",
-                padding: "calc(12px + var(--safe-area-top)) 16px 12px", 
-                borderBottom: `1px solid var(--border-primary)`,
-                display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
-                boxSizing: "border-box", gap: "16px"
-            }}>
+            {/* Header with Glassmorphism */}
+            <div 
+                className="backdrop-blur"
+                style={{
+                    position: "fixed", top: 0, left: 0,
+                    width: "100%", zIndex: 100,
+                    background: "var(--bg-header)",
+                    padding: "calc(8px + var(--safe-area-top)) 16px 10px", 
+                    borderBottom: `1px solid var(--border-primary)`,
+                    display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
+                    boxSizing: "border-box", gap: "16px"
+                }}
+            >
                 <div style={{ display: "flex", justifyContent: "flex-start" }}>
                     <div
                         onClick={() => setTab("home")}
@@ -62,12 +66,15 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
             </div>
 
             <main style={{ padding: tab === "home" || tab === "stats" ? "20px" : "0" }}>
+                <div style={{ maxWidth: "600px", margin: "0 auto 20px" }}>
+                    <SearchBar search={search} setSearch={setSearch} placeholder={`Search ${tab === 'home' ? 'everything' : tab}...`} />
+                </div>
                 {children}
             </main>
 
             {/* Navigation Bar */}
             <div style={{
-                position: "fixed", bottom: "calc(20px + var(--safe-area-bottom))", left: "50%", transform: "translateX(-50%)",
+                position: "fixed", bottom: "calc(12px + var(--safe-area-bottom))", left: "50%", transform: "translateX(-50%)",
                 width: "calc(100% - 40px)", maxWidth: "400px", zIndex: 100,
                 background: "var(--bg-secondary)", borderRadius: "24px",
                 padding: "8px", display: "flex", justifyContent: "space-between",

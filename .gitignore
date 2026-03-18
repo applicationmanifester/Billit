@@ -1,9 +1,11 @@
-node_modules
 dist
-.idea
-.DS_Store
-*.log
-.gemini
+node_modules
+.env
+.env.local
+firebase-debug.log
+sanitize_script.cjs
+sanitize_script.py
+brain
 brain
 .env
 .env.*

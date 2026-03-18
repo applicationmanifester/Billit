@@ -1,11 +1,4 @@
-export const initialClients = [{
-    id: 1,
-    name: "Customer",
-    email: "customer@business.com",
-    phone: "+1 000-000-0000",
-    address: "123 customer St",
-    info: "Default client."
-}];
+export const initialClients = [];
 
 export const initialInvoices = [];
 
@@ -79,3 +72,16 @@ export const CURRENCIES = [
     { code: "COP", symbol: "COL$", name: "Colombian Peso", locale: "es-CO" },
     { code: "PEN", symbol: "S/", name: "Peruvian Sol", locale: "es-PE" }
 ];
+
+export const DEFAULT_SELLER = {
+    name: "My Business",
+    tagline: "Professional Billing",
+    email: "biz@example.com",
+    phone: "+1 000-000-0000",
+    address: "123 Street",
+    gstin: "",
+    website: "",
+    qrCode: "",
+    logo: "",
+    invoicePrefix: "INV"
+};

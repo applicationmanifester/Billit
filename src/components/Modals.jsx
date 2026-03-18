@@ -1,11 +1,11 @@
 import React from "react";
 
-export const ClientModal = ({ showModal, setShowModal, clientForm, setClientForm, selectedClient, saveClient }) => {
+export const ClientModal = ({ showModal, setShowModal, clientForm, setClientForm, selectedClient, saveClient, setDeleteConfirm }) => {
     if (showModal !== "client") return null;
 
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
-            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
+            <div className="premium-card animate-slide-up modal-content-wrapper" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
                 <h2 style={{ marginTop: 0 }}>{selectedClient ? "Edit Client" : "New Client"}</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
                     <div>
@@ -28,24 +28,33 @@ export const ClientModal = ({ showModal, setShowModal, clientForm, setClientForm
                     </div>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Address</div>
-                        <textarea className="input-field" placeholder="Address" style={{ height: "100px", paddingTop: "12px" }} value={clientForm.address}
+                        <textarea className="input-field" placeholder="Address" style={{ height: "80px", paddingTop: "12px" }} value={clientForm.address}
                             onChange={(e) => setClientForm({ ...clientForm, address: e.target.value })}
                             onKeyDown={(e) => e.key === "Enter" && saveClient()}
                         />
                     </div>
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>GSTIN</div>
+                        <input className="input-field" placeholder="GSTIN (Optional)" value={clientForm.gstin || ""} onChange={(e) => setClientForm({ ...clientForm, gstin: e.target.value.toUpperCase() })} onKeyDown={(e) => e.key === "Enter" && saveClient()} />
+                    </div>
                 </div>
-                <button onClick={saveClient} className="primary-btn" style={{ width: "100%", padding: "16px" }}>Save Client</button>
+                <div style={{ display: "flex", gap: "10px" }}>
+                    {selectedClient && (
+                        <button onClick={() => { setShowModal(null); setDeleteConfirm({ type: "client", id: selectedClient.id, name: selectedClient.name }); }} className="secondary-btn" style={{ flex: 1, padding: "16px", color: "#ef4444", border: "1px solid #ef4444" }}>Delete</button>
+                    )}
+                    <button onClick={saveClient} className="primary-btn" style={{ flex: 2, padding: "16px" }}>Save Client</button>
+                </div>
             </div>
         </div>
     );
 };
 
-export const ProductModal = ({ showModal, setShowModal, productForm, setProductForm, editingProductId, saveProduct, compressImage, taxRates, itemTaxTotal, calculateBaseFromTotal }) => {
+export const ProductModal = ({ showModal, setShowModal, productForm, setProductForm, editingProductId, saveProduct, compressImage, taxRates, itemTaxTotal, calculateBaseFromTotal, setDeleteConfirm }) => {
     if (showModal !== "product") return null;
 
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
-            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
+            <div className="premium-card animate-slide-up modal-content-wrapper" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
                 <h2 style={{ marginTop: 0 }}>{editingProductId ? "Edit Item" : "Add to Inventory"}</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
                     <div>
@@ -54,14 +63,14 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                         <div>
-                            <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Price</div>
+                            <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Base Price(Excl tax)</div>
                             <input type="number" step="any" className="input-field" placeholder="0.00"
                                 value={productForm.price === "" ? "" : Number((Number(productForm.price) || 0).toFixed(4))}
                                 onFocus={(e) => e.target.select()}
                                 onKeyDown={(e) => e.key === "Enter" && saveProduct(false)}
                                 onChange={(e) => {
                                     const raw = e.target.value;
-                                    setProductForm({ ...productForm, price: raw === "" ? "" : parseFloat(raw) || 0 });
+                                    setProductForm({ ...productForm, price: raw === "" ? "" : Math.max(0, parseFloat(raw) || 0) });
                                 }}
                             />
                         </div>
@@ -74,23 +83,25 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                     </div>
 
                     <div>
-                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Total Price (Incl. Tax)</div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Total Price (incl Tax)</div>
                         <input
-                            type="number"
-                            step="any"
+                            type="text"
+                            inputMode="decimal"
                             className="input-field"
-                            style={{ background: "var(--border-accent)" }}
+                            style={{ background: "var(--bg-input)", padding: "14px", border: "1px solid var(--accent-primary)", fontSize: "16px", fontWeight: "bold" }}
                             placeholder="0.00"
-                            value={productForm.price === "" ? "" : Number((Number(Number(productForm.price || 0) + (itemTaxTotal({ ...productForm, qty: 1, tax: productForm.tax || [] }, taxRates))) || 0).toFixed(2))}
+                            value={productForm.price === "" ? "" : Math.round((Number(productForm.price || 0) + itemTaxTotal({ ...productForm, qty: 1, tax: productForm.tax || [] }, taxRates)) * 100) / 100}
                             onFocus={(e) => e.target.select()}
                             onKeyDown={(e) => e.key === "Enter" && saveProduct(false)}
                             onChange={(e) => {
-                                const raw = e.target.value;
-                                if (raw === "") {
+                                let raw = e.target.value;
+                                // Allow only numbers and a single decimal point
+                                raw = raw.replace(/[^0-9.]/g, '');
+                                if (raw === "" || raw === ".") {
                                     setProductForm({ ...productForm, price: "" });
                                     return;
                                 }
-                                const newVal = Number(raw) || 0;
+                                const newVal = parseFloat(raw) || 0;
                                 const base = calculateBaseFromTotal(newVal, taxRates, productForm.tax || []);
                                 setProductForm({ ...productForm, price: base });
                             }}
@@ -107,9 +118,10 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                                     <button key={tr.id} onClick={() => {
                                         setProductForm({ ...productForm, tax: isActive ? taxArr.filter(id => id !== tr.id) : [...taxArr, tr.id] });
                                     }} style={{
-                                        padding: "6px 12px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold",
+                                        padding: "10px 16px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold",
+                                        minHeight: "44px",
                                         border: `1px solid ${isActive ? "var(--accent-primary)" : "var(--border-primary)"}`,
-                                        background: isActive ? "var(--accent-primary)" : "none",
+                                        background: isActive ? "var(--accent-primary)" : "rgba(255,255,255,0.03)",
                                         color: isActive ? "#000" : "var(--text-secondary)",
                                         cursor: "pointer"
                                     }}>{tr.label} ({tr.rate}%)</button>
@@ -156,10 +168,12 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                     </div>
                 </div>
                 <div style={{ display: "flex", gap: "10px" }}>
-                    {!editingProductId && (
+                    {editingProductId ? (
+                        <button onClick={() => { setShowModal(null); setDeleteConfirm({ type: "product", id: editingProductId, name: productForm.name }); }} className="secondary-btn" style={{ flex: 1, padding: "16px", color: "#ef4444", border: "1px solid #ef4444" }}>Delete</button>
+                    ) : (
                         <button onClick={() => saveProduct(true)} className="secondary-btn" style={{ flex: 1, padding: "16px", color: "var(--accent-primary)" }}>+ Add Another</button>
                     )}
-                    <button onClick={() => saveProduct(false)} className="primary-btn" style={{ flex: 1, padding: "16px" }}>{editingProductId ? "Update Item" : "Save Item"}</button>
+                    <button onClick={() => saveProduct(false)} className="primary-btn" style={{ flex: 2, padding: "16px" }}>{editingProductId ? "Update Item" : "Save Item"}</button>
                 </div>
             </div>
         </div>

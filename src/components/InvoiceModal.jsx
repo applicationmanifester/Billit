@@ -1,4 +1,141 @@
-import React from "react";
+import React, { memo, useCallback } from "react";
+
+const QuickAddItem = memo(({ product, onAdd, fmt }) => (
+    <button onClick={() => onAdd(product)} style={{
+        flexShrink: 0, padding: "8px 16px", borderRadius: "12px", background: "var(--bg-input)", border: "1px solid var(--border-primary)",
+        whiteSpace: "nowrap", display: "flex", flexDirection: "column", gap: "2px", alignItems: "flex-start", cursor: "pointer", maxWidth: "150px"
+    }}>
+        <div style={{ fontSize: "12px", fontWeight: "bold", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>{product.name}</div>
+        <div style={{ fontSize: "10px", color: "var(--accent-primary)" }}>{fmt(product.price)}</div>
+    </button>
+));
+
+const LineItem = memo(({ item, idx, updateItem, removeItem, taxRates, itemTaxTotal, calculateBaseFromTotal, saveInvoice, isLast, products }) => {
+    const preventScrollValueChange = (e) => e.currentTarget.blur();
+    const taxArr = Array.isArray(item.tax) ? item.tax : (item.tax ? [item.tax] : []);
+    const [showSuggestions, setShowSuggestions] = React.useState(false);
+
+    const filteredProducts = (products || []).filter(p => 
+        (p.name || "").toLowerCase().includes((item.desc || "").toLowerCase()) && 
+        (p.name || "").toLowerCase() !== (item.desc || "").toLowerCase()
+    );
+
+    return (
+        <div style={{ background: "var(--bg-card)", borderRadius: "16px", padding: "16px", marginBottom: "12px", border: `1px solid var(--border-primary)` }}>
+            <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
+                <div style={{ flex: 1, position: "relative" }}>
+                    <input
+                        className="input-field"
+                        style={{ width: "100%", background: "none", borderBottom: `1px solid var(--border-primary)`, borderRadius: 0, padding: "4px 0" }}
+                        placeholder="Item description"
+                        value={item.desc}
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
+                        onChange={(e) => updateItem(idx, "desc", e.target.value)}
+                    />
+                    {showSuggestions && filteredProducts.length > 0 && (
+                        <div style={{
+                            position: "absolute", top: "100%", left: 0, right: 0, 
+                            background: "var(--bg-card)", border: "1px solid var(--border-primary)",
+                            borderRadius: "12px", marginTop: "4px", zIndex: 10,
+                            maxHeight: "200px", overflowY: "auto", boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                            backdropFilter: "blur(10px)"
+                        }}>
+                            {filteredProducts.map(p => (
+                                <div 
+                                    key={p.id}
+                                    onClick={() => {
+                                        updateItem(idx, "desc", p.name);
+                                        updateItem(idx, "price", p.price);
+                                        if (p.tax && p.tax.length > 0) {
+                                            updateItem(idx, "tax", p.tax);
+                                        }
+                                        setShowSuggestions(false);
+                                    }}
+                                    style={{
+                                        padding: "12px 14px", borderBottom: "1px solid var(--border-primary)",
+                                        cursor: "pointer", fontSize: "13px", display: "flex", justifyContent: "space-between",
+                                        background: "rgba(255,255,255,0.02)"
+                                    }}
+                                >
+                                    <span style={{ fontWeight: "bold", color: "var(--text-primary)" }}>{p.name}</span>
+                                    <span style={{ color: "var(--accent-primary)", fontWeight: "bold" }}>{p.price}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <button onClick={() => removeItem(idx)} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+                <div>
+                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px", fontWeight: "bold" }}>Qty</label>
+                    <input type="number" min="1" className="input-field" style={{ width: "100%", padding: "10px" }} value={item.qty} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "qty", e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} />
+                </div>
+                <div>
+                    <label style={{ display: "block", fontSize: "10px", color: "var(--accent-primary)", marginBottom: "4px", fontWeight: "bold" }}>Base Price(Excl tax)</label>
+                    <input
+                        className="input-field"
+                        type="number"
+                        placeholder="Base"
+                        value={item.price}
+                        onWheel={preventScrollValueChange}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => updateItem(idx, "price", e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label style={{ display: "block", fontSize: "10px", color: "var(--accent-secondary)", marginBottom: "4px", fontWeight: "bold" }}>Total Price (incl Tax)</label>
+                    <input
+                        className="input-field"
+                        style={{ border: "1px solid var(--border-accent)" }}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Total"
+                        value={Math.round((Number(item.price || 0) + itemTaxTotal({ ...item, qty: 1 }, taxRates)) * 100) / 100}
+                        onWheel={preventScrollValueChange}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                            let raw = e.target.value;
+                            // Allow only numbers and a single decimal point
+                            raw = raw.replace(/[^0-9.]/g, '');
+                            if (raw === "" || raw === ".") {
+                                updateItem(idx, "price", 0);
+                                return;
+                            }
+                            const newVal = parseFloat(raw) || 0;
+                            const base = calculateBaseFromTotal(newVal, taxRates, item.tax);
+                            updateItem(idx, "price", base);
+                        }}
+                    />
+                </div>
+            </div>
+
+            <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {taxRates.map(tr => {
+                    const isActive = taxArr.includes(tr.id);
+                    return (
+                        <button key={tr.id} onClick={() => {
+                            updateItem(idx, "tax", isActive ? taxArr.filter(id => id !== tr.id) : [...taxArr, tr.id]);
+                        }} style={{
+                            padding: "8px 14px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold",
+                            minHeight: "36px",
+                            border: `1px solid ${isActive ? "var(--accent-primary)" : "var(--border-primary)"}`,
+                            background: isActive ? "var(--accent-primary)" : "rgba(255,255,255,0.03)",
+                            color: isActive ? "#000" : "var(--text-secondary)",
+                            cursor: "pointer"
+                        }}>{tr.label} {tr.rate}%</button>
+                    );
+                })}
+            </div>
+            {!isLast && (
+                <div style={{ height: "1px", background: "var(--border-primary)", margin: "20px -16px 0", opacity: 0.5 }} />
+            )}
+        </div>
+    );
+});
 
 export const InvoiceModal = ({
     showModal, setShowModal, form, setForm, clients, products, taxRates, saveInvoice, addItem, removeItem, updateItem, fmt, totalWithTax, itemTaxTotal, calculateBaseFromTotal, playFeedback, showToast, selectedInvoice, isSaving
@@ -6,15 +143,29 @@ export const InvoiceModal = ({
     if (showModal !== "invoice") return null;
 
     const isEdit = !!selectedInvoice;
-    const preventScrollValueChange = (e) => e.currentTarget.blur();
     const toNumber = (value) => {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? parsed : 0;
     };
 
+    const handleQuickAdd = useCallback((p) => {
+        const taxIds = (p.tax && p.tax.length > 0) ? p.tax : taxRates.map(t => t.id);
+        const newItem = { id: crypto.randomUUID(), desc: p.name, qty: 1, price: p.price, tax: taxIds };
+        
+        setForm(prev => {
+            if (prev.items.length === 1 && !prev.items[0].desc) {
+                return { ...prev, items: [newItem] };
+            } else {
+                return { ...prev, items: [...prev.items, newItem] };
+            }
+        });
+        showToast(`Added ${p.name}`);
+        playFeedback();
+    }, [taxRates, showToast, playFeedback, setForm]);
+
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
-            <div className="premium-card animate-slide-up" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
+            <div className="premium-card animate-slide-up modal-content-wrapper" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
                 <div style={{ width: "40px", height: "4px", background: "var(--border-primary)", borderRadius: "2px", margin: "0 auto 24px" }} />
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
@@ -22,13 +173,9 @@ export const InvoiceModal = ({
                     <button onClick={() => setShowModal(null)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}>✕</button>
                 </div>
 
-                <datalist id="product-suggestions">
-                    {products.map(p => <option key={p.id} value={p.name} />)}
-                </datalist>
-
                 <div style={{ marginBottom: "20px" }}>
                     <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Select Client</label>
-                    <select className="input-field" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%", height: "50px", appearance: "none" }}>
+                    <select className="input-field" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: String(e.target.value) })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%", height: "50px", appearance: "none" }}>
                         {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                 </div>
@@ -44,132 +191,39 @@ export const InvoiceModal = ({
                     </div>
                 </div>
 
-                {/* Inventory Selection Shelf */}
-                {products.length > 0 && (
-                    <div style={{ margin: "0 -20px 24px", padding: "0 20px" }}>
-                        <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Quick Add from Inventory</label>
-                        <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px" }}>
-                            {products.map(p => (
-                                <button key={p.id} onClick={() => {
-                                    const taxIds = taxRates.map(t => t.id);
-                                    const newItem = { desc: p.name, qty: 1, price: p.price, tax: p.tax || taxIds };
-                                    if (form.items.length === 1 && !form.items[0].desc) {
-                                        setForm({ ...form, items: [newItem] });
-                                    } else {
-                                        setForm({ ...form, items: [...form.items, newItem] });
-                                    }
-                                    playFeedback();
-                                }} style={{
-                                    flexShrink: 0, padding: "10px 14px", borderRadius: "12px", background: "var(--bg-input)",
-                                    border: `1px solid var(--border-primary)`, textAlign: "left", cursor: "pointer", maxWidth: "140px"
-                                }}>
-                                    <div style={{ fontSize: "13px", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "var(--text-primary)" }}>{p.name}</div>
-                                    <div style={{ fontSize: "11px", color: "var(--accent-primary)" }}>{fmt(p.price)}</div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
+                {/* Quick Add Shelf */}
                 <div style={{ marginBottom: "24px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Quick Add from Inventory</label>
+                    <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px", scrollbarWidth: "none" }}>
+                        {(products || []).map(p => (
+                            <QuickAddItem key={p.id} product={p} onAdd={handleQuickAdd} fmt={fmt} />
+                        ))}
+                        {(!products || products.length === 0) && (
+                            <div style={{ fontSize: "12px", color: "var(--text-secondary)", opacity: 0.6 }}>No inventory items yet.</div>
+                        )}
+                    </div>
+                </div>
+
+                <div style={{ marginBottom: "24px", borderTop: "1px solid var(--border-primary)", paddingTop: "24px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                         <label style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase" }}>Line Items</label>
+                        <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{form.items.length} items</span>
                     </div>
 
                     {form.items.map((item, idx) => (
-                        <div key={idx} style={{ background: "var(--bg-input)", borderRadius: "16px", padding: "16px", marginBottom: "12px", border: `1px solid var(--border-primary)` }}>
-                            <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
-                                <input
-                                    list="product-suggestions"
-                                    className="input-field"
-                                    style={{ flex: 1, background: "none", borderBottom: `1px solid var(--border-primary)`, borderRadius: 0, padding: "4px 0" }}
-                                    placeholder="Item description"
-                                    value={item.desc}
-                                    onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        const found = products.find(p => p.name === val);
-                                        if (found) {
-                                            const taxIds = (found.tax && found.tax.length > 0) ? found.tax : taxRates.map(t => t.id);
-                                            updateItem(idx, { desc: found.name, price: found.price, tax: taxIds });
-                                        } else {
-                                            updateItem(idx, "desc", val);
-                                        }
-                                    }}
-                                />
-                                <button onClick={() => removeItem(idx)} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>Remove</button>
-                            </div>
-
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.5fr", gap: "12px", alignItems: "flex-end" }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Qty</label>
-                                    <input type="number" min="1" className="input-field" style={{ width: "100%", padding: "10px" }} value={item.qty} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "qty", e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} />
-                                </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Price</label>
-                                    <input type="number" min="0" step="any" className="input-field" style={{ width: "100%", padding: "10px" }}
-                                        placeholder="0.00"
-                                        value={item.price === "" ? "" : Number(toNumber(item.price).toFixed(2))}
-                                        onWheel={preventScrollValueChange}
-                                        onFocus={(e) => e.target.select()}
-                                        onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
-                                        onChange={(e) => {
-                                            const raw = e.target.value;
-                                            updateItem(idx, "price", raw === "" ? "" : parseFloat(raw) || 0);
-                                        }}
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total Tax Amount</label>
-                                    <div style={{ padding: "10px 12px", fontSize: "14px", fontWeight: "bold", color: "var(--accent-secondary)", background: "var(--bg-input)", borderRadius: "10px", border: "1px solid var(--border-primary)", height: "42px", display: "flex", alignItems: "center" }}>
-                                        {fmt(itemTaxTotal(item, taxRates))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style={{ marginTop: "12px" }}>
-                                <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px" }}>Total Price (Incl. Tax)</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="any"
-                                    className="input-field"
-                                    style={{ width: "100%", padding: "12px", background: "var(--bg-input)", fontSize: "18px", fontWeight: "bold", borderRadius: "12px" }}
-                                    placeholder="0.00"
-                                    value={item.price === "" ? "" : Number((toNumber(item.price) + (itemTaxTotal(item, taxRates) / (toNumber(item.qty) || 1))).toFixed(2))}
-                                    onWheel={preventScrollValueChange}
-                                    onFocus={(e) => e.target.select()}
-                                    onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
-                                    onChange={(e) => {
-                                        const raw = e.target.value;
-                                        if (raw === "") {
-                                            updateItem(idx, "price", "");
-                                            return;
-                                        }
-                                        const newVal = Number(raw) || 0;
-                                        const base = calculateBaseFromTotal(newVal, taxRates, item.tax);
-                                        updateItem(idx, "price", base);
-                                    }}
-                                />
-                            </div>
-
-                            <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                                {taxRates.map(tr => {
-                                    const taxArr = Array.isArray(item.tax) ? item.tax : (item.tax ? [item.tax] : []);
-                                    const isActive = taxArr.includes(tr.id);
-                                    return (
-                                        <button key={tr.id} onClick={() => {
-                                            updateItem(idx, "tax", isActive ? taxArr.filter(id => id !== tr.id) : [...taxArr, tr.id]);
-                                        }} style={{
-                                            padding: "4px 10px", borderRadius: "8px", fontSize: "10px", fontWeight: "bold",
-                                            border: `1px solid ${isActive ? "var(--accent-primary)" : "var(--border-primary)"}`,
-                                            background: isActive ? "var(--accent-primary)" : "none",
-                                            color: isActive ? "#000" : "var(--text-secondary)"
-                                        }}>{tr.label} ({tr.rate}%)</button>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                        <LineItem 
+                            key={item.id} 
+                            item={item} 
+                            idx={idx} 
+                            updateItem={updateItem} 
+                            removeItem={removeItem} 
+                            taxRates={taxRates} 
+                            itemTaxTotal={itemTaxTotal} 
+                            calculateBaseFromTotal={calculateBaseFromTotal} 
+                            saveInvoice={saveInvoice} 
+                            isLast={idx === form.items.length - 1}
+                            products={products}
+                        />
                     ))}
                     <button onClick={addItem} style={{ width: "100%", padding: "12px", marginTop: "8px", fontSize: "12px", color: "var(--accent-primary)", background: "rgba(255,193,7,0.05)", border: `1px dashed var(--accent-primary)`, borderRadius: "12px", fontWeight: "bold", cursor: "pointer" }}>+ Add Line Item</button>
                 </div>
@@ -181,15 +235,28 @@ export const InvoiceModal = ({
                         style={{ height: "60px", resize: "none" }}
                         placeholder="Add some notes for the seller..."
                         value={form.notes}
+                        onFocus={(e) => e.target.scrollIntoView({ behavior: "smooth", block: "center" })}
                         onChange={(e) => setForm({ ...form, notes: e.target.value })}
                         onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
                     />
                 </div>
 
                 <div style={{ background: "var(--bg-input)", borderRadius: "20px", padding: "20px", marginBottom: "32px", border: `1px solid var(--border-primary)` }}>
+                    {form.items.filter(i => i.desc || toNumber(i.price) > 0).map((item, idx) => (
+                        <div key={item.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "14px" }}>
+                            <span style={{ color: "var(--text-secondary)", flex: 1, marginRight: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {item.desc || "Untitled Item"} <span style={{ opacity: 0.6, fontSize: "11px", marginLeft: "4px" }}>x{item.qty}</span>
+                            </span>
+                            <span style={{ fontWeight: "600", color: "var(--text-primary)" }}>{fmt(Math.round(toNumber(item.qty) * toNumber(item.price) * 100) / 100)}</span>
+                        </div>
+                    ))}
+                    {form.items.filter(i => i.desc || toNumber(i.price) > 0).length > 0 && (
+                         <div style={{ height: "1px", background: "var(--border-primary)", margin: "14px 0", opacity: 0.4 }} />
+                    )}
+
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                         <span style={{ color: "var(--text-secondary)", fontSize: "14px" }}>Subtotal</span>
-                        <span style={{ fontWeight: "bold" }}>{fmt(form.items.reduce((s, i) => s + (toNumber(i.qty) * toNumber(i.price)), 0))}</span>
+                        <span style={{ fontWeight: "bold" }}>{fmt(form.items.reduce((s, i) => s + Math.round(toNumber(i.qty) * toNumber(i.price) * 100) / 100, 0))}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", paddingBottom: "12px", borderBottom: `1px solid var(--border-primary)` }}>
                         <span style={{ color: "var(--text-secondary)", fontSize: "14px" }}>Taxes</span>
@@ -197,29 +264,29 @@ export const InvoiceModal = ({
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                         <span style={{ fontWeight: "bold", fontSize: "18px" }}>Total Amount</span>
-                        <span style={{ fontWeight: "900", fontSize: "20px", color: "var(--accent-primary)" }}>{fmt(totalWithTax(form.items, taxRates))}</span>
+                        <span style={{ fontWeight: "900", fontSize: "20px", color: "var(--accent-primary)" }}>{fmt(Math.round(totalWithTax(form.items, taxRates) * 100) / 100)}</span>
                     </div>
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.2fr", gap: "10px" }}>
                         <button disabled={!!isSaving} onClick={() => saveInvoice("download")} className="secondary-btn" style={{ padding: "14px 4px", fontSize: "10px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
-                            {isSaving === "download" ? "..." : "⬇ Download"}
+                            {isSaving === "download" ? "Wait..." : "⬇ Download"}
                         </button>
                         <button disabled={!!isSaving} onClick={() => saveInvoice("share")} className="secondary-btn" style={{ padding: "14px 4px", fontSize: "10px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
-                            {isSaving === "share" ? "..." : "📨 Share"}
+                            {isSaving === "share" ? "Wait..." : "📨 Share"}
                         </button>
                         <button disabled={!!isSaving} onClick={() => saveInvoice("print")} className="secondary-btn" style={{ padding: "14px 4px", fontSize: "10px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
-                            {isSaving === "print" ? "..." : "🖨️ Print"}
+                            {isSaving === "print" ? "Wait..." : "🖨️ Print"}
                         </button>
                         <button disabled={!!isSaving} onClick={() => saveInvoice("thermal")} className="secondary-btn" style={{ padding: "14px 4px", fontSize: "10px", whiteSpace: "nowrap", opacity: isSaving ? 0.7 : 1 }}>
-                            {isSaving === "thermal" ? "..." : "🧾 Thermal"}
+                            {isSaving === "thermal" ? "Wait..." : "🧾 Thermal"}
                         </button>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                         <button disabled={!!isSaving} onClick={() => setShowModal(null)} className="secondary-btn" style={{ padding: "14px", border: "1px solid #ef4444", color: "#ef4444", background: "none", fontSize: "13px", opacity: isSaving ? 0.7 : 1 }}>Cancel</button>
                         <button disabled={!!isSaving} onClick={() => saveInvoice()} className="primary-btn" style={{ padding: "14px", fontSize: "13px", opacity: isSaving ? 0.7 : 1 }}>
-                            {isSaving === "save" ? "Saving..." : (isEdit ? "Update" : "Save")}
+                            {isSaving === "save" ? "Saving..." : (isEdit ? "Update Invoice" : "Create Invoice")}
                         </button>
                     </div>
                 </div>

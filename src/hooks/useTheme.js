@@ -12,12 +12,12 @@ export const useTheme = () => {
 
     useEffect(() => {
         const root = window.document.documentElement;
-        if (theme === "system") {
-            const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-            root.setAttribute("data-theme", isDark ? "dark" : "light");
-        } else {
-            root.setAttribute("data-theme", theme);
-        }
+        const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        root.setAttribute("data-theme", isDark ? "dark" : "light");
+        
+        const meta = document.getElementById("theme-color-meta");
+        if (meta) meta.setAttribute("content", isDark ? "#0a0a0f" : "#ffffff");
+
         localStorage.setItem("billit_theme", theme);
     }, [theme]);
 

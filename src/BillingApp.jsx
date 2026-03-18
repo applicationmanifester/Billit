@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { db } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
@@ -8,9 +8,10 @@ import { useCloudSync } from "./hooks/useCloudSync";
 import { useTheme } from "./hooks/useTheme";
 import { exportInvoicesToCSV, exportClientsToCSV, exportProductsToCSV, exportFullDataJSON, importFullDataJSON } from "./lib/export";
 import { sharePDF, downloadPDF as nativeDownloadPDF } from "./lib/native_actions";
+import { clearProductImages, saveProductImage, deleteProductImage } from "./lib/db";
 
 // Constants & Libs
-import { initialClients, initialInvoices, statusColors, CURRENCIES } from "./lib/constants";
+import { initialClients, initialInvoices, statusColors, CURRENCIES, DEFAULT_SELLER } from "./lib/constants";
 import { total, getItemTaxList, itemTaxTotal, totalWithTax, formatCurrency, calculateBaseFromTotal } from "./lib/calculations";
 import {
   getInventoryPDFData,
@@ -18,7 +19,8 @@ import {
   getBatchPDF,
   getBatchThermalPDF,
   getThermalPDFData,
-  getThermalInventoryPDFData
+  getThermalInventoryPDFData,
+  getInvoicePageStream
 } from "./lib/pdf";
 
 // Components
@@ -32,9 +34,10 @@ import { Reports } from "./components/Reports";
 import { InvoiceModal } from "./components/InvoiceModal";
 import { InvoiceViewModal } from "./components/InvoiceViewModal";
 import { ClientModal, ProductModal } from "./components/Modals";
-import { LegalModal } from "./components/SellerModal";
-import { useCallback } from "react";
+import { LegalModal } from "./components/LegalModal";
+import { SellerModal } from "./components/SellerModal";
 import { initAndroidNative } from "./lib/android_native";
+import { App } from "@capacitor/app";
 
 // Performance Utilities Outside Component
 // No hexMap here, keeping it in pdf.js
@@ -44,13 +47,18 @@ const compressImage = async (dataUrl) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
       let width = img.width, height = img.height, max = 300;
       if (width > height && width > max) { height *= max / width; width = max; }
       else if (height > max) { width *= max / height; height = max; }
       canvas.width = width; canvas.height = height;
-      const ctx = canvas.getContext('2d');
+
+      // Clear for transparency support
+      ctx.clearRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.7));
+      
+      // Use webp for better compression and transparency
+      resolve(canvas.toDataURL('image/webp', 0.8));
     };
     img.src = dataUrl;
   });
@@ -63,15 +71,7 @@ const getLocalISODate = () => {
 };
 
 // Sub-components
-const Badge = ({ status }) => (
-  <div className="badge" style={{
-    background: `var(--status-${status})`,
-    color: "#000",
-    border: `1px solid rgba(0,0,0,0.1)`
-  }}>
-    {status}
-  </div>
-);
+// Sub-components removed (Badge was unused)
 
 export default function BillingApp() {
   const getStorage = (key, def) => {
@@ -83,18 +83,107 @@ export default function BillingApp() {
     } catch (e) { return def; }
   };
 
+  // 1. Refs
   const nativeRef = useRef(null);
-
+  const isEditingRef = useRef(false);
+  const isMountedRef = useRef(true);
   const audioCtxRef = useRef(null);
-  const getAudioCtx = () => {
+  const toastTimeoutRef = useRef(null);
+  const onBackRef = useRef(null);
+  const resetFormRef = useRef(null);
+
+  // 2. Global / Logic States
+  const [appReady, setAppReady] = useState(false);
+  const [tab, setTab] = useState("home");
+  const [toast, setToast] = useState(null);
+  const [hasAcceptedLegal, setHasAcceptedLegal] = useState(
+    () => localStorage.getItem("billit_hasAcceptedLegal") === "true"
+  );
+  const [hapticsEnabled, setHapticsEnabled] = useState(() => getStorage("hapticsEnabled", true));
+  const [soundEnabled, setSoundEnabled] = useState(() => getStorage("soundEnabled", true));
+
+  // 3. Core Data States
+  const { theme, setTheme, toggleTheme } = useTheme();
+  const [currency, setCurrency] = useState(() => getStorage("currency", CURRENCIES[0]));
+  const [invoices, setInvoices] = useState(() => {
+    const raw = getStorage("invoices", initialInvoices);
+    return raw.map(inv => ({
+      ...inv,
+      items: (inv.items || []).map(it => ({
+        ...it,
+        tax: Array.isArray(it.tax) ? it.tax : (it.tax ? [it.tax] : [])
+      }))
+    }));
+  });
+  const [clients, setClients] = useState(() => getStorage("clients", initialClients));
+  const [taxRates, setTaxRates] = useState(() => {
+    const saved = getStorage("taxRates", [{ id: 1, label: "GST", rate: 18 }]);
+    if (saved.length > 0 && !saved.some(t => t.rate === 18)) {
+      return [...saved, { id: 1, label: "GST", rate: 18 }];
+    }
+    return saved.length === 0 ? [{ id: 1, label: "GST", rate: 18 }] : saved;
+  });
+  const [products, setProducts] = useState(() => {
+    const raw = getStorage("products", []);
+    return raw.map(p => ({
+      ...p,
+      tax: Array.isArray(p.tax) ? p.tax : (p.tax ? [p.tax] : [])
+    }));
+  });
+  const [seller, setSeller] = useState(() => getStorage("seller", DEFAULT_SELLER));
+
+  // 4. UI / Modal States
+  const [inventoryTitle, setInventoryTitle] = useState(() => getStorage("inventoryTitle", "Inventory List"));
+  const [defaultNote, setDefaultNote] = useState(() => getStorage("defaultNote", ""));
+  const [showModal, setShowModal] = useState(null);
+  const [showSellerModal, setShowSellerModal] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [isSaving, setIsSaving] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [currencySearch, setCurrencySearch] = useState("");
+  const [swipeConfirmText, setSwipeConfirmText] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [sellerForm, setSellerForm] = useState(seller);
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [productForm, setProductForm] = useState({ 
+    name: "", desc: "", price: 0, isDefault: false, image: null, 
+    tax: taxRates.map(t => t.id) 
+  });
+  const [clientForm, setClientForm] = useState({ name: "", email: "", phone: "", address: "", gstin: "" });
+  const [settingsTab, setSettingsTab] = useState("account");
+  const [invoiceSort, setInvoiceSort] = useState("date");
+  const [inventorySort, setInventorySort] = useState("name");
+  const [reportRange, setReportRange] = useState("month");
+  const [selectedInvoices, setSelectedInvoices] = useState([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [editingInventoryTitle, setEditingInventoryTitle] = useState(false);
+
+  // 5. Cleanup Handlers
+  useEffect(() => {
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  useEffect(() => { setAppReady(true); }, []);
+
+  // 6. Support Functions
+  const isNativePlatform = useCallback(() => {
+    return typeof window.Capacitor !== 'undefined' && 
+           window.Capacitor.isNativePlatform?.() === true;
+  }, []);
+
+  const getAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
       audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
     return audioCtxRef.current;
-  };
+  }, []);
 
-  const playFeedback = (type = "click") => {
-    // 1. Haptic Feedback
+  const playFeedback = useCallback((type = "click") => {
     if (hapticsEnabled) {
       if (nativeRef.current?.vibrate) {
         nativeRef.current.vibrate(type);
@@ -103,7 +192,6 @@ export default function BillingApp() {
       }
     }
 
-    // 2. Sound Feedback
     if (soundEnabled) {
       try {
         const audioCtx = getAudioCtx();
@@ -126,93 +214,25 @@ export default function BillingApp() {
         }
         osc.start();
         osc.stop(audioCtx.currentTime + 0.1);
+        osc.onended = () => {
+          osc.disconnect();
+          gain.disconnect();
+        };
       } catch (e) {
         console.warn("Billit: Audio feedback failed", e);
       }
     }
-  };
+  }, [hapticsEnabled, soundEnabled, getAudioCtx]);
 
-  const [toast, setToast] = useState(null);
-  const showToast = (msg, type = "success") => {
+  const showToast = useCallback((msg, type = "success", silent = false) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast({ msg, type });
-    playFeedback(type);
-    setTimeout(() => setToast(null), 3000);
-  };
+    if (!silent) playFeedback(type);
+    const duration = type === "error" ? 5000 : 3000;
+    toastTimeoutRef.current = setTimeout(() => setToast(null), duration);
+  }, [playFeedback]);
 
-  // State
-  const [invoices, setInvoices] = useState(() => {
-    const raw = getStorage("invoices", initialInvoices);
-    return raw.map(inv => ({
-      ...inv,
-      items: (inv.items || []).map(it => ({
-        ...it,
-        tax: Array.isArray(it.tax) ? it.tax : (it.tax ? [it.tax] : [])
-      }))
-    }));
-  });
-  const [clients, setClients] = useState(() => getStorage("clients", initialClients));
-  const { theme, setTheme, toggleTheme } = useTheme();
-  const [currency, setCurrency] = useState(() => getStorage("currency", CURRENCIES[0]));
-
-  // Android Native Integration
-  useEffect(() => {
-    const native = initAndroidNative({
-      theme,
-      onBack: () => {
-        if (showModal) {
-          setShowModal(null);
-        } else if (showSellerModal) {
-          setShowSellerModal(false);
-        } else if (tab !== 'home') {
-          setTab('home');
-        } else {
-          // Allow default exit behavior
-        }
-      }
-    });
-    nativeRef.current = native;
-
-    return () => {
-      // Cleanup if needed (listeners are usually persistent in Capacitor)
-    };
-  }, [theme, showModal, showSellerModal, tab]); // Re-bind onBack to latest state
-  const [taxRates, setTaxRates] = useState(() => {
-    const saved = getStorage("taxRates", [{ id: 1, label: "GST", rate: 18 }]);
-    if (saved.length > 0 && !saved.some(t => t.rate === 18)) {
-      return [...saved, { id: 1, label: "GST", rate: 18 }];
-    }
-    return saved.length === 0 ? [{ id: 1, label: "GST", rate: 18 }] : saved;
-  });
-  const [products, setProducts] = useState(() => {
-    if (localStorage.getItem("billit_hasAcceptedLegal") !== "true") return [];
-    const raw = getStorage("products", []);
-    // Normalize tax for products as well
-    return raw.map(p => ({
-      ...p,
-      tax: Array.isArray(p.tax) ? p.tax : (p.tax ? [p.tax] : [])
-    }));
-  });
-  const [seller, setSeller] = useState(() => getStorage("seller", {
-    name: "Business Name",
-    tagline: "Professional Billing",
-    email: "biz@example.com",
-    phone: "+1 000-000-0000",
-    address: "123 Street",
-    gstin: "",
-    website: "",
-    qrCode: "",
-    logo: "",
-    invoicePrefix: "INV"
-  }));
-  const [inventoryTitle, setInventoryTitle] = useState(() => getStorage("inventoryTitle", "Inventory List"));
-  const [defaultNote, setDefaultNote] = useState(() => getStorage("defaultNote", ""));
-  const [editingInventoryTitle, setEditingInventoryTitle] = useState(false);
-  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const [currencySearch, setCurrencySearch] = useState("");
-  const [openItemPicker, setOpenItemPicker] = useState(null);
-  const [hapticsEnabled, setHapticsEnabled] = useState(() => getStorage("hapticsEnabled", true));
-  const [soundEnabled, setSoundEnabled] = useState(() => getStorage("soundEnabled", true));
-  const [showLegalModal, setShowLegalModal] = useState(false);
+  const getClient = (id) => clients.find(c => String(c.id) === String(id)) || {};
 
   // Hooks
   const {
@@ -225,30 +245,40 @@ export default function BillingApp() {
   const cloudSyncData = useMemo(() => ({
     invoices,
     clients,
-    theme,
     currency,
     taxRates,
     products,
     seller,
     inventoryTitle,
-    defaultNote,
-    hapticsEnabled,
-    soundEnabled
-  }), [invoices, clients, theme, currency, taxRates, products, seller, inventoryTitle, defaultNote, hapticsEnabled, soundEnabled]);
+    defaultNote
+    // hapticsEnabled, soundEnabled are device-local only
+  }), [invoices, clients, currency, taxRates, products, seller, inventoryTitle, defaultNote]);
 
   const setters = useMemo(() => ({
-    setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setTheme, setHapticsEnabled, setSoundEnabled
-  }), [setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setTheme, setHapticsEnabled, setSoundEnabled]);
+    setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setTheme, setHapticsEnabled, setSoundEnabled, setHasAcceptedLegal
+  }), [setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setTheme, setHapticsEnabled, setSoundEnabled, setHasAcceptedLegal]);
+
+  // Sync theme separately with a dedicated effect:
+  useEffect(() => {
+    if (!user?.uid || !db) return;
+    const timeout = setTimeout(async () => {
+      await setDoc(doc(db, "users", user.uid), { theme }, { merge: true });
+    }, 3000); // longer debounce for theme — not urgent
+    return () => clearTimeout(timeout);
+  }, [theme, user?.uid]);
+
+  // Removed duplicate state declaration for hasAcceptedLegal (moved to top)
+
 
   const {
     syncStatus, hasLoadedCloud, syncLog, lastSync, fetchFromCloud, addLog
   } = useCloudSync(user, cloudSyncData, setters, showToast,
-    hasAcceptedLegal
+    hasAcceptedLegal, isEditingRef
   );
 
   // Auto-overdue detection
   useEffect(() => {
-    if (invoices.length === 0) return;
+    if (!appReady || invoices.length === 0) return;
     const today = getLocalISODate();
     let changed = false;
     const updatedInvoices = invoices.map(inv => {
@@ -263,50 +293,93 @@ export default function BillingApp() {
       setInvoices(updatedInvoices);
       addLog("Auto-updated overdue statuses");
     }
-  }, [invoices.map(i => `${i.id}:${i.status}:${i.due}`).join(","), addLog]);
+  }, [appReady, invoices.map(i => `${i.id}:${i.status}:${i.due}`).join(","), addLog]);
 
-  // Local persistence
+  const sellerRef = useRef(seller);
+  const clientsRef = useRef(clients);
+  useEffect(() => { sellerRef.current = seller; }, [seller]);
+  useEffect(() => { clientsRef.current = clients; }, [clients]);
+
+  // Auto-select first client if none selected and one exists
+  useEffect(() => {
+    if (clients.length > 0 && !form.clientId) {
+      setForm(prev => ({ ...prev, clientId: clients[0].id }));
+    }
+  }, [clients.length]);
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyboard = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        setShowModal("invoice");
+      }
+      if (e.key === 'Escape') {
+        if (showModal) setShowModal(null);
+        else if (showSellerModal) setShowSellerModal(false);
+        else if (showCurrencyPicker) setShowCurrencyPicker(false);
+        else if (deleteConfirm) setDeleteConfirm(null);
+      }
+      if ((e.ctrlKey || e.metaKey) && ['1','2','3','4','5'].includes(e.key)) {
+        const tabs = ['home','bills','reports','clients','items'];
+        setTab(tabs[parseInt(e.key) - 1]);
+      }
+    };
+    window.addEventListener('keydown', handleKeyboard);
+    return () => window.removeEventListener('keydown', handleKeyboard);
+  }, [showModal, showSellerModal, showCurrencyPicker, deleteConfirm]);
+
+  // Local persistence - Split into separate effects for performance
   useEffect(() => {
     localStorage.setItem("billit_invoices", JSON.stringify(invoices));
+  }, [invoices]);
+
+  useEffect(() => {
     localStorage.setItem("billit_clients", JSON.stringify(clients));
+  }, [clients]);
+
+  useEffect(() => {
     localStorage.setItem("billit_products", JSON.stringify(products));
+  }, [products]);
+
+  useEffect(() => {
     localStorage.setItem("billit_seller", JSON.stringify(seller));
+    if (seller.defaultDueDays !== undefined) localStorage.setItem("billit_defaultDueDays", JSON.stringify(seller.defaultDueDays));
+  }, [seller]);
+
+  useEffect(() => {
     localStorage.setItem("billit_taxRates", JSON.stringify(taxRates));
     localStorage.setItem("billit_currency", JSON.stringify(currency));
     localStorage.setItem("billit_inventoryTitle", JSON.stringify(inventoryTitle));
     localStorage.setItem("billit_defaultNote", JSON.stringify(defaultNote));
-    localStorage.setItem("billit_hasAcceptedLegal", JSON.stringify(hasAcceptedLegal));
     localStorage.setItem("billit_hapticsEnabled", JSON.stringify(hapticsEnabled));
     localStorage.setItem("billit_soundEnabled", JSON.stringify(soundEnabled));
-  }, [invoices, clients, products, seller, taxRates, currency, inventoryTitle, defaultNote, hasAcceptedLegal, hapticsEnabled, soundEnabled]);
+  }, [taxRates, currency, inventoryTitle, defaultNote, hapticsEnabled, soundEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem("billit_hasAcceptedLegal", JSON.stringify(hasAcceptedLegal));
+  }, [hasAcceptedLegal]);
 
   // Derived Utils
   const fmt = (n) => formatCurrency(n, currency);
-  const getClient = (id) => clients.find(c => String(c.id) === String(id)) || {};
 
-  const clearLocalState = useCallback(() => {
-    setInvoices([]);
-    setClients(initialClients);
-    setProducts([]);
-    setSeller({
-      name: "My Business",
-      tagline: "Professional Billing",
-      email: "biz@example.com",
-      phone: "+1 000-000-0000",
-      address: "123 Street",
-      gstin: "",
-      website: "",
-      qrCode: "",
-      logo: "",
-      invoicePrefix: "INV"
-    });
-    setTaxRates([{ id: 1, label: "GST", rate: 18 }]);
-    setCurrency(CURRENCIES[0]);
-    setInventoryTitle("Inventory List");
-    setDefaultNote("");
-    setHasAcceptedLegal(false);
-    localStorage.clear();
-  }, [setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote]);
+  const clearLocalState = useCallback(async () => {
+    try {
+      setInvoices([]);
+      setClients([]);
+      setProducts([]);
+      setSeller(DEFAULT_SELLER);
+      setTaxRates([{ id: 1, label: "GST", rate: 18 }]);
+      setCurrency(CURRENCIES[0]);
+      setInventoryTitle("Inventory List");
+      setDefaultNote("");
+      setHasAcceptedLegal(false);
+      localStorage.clear();
+      await clearProductImages();
+    } catch (e) {
+      console.error("Billit: Local state clear failed", e);
+    }
+  }, [setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setHasAcceptedLegal]);
 
   const wipeCloudState = useCallback(async () => {
     if (!user || !db) return;
@@ -315,18 +388,7 @@ export default function BillingApp() {
       invoices: [],
       clients: initialClients,
       products: [],
-      seller: {
-        name: "My Business",
-        tagline: "Professional Billing",
-        email: "biz@example.com",
-        phone: "+1 000-000-0000",
-        address: "123 Street",
-        gstin: "",
-        website: "",
-        qrCode: "",
-        logo: "",
-        invoicePrefix: "INV"
-      },
+      seller: DEFAULT_SELLER,
       taxRates: [{ id: 1, label: "GST", rate: 18 }],
       currency: CURRENCIES[0],
       inventoryTitle: "Inventory List",
@@ -337,104 +399,146 @@ export default function BillingApp() {
     await setDoc(doc(db, "users", user.uid), resetPayload, { merge: false });
   }, [user]);
 
-  const [tab, setTab] = useState("home");
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [showModal, setShowModal] = useState(null);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [showSellerModal, setShowSellerModal] = useState(false);
-  const [sellerForm, setSellerForm] = useState(seller);
-  const [editingProductId, setEditingProductId] = useState(null);
-  const [productForm, setProductForm] = useState({ name: "", desc: "", price: 0, isDefault: false, image: null, tax: taxRates.map(t => t.id) });
-
-  const [clientForm, setClientForm] = useState({ name: "", email: "", phone: "", address: "" });
-  const [settingsTab, setSettingsTab] = useState("account");
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
-
-  const [selectedInvoices, setSelectedInvoices] = useState([]);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [isSaving, setIsSaving] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  // Background scroll lock
+  // Effect 1: Status Bar Init - Only on theme change to prevent flicker
   useEffect(() => {
-    if (showModal || showSellerModal || showCurrencyPicker || deleteConfirm || openItemPicker) {
+    initAndroidNative({ theme });
+  }, [theme]);
+
+  onBackRef.current = () => {
+    if (showModal) {
+      setShowModal(null);
+      return;
+    }
+    if (showSellerModal) {
+      setShowSellerModal(false);
+      return;
+    }
+    if (tab !== 'home') {
+      setTab('home');
+      return;
+    }
+    App.exitApp();
+  };
+
+  useEffect(() => {
+    const handler = App.addListener('backButton', () => {
+      if (onBackRef.current) onBackRef.current();
+    });
+
+    return () => {
+      handler.remove();
+    };
+  }, []);
+
+  // Handle body scroll lock
+  useEffect(() => {
+    const isModalOpen = !!(showModal || showSellerModal || showLegalModal || showCurrencyPicker || deleteConfirm || isSaving);
+    isEditingRef.current = isModalOpen;
+    if (isModalOpen) {
+      document.body.classList.add("modal-open");
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.classList.remove("modal-open");
+      document.body.style.overflow = '';
     }
-  }, [showModal, showSellerModal, showCurrencyPicker, deleteConfirm, openItemPicker]);
+    return () => {
+      document.body.classList.remove("modal-open");
+      document.body.style.overflow = '';
+    };
+  }, [showModal, showSellerModal, showLegalModal, showCurrencyPicker, deleteConfirm, isSaving]);
+
 
   const getInitialItems = useCallback(() => {
     const defaults = (products || []).filter(p => p.isDefault);
     const taxIds = (taxRates || []).map(t => t.id);
     if (defaults.length > 0) {
-      return defaults.map(p => ({ desc: p.name, qty: 1, price: p.price, tax: p.tax || taxIds }));
+      return defaults.map(p => ({ id: crypto.randomUUID(), desc: p.name, qty: 1, price: p.price, tax: p.tax || taxIds }));
     }
-    return [{ desc: "", qty: 1, price: 0, tax: taxIds }];
+    return [{ id: crypto.randomUUID(), desc: "", qty: 1, price: 0, tax: taxIds }];
   }, [products, taxRates]);
 
-  const [form, setForm] = useState({
-    clientId: (clients && clients[0] ? clients[0].id : (initialClients[0] || {}).id) || "",
+  const [form, setForm] = useState(() => ({
+    clientId: String((clients && clients[0] ? clients[0].id : (initialClients[0] || {}).id) || ""),
     date: getLocalISODate(),
     due: getLocalISODate(),
     items: getInitialItems(),
     notes: defaultNote
-  });
+  }));
 
   const resetForm = useCallback(() => {
+    const today = getLocalISODate();
+    const dueDays = parseInt(seller.defaultDueDays || 0, 10);
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + dueDays);
+    const dueString = new Date(dueDate.getTime() - (dueDate.getTimezoneOffset() * 60 * 1000)).toISOString().split('T')[0];
+
     setForm({
-      clientId: (clients && clients[0] ? clients[0].id : (initialClients[0] || {}).id) || "",
-      date: getLocalISODate(),
-      due: getLocalISODate(),
+      clientId: String((clients && clients[0] ? clients[0].id : (initialClients[0] || {}).id) || ""),
+      date: today,
+      due: dueString,
       items: getInitialItems(),
       notes: defaultNote
     });
-  }, [clients, getInitialItems, defaultNote]);
+  }, [clients, getInitialItems, defaultNote, seller.defaultDueDays, initialClients]);
 
-  const updateItem = (index, field, value) => {
-    const newItems = [...form.items];
-    if (typeof field === "object") {
-      newItems[index] = { ...newItems[index], ...field };
-    } else {
-      // Prevent negative price or qty
-      let sanctionedValue = value;
-      if (field === "price" || field === "qty") {
-        sanctionedValue = Math.max(0, Number(value) || 0);
-      }
-      newItems[index] = { ...newItems[index], [field]: sanctionedValue };
-    }
-    setForm({ ...form, items: newItems });
-  };
+  useEffect(() => {
+    resetFormRef.current = resetForm;
+  }, [resetForm]);
+  const updateItem = useCallback((index, field, value) => {
+    setForm(prev => {
+        const newItems = [...prev.items];
+        if (typeof field === "object") {
+            const sanitized = { ...field };
+            if (sanitized.price !== undefined) sanitized.price = Math.max(0, Number(sanitized.price) || 0);
+            if (sanitized.qty !== undefined) sanitized.qty = Math.max(0, Number(sanitized.qty) || 0);
+            newItems[index] = { ...newItems[index], ...sanitized };
+        } else {
+            let sanctionedValue = value;
+            if (field === "price" || field === "qty") {
+                sanctionedValue = Math.max(0, Number(value) || 0);
+            }
+            newItems[index] = { ...newItems[index], [field]: sanctionedValue };
+        }
+        return { ...prev, items: newItems };
+    });
+  }, []);
 
-  const addItem = () => {
-    const taxIds = taxRates.map(t => t.id);
-    setForm({ ...form, items: [...form.items, { desc: "", qty: 1, price: 0, tax: taxIds }] });
-  };
+  const addItem = useCallback(() => {
+    setForm(prev => {
+        const taxIds = (taxRates || []).map(t => t.id);
+        return {
+            ...prev,
+            items: [...prev.items, { id: crypto.randomUUID(), desc: "", qty: 1, price: 0, tax: taxIds }]
+        };
+    });
+  }, [taxRates]);
+
 
   const updateStatus = (id, status) => {
-    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));
+    let updateObj = { status };
+    if (status === "paid") {
+      updateObj.paidDate = getLocalISODate();
+    }
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, ...updateObj } : inv));
     if (selectedInvoice && selectedInvoice.id === id) {
-      setSelectedInvoice({ ...selectedInvoice, status });
+      setSelectedInvoice({ ...selectedInvoice, ...updateObj });
     }
-    showToast(`Status updated to ${status.toUpperCase()}`);
+    showToast(`Status updated to ${status.toUpperCase()} ${updateObj.paidDate ? "on " + updateObj.paidDate : ""}`);
   };
 
-  const removeItem = (index) => {
-    if (form.items.length > 1) {
-      setForm({ ...form, items: form.items.filter((_, i) => i !== index) });
-    } else {
-      setForm({
-        ...form,
-        items: [{ desc: "", qty: 1, price: 0, tax: taxRates.map(t => t.id) }]
-      });
-    }
-  };
-
+  const removeItem = useCallback((index) => {
+    setForm(prev => {
+        if (prev.items.length > 1) {
+            return { ...prev, items: prev.items.filter((_, i) => i !== index) };
+        }
+        return {
+            ...prev,
+            items: [{ id: crypto.randomUUID(), desc: "", qty: 1, price: 0, tax: (taxRates || []).map(t => t.id) }]
+        };
+    });
+  }, [taxRates]);
 
   const showBatchPrint = useCallback((url) => {
-
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
     iframe.style.right = "-1000px";
@@ -447,12 +551,12 @@ export default function BillingApp() {
     document.body.appendChild(iframe);
 
     iframe.onload = () => {
-
       setTimeout(() => {
         try {
+          if (!document.body.contains(iframe)) return;
+          if (!iframe.contentWindow) return;
           iframe.contentWindow.focus();
           iframe.contentWindow.print();
-
         } catch (e) {
           console.error("Billit: Print failure:", e);
         }
@@ -466,36 +570,40 @@ export default function BillingApp() {
   const downloadReceipt = useCallback(async (inv) => {
     try {
       showToast("Preparing Download...");
-      const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
+      setIsSaving("download");
+      const bytes = await getPDFData(inv, clientsRef.current, sellerRef.current, currency, taxRates);
       const blob = new Blob([bytes], { type: "application/pdf" });
       const filename = `Billit - Professional Billing_${inv.id}.pdf`;
       await nativeDownloadPDF(blob, filename);
     } catch (e) {
       console.error(e);
       showToast("Download failed", "error");
+    } finally {
+      setIsSaving(null);
     }
-  }, [clients, seller, currency, taxRates, showToast]);
+  }, [currency, taxRates, showToast]);
 
   const downloadMultipleInvoices = useCallback(async (invs) => {
     try {
       showToast("Preparing PDF bundle...");
-      const pdf = await getBatchPDF(invs, clients, seller, currency, taxRates);
+      const pdf = await getBatchPDF(invs, clientsRef.current, sellerRef.current, currency, taxRates);
       const filename = `Billit - Professional Billing_Bundle.pdf`;
       await nativeDownloadPDF(pdf.blob, filename);
     } catch (e) {
       console.error(e);
       showToast("Batch download failed", "error");
     }
-  }, [clients, seller, currency, taxRates, showToast]);
+  }, [currency, taxRates, showToast]);
 
   const printMultipleInvoices = useCallback(async (invs) => {
     showToast("Preparing PDF for print...");
-    const pdf = await getBatchPDF(invs, clients, seller, currency, taxRates);
+    const pdf = await getBatchPDF(invs, clientsRef.current, sellerRef.current, currency, taxRates);
     const filename = `Billit-Batch-Print.pdf`;
     
     // On native, use share sheet for printing
-    if (nativeRef.current) {
+    if (isNativePlatform()) {
         await sharePDF(pdf.blob, filename, "Print Invoices", "Send this PDF to your printer");
+        URL.revokeObjectURL(pdf.url);
     } else {
         const oldTitle = document.title;
         document.title = `Billit - Professional Billing_Bundle`;
@@ -505,29 +613,29 @@ export default function BillingApp() {
             URL.revokeObjectURL(pdf.url);
         }, 30000);
     }
-  }, [clients, seller, currency, taxRates, showBatchPrint, showToast]);
+  }, [currency, taxRates, showBatchPrint, showToast]);
 
   const printMultipleInvoicesThermal = useCallback(async (invs) => {
     showToast("Preparing Thermal PDF...");
-    const pdf = await getBatchThermalPDF(invs, clients, seller, currency, taxRates, defaultNote);
+    const pdf = await getBatchThermalPDF(invs, clientsRef.current, sellerRef.current, currency, taxRates, defaultNote);
     const filename = `Billit-Batch-Thermal.pdf`;
 
-    if (nativeRef.current) {
+    if (isNativePlatform()) {
         await sharePDF(pdf.blob, filename, "Thermal Print", "Send this PDF to your thermal printer");
     } else {
         showBatchPrint(pdf.url);
         setTimeout(() => URL.revokeObjectURL(pdf.url), 30000);
     }
-  }, [clients, seller, currency, taxRates, defaultNote, showBatchPrint, showToast]);
+  }, [currency, taxRates, defaultNote, showBatchPrint, showToast]);
 
   const printReceipt = useCallback(async (inv) => {
     try {
       showToast("Preparing Print...");
-      const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
+      const bytes = await getPDFData(inv, clientsRef.current, sellerRef.current, currency, taxRates);
       const blob = new Blob([bytes], { type: "application/pdf" });
       const filename = `Billit-Print-${inv.id}.pdf`;
 
-      if (nativeRef.current) {
+      if (isNativePlatform()) {
           await sharePDF(blob, filename, "Print Invoice", "Send this PDF to your printer");
       } else {
           const url = URL.createObjectURL(blob);
@@ -543,16 +651,16 @@ export default function BillingApp() {
       console.error(e);
       showToast("Print failed", "error");
     }
-  }, [clients, seller, currency, taxRates, showBatchPrint, showToast]);
+  }, [currency, taxRates, showBatchPrint, showToast]);
 
   const printReceiptThermal = useCallback(async (inv) => {
     try {
       showToast("Preparing Thermal Print...");
-      const bytes = await getThermalPDFData(inv, clients, seller, currency, taxRates, defaultNote);
+      const bytes = await getThermalPDFData(inv, clientsRef.current, sellerRef.current, currency, taxRates, defaultNote);
       const blob = new Blob([bytes], { type: "application/pdf" });
       const filename = `Billit-Thermal-${inv.id}.pdf`;
 
-      if (nativeRef.current) {
+      if (isNativePlatform()) {
           await sharePDF(blob, filename, "Thermal Print", "Send this PDF to your thermal printer");
       } else {
           const url = URL.createObjectURL(blob);
@@ -568,36 +676,36 @@ export default function BillingApp() {
       console.error(e);
       showToast("Thermal print failed", "error");
     }
-  }, [clients, seller, currency, taxRates, defaultNote, showBatchPrint, showToast]);
+  }, [currency, taxRates, defaultNote, showBatchPrint, showToast]);
 
   const printInventoryThermal = useCallback(async () => {
     showToast("Preparing Thermal inventory...");
-    const bytes = await getInventoryThermalPDFData(seller, currency, products, taxRates, inventoryTitle);
+    const bytes = await getThermalInventoryPDFData(sellerRef.current, currency, products, taxRates, inventoryTitle);
     const blob = new Blob([bytes], { type: "application/pdf" });
     const filename = `Billit-Inventory-Thermal.pdf`;
 
-    if (nativeRef.current) {
+    if (isNativePlatform()) {
         await sharePDF(blob, filename, "Thermal Print", "Send this PDF to your thermal printer");
     } else {
         const url = URL.createObjectURL(blob);
         showBatchPrint(url);
         setTimeout(() => URL.revokeObjectURL(url), 30000);
     }
-  }, [seller, currency, products, taxRates, inventoryTitle, showBatchPrint, showToast]);
+  }, [currency, products, taxRates, inventoryTitle, showBatchPrint, showToast]);
 
   const shareReceipt = useCallback(async (inv) => {
     try {
       showToast("Preparing PDF...");
-      const bytes = await getPDFData(inv, clients, seller, currency, taxRates);
+      const bytes = await getPDFData(inv, clientsRef.current, sellerRef.current, currency, taxRates);
       const blob = new Blob([bytes], { type: "application/pdf" });
       const filename = `Billit - Professional Billing_${inv.id}.pdf`;
-      await sharePDF(blob, filename, `Invoice ${inv.id}`, `Check attached invoice from ${seller.name}`);
+      await sharePDF(blob, filename, `Invoice ${inv.id}`, `Check attached invoice from ${sellerRef.current.name}`);
     } catch (e) { if (e.name !== "AbortError") showToast("Sharing failed", "error"); }
-  }, [clients, seller, currency, taxRates, showToast]);
+  }, [currency, taxRates, showToast]);
 
   const shareMultipleInvoices = useCallback(async (invs) => {
     showToast("Preparing PDF bundle...");
-    const pdf = await getBatchPDF(invs, clients, seller, currency, taxRates);
+    const pdf = await getBatchPDF(invs, clientsRef.current, sellerRef.current, currency, taxRates);
     const filename = `Billit - Professional Billing_Bundle.pdf`;
     const file = new File([pdf.blob], filename, { type: "application/pdf" });
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -605,8 +713,7 @@ export default function BillingApp() {
         await navigator.share({ files: [file], title: `Multiple Invoices`, text: `Check attached invoices from ${seller.name}` });
       } catch (e) { if (e.name !== "AbortError") showToast("Sharing failed", "error"); }
     } else {
-      const url = URL.createObjectURL(pdf.blob);
-      const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+      await nativeDownloadPDF(pdf.blob, filename);
       showToast("Download started (Share unsupported)");
     }
   }, [clients, seller, currency, taxRates, showToast]);
@@ -624,25 +731,32 @@ export default function BillingApp() {
       // Snapshot current tax rates into each item
       const enrichedItems = form.items.map(item => ({
         ...item,
-        taxSnapshots: (item.tax || []).map(id => {
-          const tr = taxRates.find(t => t.id === id);
-          return tr ? { label: tr.label, rate: tr.rate } : null;
-        }).filter(Boolean)
+        taxSnapshots: (item.taxSnapshots && item.taxSnapshots.length > 0)
+          ? item.taxSnapshots
+          : (item.tax || []).map(id => {
+            const tr = taxRates.find(t => t.id === id);
+            return tr ? { label: tr.label, rate: tr.rate } : null;
+          }).filter(Boolean)
       }));
 
       const invTotal = totalWithTax(enrichedItems, taxRates);
       const now = new Date();
       const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-
       const formWithSnapshots = { ...form, items: enrichedItems };
-
       let finalInv;
+
       if (selectedInvoice) {
-        finalInv = { ...formWithSnapshots, id: selectedInvoice.id, status: selectedInvoice.status, time: selectedInvoice.time, totalAmount: invTotal };
+        finalInv = { 
+          ...formWithSnapshots, 
+          id: selectedInvoice.id, 
+          status: selectedInvoice.status, 
+          time: selectedInvoice.time, 
+          totalAmount: invTotal 
+        };
         setInvoices(prev => prev.map(inv => inv.id === selectedInvoice.id ? finalInv : inv));
       } else {
-        const prefix = seller.invoicePrefix || "INV";
-        const prefixEsc = (prefix || "").replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const prefix = (seller.invoicePrefix || "INV").trim();
+        const prefixEsc = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(`^${prefixEsc}-(\\d+)`);
         const maxId = invoices.reduce((max, inv) => {
           const match = (inv.id || "").match(regex);
@@ -652,38 +766,55 @@ export default function BillingApp() {
           }
           return max;
         }, 0);
-        const newId = `${prefix}-${String(maxId + 1).padStart(3, "0")}`;
+        const newId = `${prefix}-${String(maxId + 1).padStart(3, "0")}-${Date.now().toString(36).slice(-4)}`;
         finalInv = { ...formWithSnapshots, id: newId, status: "sent", time: time, totalAmount: invTotal };
-        setInvoices(prev => [...prev, finalInv]);
+        setInvoices(prev => [finalInv, ...prev]);
       }
-
-      if (action) {
-        if (action === "share") await shareReceipt(finalInv);
-        if (action === "print") await printReceipt(finalInv);
-        if (action === "thermal") await printReceiptThermal(finalInv);
-        if (action === "download") await downloadReceipt(finalInv);
+      
+      try {
+        if (!finalInv) throw new Error("Save aborted: invalid invoice target");
+        if (action) {
+          if (action === "share") await shareReceipt(finalInv);
+          if (action === "print") await printReceipt(finalInv);
+          if (action === "thermal") await printReceiptThermal(finalInv);
+          if (action === "download") await downloadReceipt(finalInv);
+        }
+        showToast(selectedInvoice ? "Invoice updated!" : "Invoice created!");
+        setShowModal(null); 
+        setSelectedInvoice(null); 
+        if (resetFormRef.current) resetFormRef.current();
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          console.error("Action error:", e);
+          showToast("Invoice processed but external action failed", "error");
+        }
       }
-
-      showToast(selectedInvoice ? "Invoice updated!" : "Invoice created!");
-      setShowModal(null); setSelectedInvoice(null); resetForm();
     } catch (e) {
       console.error(e);
       showToast("Error processing invoice", "error");
     } finally {
       setIsSaving(null);
     }
-  }, [form, selectedInvoice, invoices, seller.invoicePrefix, clients, downloadReceipt, shareReceipt, printReceipt, showToast, resetForm, taxRates]);
+  }, [form, selectedInvoice, seller.invoicePrefix, seller.name, clients, invoices, downloadReceipt, shareReceipt, printReceipt, printReceiptThermal, showToast, resetForm, taxRates]);
+
 
   const updateInvoiceStatus = useCallback((id, status) => {
-    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));
-    if (selectedInvoice && selectedInvoice.id === id) setSelectedInvoice(prev => ({ ...prev, status }));
-    showToast(`Status updated to ${status}`);
-  }, [selectedInvoice, showToast]);
+    const current = invoices.find(i => i.id === id)?.status;
+    if (current === status) return;
+    let updateObj = { status };
+    if (status === "paid") updateObj.paidDate = getLocalISODate();
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, ...updateObj } : inv));
+    if (selectedInvoice && selectedInvoice.id === id) setSelectedInvoice(prev => ({ ...prev, ...updateObj }));
+    showToast(`Status updated to ${status.toUpperCase()} ${updateObj.paidDate ? "on " + updateObj.paidDate : ""}`);
+  }, [selectedInvoice, invoices, showToast]);
 
-  const deleteInvoices = () => setDeleteConfirm({ type: "bulk" });
-
+  const deleteInvoices = () => {
+    if (selectedInvoices.length === 0) return;
+    setDeleteConfirm({ type: "bulk", count: selectedInvoices.length });
+  };
   const confirmDelete = useCallback(async () => {
     if (!deleteConfirm || isDeleting) return;
+    if (deleteConfirm.type === "wipe" && swipeConfirmText !== "WIPE") return;
 
     setIsDeleting(true);
     try {
@@ -699,29 +830,44 @@ export default function BillingApp() {
         showToast("Invoice deleted");
       } else if (deleteConfirm.type === "product") {
         setProducts(prev => prev.filter(p => p.id !== deleteConfirm.id));
+        await deleteProductImage(deleteConfirm.id);
         showToast("Item deleted from inventory");
       } else if (deleteConfirm.type === "client") {
         setClients(prev => prev.filter(c => c.id !== deleteConfirm.id));
         showToast("Client deleted");
       } else if (deleteConfirm.type === "wipe") {
         showToast("Deleting data…");
-        await wipeCloudState();
-        clearLocalState();
-        window.location.reload();
+        try {
+          await wipeCloudState();
+          await clearLocalState();
+          // Reset UI state even though we're reloading
+          setIsDeleting(false);
+          setDeleteConfirm(null);
+          setSwipeConfirmText("");
+          // Brief delay to ensure state update and toast are processed before reload
+          setTimeout(() => window.location.reload(), 100);
+          return;
+        } catch (wipeErr) {
+          console.error("Wipe failed:", wipeErr);
+          showToast("Wipe failed. Please check connection.", "error");
+        }
       }
 
       setDeleteConfirm(null);
+      setSwipeConfirmText("");
     } catch (err) {
       console.error("Delete action failed:", err);
       showToast("Could not delete data. Please try again.", "error");
     } finally {
       setIsDeleting(false);
     }
-  }, [deleteConfirm, selectedInvoices, wipeCloudState, clearLocalState, showToast, isDeleting]);
+  }, [deleteConfirm, selectedInvoices, swipeConfirmText, wipeCloudState, clearLocalState, showToast, isDeleting]);
 
   const toggleSelection = (id) => setSelectedInvoices(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
 
   const batchUpdateStatus = (ids, newStatus) => {
+    const VALID_STATUSES = ["draft", "sent", "paid", "overdue"];
+    if (!VALID_STATUSES.includes(newStatus)) return showToast("Invalid status", "error");
     setInvoices(prev => prev.map(inv => ids.includes(inv.id) ? { ...inv, status: newStatus } : inv));
     showToast(`Updated ${ids.length} invoices to ${newStatus}`);
     setIsSelectionMode(false); setSelectedInvoices([]);
@@ -762,13 +908,69 @@ export default function BillingApp() {
     return { ...revenue, counts, sortedClients, taxBreakdown, pending: revenue.awaiting, overdue: revenue.overdueAmt };
   }, [invoices, taxRates, clients]);
 
-  const saveProduct = useCallback((stayOpen = false) => {
+  const reportStats = useMemo(() => {
+    let invs = (invoices || []);
+    if (reportRange !== "all") {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        invs = invs.filter(inv => {
+            const d = new Date(inv.date);
+            if (reportRange === "month") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            if (reportRange === "year") return d.getFullYear() === now.getFullYear();
+            if (reportRange === "30d") return (startOfToday - d) / (1000 * 60 * 60 * 24) <= 30;
+            if (reportRange === "90d") return (startOfToday - d) / (1000 * 60 * 60 * 24) <= 90;
+            return true;
+        });
+    }
+
+    const counts = { all: invs.length, paid: 0, sent: 0, draft: 0, overdue: 0 };
+    let revenue = { total: 0, pretax: 0, tax: 0, paid: 0, paidPretax: 0, paidTax: 0, awaiting: 0, overdueAmt: 0, draftTotal: 0 };
+    const taxBreakdown = {};
+    const clientStats = {};
+    invs.forEach(inv => {
+        counts[inv.status]++;
+        const sub = (inv.items || []).reduce((sum, it) => sum + (it.qty * it.price), 0);
+        const itemTaxes = (inv.items || []).reduce((acc, it) => {
+            const taxes = getItemTaxList(it, taxRates);
+            taxes.forEach(t => {
+                acc.total += t.amount;
+                taxBreakdown[t.label] = (taxBreakdown[t.label] || 0) + t.amount;
+            });
+            return acc;
+        }, { total: 0 });
+        const tx = itemTaxes.total;
+        const gtotal = sub + tx;
+        revenue.total += gtotal; revenue.pretax += sub; revenue.tax += tx;
+        if (inv.status === "paid") { revenue.paid += gtotal; revenue.paidPretax += sub; revenue.paidTax += tx; }
+        else if (inv.status === "overdue") revenue.overdueAmt += gtotal;
+        else if (inv.status === "draft") revenue.draftTotal += gtotal;
+        else revenue.awaiting += gtotal;
+        const clientId = String(inv.clientId);
+        if (!clientStats[clientId]) clientStats[clientId] = 0;
+        clientStats[clientId] += gtotal;
+    });
+    const sortedClients = Object.entries(clientStats).map(([id, amt]) => ({ ...getClient(id), ltv: amt })).sort((a, b) => b.ltv - a.ltv);
+    return { ...revenue, counts, sortedClients, taxBreakdown, pending: revenue.awaiting, overdue: revenue.overdueAmt, invs };
+  }, [invoices, taxRates, clients, reportRange]);
+
+  const saveProduct = useCallback(async (stayOpen = false) => {
     if (!productForm.name) return showToast("Name is required", "error");
+    
+    let productId = editingProductId || crypto.randomUUID();
+    let finalProduct = { ...productForm, id: productId };
+
+    // If there's a base64 image, save to IDB and remove from state object
+    if (productForm.image && productForm.image.startsWith('data:')) {
+        await saveProductImage(productId, productForm.image);
+        finalProduct.image = true; // Placeholder for UI to know it has image
+    }
+
     if (editingProductId) {
-      setProducts(prev => prev.map(p => p.id === editingProductId ? { ...productForm, id: p.id } : p));
+      setProducts(prev => prev.map(p => p.id === editingProductId ? finalProduct : p));
       showToast("Item updated!");
     } else {
-      setProducts(prev => [...prev, { ...productForm, id: crypto.randomUUID() }]);
+      setProducts(prev => [...prev, finalProduct]);
       showToast("Item saved to inventory!");
     }
 
@@ -781,11 +983,29 @@ export default function BillingApp() {
   }, [productForm, editingProductId, showToast, taxRates]);
 
   const saveClient = useCallback(() => {
-    if (!clientForm.name) return showToast("Name is required", "error");
-    if (selectedClient) { setClients(prev => prev.map(c => c.id === selectedClient.id ? { ...clientForm, id: c.id } : c)); showToast("Client updated!"); }
-    else { setClients(prev => [...prev, { ...clientForm, id: crypto.randomUUID() }]); showToast("Client added!"); }
+    if (!clientForm.name?.trim()) return showToast("Name is required", "error");
+    
+    const trimmedForm = {
+        ...clientForm,
+        name: clientForm.name.trim(),
+        email: clientForm.email?.trim(),
+        phone: clientForm.phone?.trim(),
+        address: clientForm.address?.trim(),
+    };
+
+    if (selectedClient) { 
+      setClients(prev => prev.map(c => c.id === selectedClient.id ? { ...trimmedForm, id: c.id } : c)); 
+      showToast("Client updated!"); 
+    }
+    else { 
+      const newClientId = crypto.randomUUID();
+      setClients(prev => [...prev, { ...trimmedForm, id: newClientId }]); 
+      if (!form.clientId) setForm(prev => ({ ...prev, clientId: newClientId }));
+      showToast("Client added!"); 
+    }
     setShowModal(null);
-  }, [clientForm, selectedClient, showToast]);
+    setSelectedClient(null);
+  }, [clientForm, selectedClient, showToast, form.clientId]);
 
   const downloadInventoryPDF = useCallback(async () => {
     const bytes = await getInventoryPDFData(seller, currency, products, taxRates, inventoryTitle);
@@ -833,19 +1053,44 @@ export default function BillingApp() {
   };
 
   const wipeAllData = () => setDeleteConfirm({ type: "wipe" });
-  // Data Migration: Ensure all invoices have totalAmount
+  const hasMigratedRef = useRef(false);
   useEffect(() => {
-    if (invoices && invoices.length > 0) {
-      const needsUpdate = invoices.some(inv => inv.totalAmount === undefined || inv.totalAmount === null);
-      if (needsUpdate) {
-        setInvoices(prev => prev.map(inv => {
-          if (inv.totalAmount === undefined || inv.totalAmount === null) {
-            return { ...inv, totalAmount: totalWithTax(inv.items, taxRates) };
-          }
-          return inv;
-        }));
+    if (hasMigratedRef.current || !invoices || invoices.length === 0) return;
+    
+    let anyChanged = false;
+    const updated = invoices.map(inv => {
+      let invChanged = false;
+      let newInv = { ...inv };
+
+      // 1. totalAmount migration
+      if (newInv.totalAmount === undefined || newInv.totalAmount === null) {
+        newInv.totalAmount = totalWithTax(newInv.items, taxRates);
+        invChanged = true;
       }
+
+      // 2. taxSnapshots migration
+      if (Array.isArray(newInv.items)) {
+        const newItems = newInv.items.map(it => {
+          if (!it.taxSnapshots || !Array.isArray(it.taxSnapshots)) {
+            invChanged = true;
+            return { 
+              ...it, 
+              taxSnapshots: getItemTaxList(it, taxRates).map(t => ({ label: t.label, rate: t.rate })) 
+            };
+          }
+          return it;
+        });
+        if (invChanged) newInv.items = newItems;
+      }
+
+      if (invChanged) anyChanged = true;
+      return invChanged ? newInv : inv;
+    });
+
+    if (anyChanged) {
+      setInvoices(updated);
     }
+    hasMigratedRef.current = true;
   }, [invoices, taxRates]);
 
   return (
@@ -856,18 +1101,87 @@ export default function BillingApp() {
       loginWithPopup={handleGatedLogin}
       logout={logout}
       handleNewInvoice={handleNewInvoice}
+      isNativePlatform={isNativePlatform()}
+      openSellerModal={() => { setSellerForm(seller); setShowSellerModal(true); }}
+      search={search} setSearch={setSearch}
     >
-      {tab === "home" && <Dashboard statsMemo={statsMemo} fmt={fmt} invoices={invoices} getClient={getClient} totalWithTax={totalWithTax} taxRates={taxRates} setSelectedInvoice={setSelectedInvoice} setShowModal={setShowModal} setTab={setTab} />}
-      {tab === "bills" && <InvoiceManager invoices={invoices} filterStatus={filterStatus} setFilterStatus={setFilterStatus} search={search} setSearch={setSearch} isSelectionMode={isSelectionMode} setIsSelectionMode={setIsSelectionMode} selectedInvoices={selectedInvoices} setSelectedInvoices={setSelectedInvoices} toggleSelection={toggleSelection} deleteInvoices={deleteInvoices} batchUpdateStatus={batchUpdateStatus} downloadMultipleInvoices={downloadMultipleInvoices} printMultipleInvoices={printMultipleInvoices} printMultipleInvoicesThermal={printMultipleInvoicesThermal} shareMultipleInvoices={shareMultipleInvoices} showBatchPrint={showBatchPrint} showToast={showToast} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} taxRates={taxRates} setSelectedInvoice={setSelectedInvoice} setShowModal={setShowModal} handleNewInvoice={handleNewInvoice} />}
-      {tab === "clients" && <ClientManager clients={clients} setClients={setClients} setClientForm={setClientForm} setSelectedClient={setSelectedClient} setShowModal={setShowModal} invoices={invoices} fmt={fmt} setDeleteConfirm={setDeleteConfirm} totalWithTax={totalWithTax} taxRates={taxRates} />}
-      {tab === "items" && <InventoryManager inventoryTitle={inventoryTitle} editingInventoryTitle={editingInventoryTitle} setEditingInventoryTitle={setEditingInventoryTitle} setInventoryTitle={setInventoryTitle} downloadInventoryPDF={downloadInventoryPDF} printInventoryPDF={printInventoryPDF} printInventoryThermal={printInventoryThermal} shareInventoryPDF={shareInventoryPDF} setProductForm={setProductForm} setEditingProductId={setEditingProductId} setShowModal={setShowModal} products={products} setProducts={setProducts} setDeleteConfirm={setDeleteConfirm} fmt={fmt} taxRates={taxRates} itemTaxTotal={itemTaxTotal} />}
-      {tab === "reports" && <Reports invoices={invoices} clients={clients} fmt={fmt} totalWithTax={totalWithTax} taxRates={taxRates} statsMemo={statsMemo} />}
+      {tab === "home" && <Dashboard statsMemo={statsMemo} fmt={fmt} invoices={invoices} getClient={getClient} totalWithTax={totalWithTax} taxRates={taxRates} setSelectedInvoice={setSelectedInvoice} setShowModal={setShowModal} setTab={setTab} search={search} />}
+      {tab === "bills" && (
+          <InvoiceManager
+            invoices={invoices}
+            filterStatus={filterStatus}
+            setFilterStatus={setFilterStatus}
+            search={search}
+            setSearch={setSearch}
+            invoiceSort={invoiceSort}
+            setInvoiceSort={setInvoiceSort}
+            isSelectionMode={isSelectionMode}
+            setIsSelectionMode={setIsSelectionMode}
+            selectedInvoices={selectedInvoices}
+            setSelectedInvoices={setSelectedInvoices}
+            toggleSelection={toggleSelection}
+            deleteInvoices={deleteInvoices}
+            downloadMultipleInvoices={downloadMultipleInvoices}
+            printMultipleInvoices={printMultipleInvoices}
+            printMultipleInvoicesThermal={printMultipleInvoicesThermal}
+            shareMultipleInvoices={shareMultipleInvoices}
+            showBatchPrint={showBatchPrint}
+            showToast={showToast}
+            getClient={getClient}
+            fmt={fmt}
+            totalWithTax={totalWithTax}
+            taxRates={taxRates}
+            setSelectedInvoice={setSelectedInvoice}
+            setShowModal={setShowModal}
+            batchUpdateStatus={batchUpdateStatus}
+            handleNewInvoice={handleNewInvoice}
+          />
+        )}
+      {tab === "clients" && <ClientManager clients={clients} setClients={setClients} setClientForm={setClientForm} setSelectedClient={setSelectedClient} setShowModal={setShowModal} invoices={invoices} fmt={fmt} setDeleteConfirm={setDeleteConfirm} totalWithTax={totalWithTax} taxRates={taxRates} search={search} setSearch={setSearch} />}
+      {tab === "items" && (
+          <InventoryManager
+            inventoryTitle={inventoryTitle}
+            editingInventoryTitle={editingInventoryTitle}
+            setEditingInventoryTitle={setEditingInventoryTitle}
+            setInventoryTitle={setInventoryTitle}
+            downloadInventoryPDF={downloadInventoryPDF}
+            printInventoryPDF={printInventoryPDF}
+            shareInventoryPDF={shareInventoryPDF}
+            printInventoryThermal={printInventoryThermal}
+            setProductForm={setProductForm}
+            setEditingProductId={setEditingProductId}
+            setShowModal={setShowModal}
+            products={products}
+            setProducts={setProducts}
+            inventorySort={inventorySort}
+            setInventorySort={setInventorySort}
+            setDeleteConfirm={setDeleteConfirm}
+            fmt={fmt}
+            taxRates={taxRates}
+            itemTaxTotal={itemTaxTotal}
+            invoices={invoices}
+            search={search}
+            setSearch={setSearch}
+          />
+        )}
+      {tab === "reports" && (
+          <Reports
+            invoices={invoices}
+            clients={clients}
+            fmt={fmt}
+            totalWithTax={totalWithTax}
+            taxRates={taxRates}
+            statsMemo={reportStats}
+            reportRange={reportRange}
+            setReportRange={setReportRange}
+          />
+        )}
       {tab === "settings" && <Settings user={user} seller={seller} setSellerForm={setSellerForm} setShowSellerModal={setShowSellerModal} authLoading={authLoading} syncStatus={syncStatus} lastSync={lastSync} invoices={invoices} clients={clients} products={products} fetchFromCloud={fetchFromCloud} logout={logout} clearLocalState={clearLocalState} signInWithPopup={handleGatedLogin} authError={authError} showToast={showToast} syncLog={syncLog} theme={theme} setTheme={setTheme} toggleTheme={toggleTheme} currency={currency} setShowCurrencyPicker={setShowCurrencyPicker} taxRates={taxRates} setTaxRates={setTaxRates} wipeAllData={wipeAllData} settingsTab={settingsTab} setSettingsTab={setSettingsTab} isDark={isDark} exportInvoicesToCSV={exportInvoicesToCSV} exportClientsToCSV={exportClientsToCSV} exportProductsToCSV={exportProductsToCSV} exportFullDataJSON={exportFullDataJSON} importFullDataJSON={importFullDataJSON} fullData={cloudSyncData} setters={setters} getClient={getClient} defaultNote={defaultNote} setDefaultNote={setDefaultNote} hapticsEnabled={hapticsEnabled} setHapticsEnabled={setHapticsEnabled} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} hasAcceptedLegal={hasAcceptedLegal} viewLegal={() => setShowLegalModal(true)} />}
 
       <InvoiceModal showModal={showModal} setShowModal={(val) => { setShowModal(val); if (!val) { setSelectedInvoice(null); resetForm(); } }} form={form} setForm={setForm} clients={clients} products={products} taxRates={taxRates} saveInvoice={saveInvoice} addItem={addItem} removeItem={removeItem} updateItem={updateItem} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} playFeedback={playFeedback} showToast={showToast} selectedInvoice={selectedInvoice} resetForm={resetForm} isSaving={isSaving} />
       <InvoiceViewModal showModal={showModal} setShowModal={setShowModal} selectedInvoice={selectedInvoice} setSelectedInvoice={setSelectedInvoice} setForm={setForm} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} taxRates={taxRates} downloadReceipt={downloadReceipt} printReceipt={printReceipt} printReceiptThermal={printReceiptThermal} shareReceipt={shareReceipt} setDeleteConfirm={setDeleteConfirm} updateStatus={updateInvoiceStatus} showToast={showToast} />
-      <ClientModal showModal={showModal} setShowModal={setShowModal} clientForm={clientForm} setClientForm={setClientForm} selectedClient={selectedClient} saveClient={saveClient} />
-      <ProductModal showModal={showModal} setShowModal={setShowModal} productForm={productForm} setProductForm={setProductForm} editingProductId={editingProductId} saveProduct={saveProduct} compressImage={compressImage} taxRates={taxRates} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} />
+      <ClientModal showModal={showModal} setShowModal={setShowModal} clientForm={clientForm} setClientForm={setClientForm} selectedClient={selectedClient} saveClient={saveClient} setDeleteConfirm={setDeleteConfirm} />
+      <ProductModal showModal={showModal} setShowModal={setShowModal} productForm={productForm} setProductForm={setProductForm} editingProductId={editingProductId} saveProduct={saveProduct} compressImage={compressImage} taxRates={taxRates} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} setDeleteConfirm={setDeleteConfirm} />
 
       <LegalModal
         show={showLegalModal}
@@ -893,7 +1207,7 @@ export default function BillingApp() {
 
       {showCurrencyPicker && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 3000, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-          <div className="premium-card" style={{ width: "100%", maxWidth: "500px", borderBottomLeftRadius: 0, borderBottomRightRadius: 0, maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div className="premium-card" style={{ width: "100%", maxWidth: "500px", borderBottomLeftRadius: 0, borderBottomRightRadius: 0, maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "calc(20px + var(--safe-area-bottom))" }}>
             <div style={{ padding: "20px", borderBottom: "1px solid var(--border-primary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ margin: 0 }}>Select Currency</h3>
               <button onClick={() => setShowCurrencyPicker(false)} className="secondary-btn" style={{ padding: "8px 12px" }}>Done</button>
@@ -939,21 +1253,82 @@ export default function BillingApp() {
         </div>
       )}
 
+      {isSaving && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 5000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+          <div className="spinner" style={{ width: "40px", height: "40px", border: "4px solid rgba(255,255,255,0.3)", borderTopColor: "var(--accent-primary)", borderRadius: "50%", animation: "spin 1s linear infinite", marginBottom: "16px" }} />
+          <div style={{ fontWeight: "bold", fontSize: "16px" }}>
+            {isSaving === "download" ? "Preparing Download..." :
+             isSaving === "share" ? "Preparing Share..." :
+             isSaving === "print" ? "Preparing Print..." :
+             "Processing..."}
+          </div>
+          <style>{`
+            @keyframes spin { to { transform: rotate(360deg); } }
+          `}</style>
+        </div>
+      )}
+
       {toast && <div style={{ position: "fixed", bottom: "110px", left: "50%", transform: "translateX(-50%)", background: toast.type === "error" ? "#ef4444" : "#4ade80", color: "#000", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", zIndex: 1000 }}>{toast.msg}</div>}
 
       {deleteConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
           <div className="premium-card" style={{ maxWidth: "340px", textAlign: "center" }}>
-            <div style={{ fontSize: "40px", marginBottom: "16px" }}>⚠️</div>
-            <h3 style={{ margin: "0 0 8px" }}>Confirm Delete</h3>
-            <p style={{ fontSize: "14px", color: "var(--text-secondary)", margin: "0 0 24px" }}>Are you sure? This action cannot be undone.</p>
+            <div style={{ fontSize: "40px", marginBottom: "16px" }}>
+              {deleteConfirm.type === "wipe" ? "💀" : "⚠️"}
+            </div>
+            <h3 style={{ margin: "0 0 8px" }}>
+              {deleteConfirm.type === "wipe" ? "Wipe All Data" : 
+               deleteConfirm.type === "bulk" ? "Delete Selection" : 
+               deleteConfirm.type === "client" ? "Delete Client" :
+               deleteConfirm.type === "product" ? "Delete Item" :
+               "Confirm Delete"}
+            </h3>
+            <p style={{ fontSize: "14px", color: "var(--text-secondary)", margin: "0 0 24px" }}>
+              {deleteConfirm.type === "wipe" 
+                ? "This will delete all invoices, clients, and inventory both locally and from the cloud. This IS permanent." 
+                : deleteConfirm.type === "product" && deleteConfirm.usedInInvoices > 0
+                ? `⚠️ This item is used in ${deleteConfirm.usedInInvoices} invoice(s). Deleting it from inventory will NOT affect existing invoices, but it will be removed from suggestions.`
+                : "Are you sure? This action cannot be undone."}
+            </p>
+            
+            {deleteConfirm.type === "wipe" && (
+                <input 
+                  className="input-field" 
+                  placeholder='Type "WIPE" to confirm'
+                  value={swipeConfirmText}
+                  onChange={(e) => setSwipeConfirmText(e.target.value)}
+                  style={{ marginBottom: "20px", textAlign: "center", border: "1px solid #ef4444" }}
+                />
+            )}
+
             <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={() => setDeleteConfirm(null)} disabled={isDeleting} className="secondary-btn" style={{ flex: 1, opacity: isDeleting ? 0.65 : 1, cursor: isDeleting ? "not-allowed" : "pointer" }}>Cancel</button>
-              <button onClick={confirmDelete} disabled={isDeleting} className="primary-btn" style={{ flex: 1, background: "#ef4444", opacity: isDeleting ? 0.75 : 1, cursor: isDeleting ? "not-allowed" : "pointer" }}>{isDeleting ? "Deleting..." : "Delete"}</button>
+              <button 
+                onClick={() => { setDeleteConfirm(null); setSwipeConfirmText(""); }} 
+                disabled={isDeleting} 
+                className="secondary-btn" 
+                style={{ flex: 1, opacity: isDeleting ? 0.65 : 1, cursor: isDeleting ? "not-allowed" : "pointer" }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDelete} 
+                disabled={isDeleting || (deleteConfirm.type === "wipe" && swipeConfirmText !== "WIPE")} 
+                className="primary-btn" 
+                style={{ flex: 1, background: "#ef4444", opacity: (isDeleting || (deleteConfirm.type === "wipe" && swipeConfirmText !== "WIPE")) ? 0.75 : 1, cursor: (isDeleting || (deleteConfirm.type === "wipe" && swipeConfirmText !== "WIPE")) ? "not-allowed" : "pointer" }}
+              >
+                {isDeleting ? "Processing..." : "Delete"}
+              </button>
             </div>
           </div>
         </div>
       )}
+      {showModal === "invoice" && (
+        <datalist id="product-suggestions">
+          {products.map(p => <option key={p.id} value={p.name} />)}
+        </datalist>
+      )}
     </Layout>
   );
 }
+
+

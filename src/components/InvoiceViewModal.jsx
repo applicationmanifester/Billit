@@ -37,12 +37,16 @@ export const InvoiceViewModal = ({
                             <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{client?.email}</div>
                         </div>
                         <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Status</div>
-                            <span className="badge" style={{ background: `var(--status-${inv.status})`, padding: "4px 12px" }}>{inv.status}</span>
+                            <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "6px" }}>Status</div>
+                            <span className="badge" style={{ 
+                                background: `var(--status-${inv.status})`, 
+                                padding: "4px 14px", 
+                                fontSize: "11px"
+                            }}>{inv.status}</span>
                         </div>
                         <div>
-                            <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Date</div>
-                            <div style={{ fontSize: "14px" }}>{inv.date}</div>
+                            <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Date / Time</div>
+                            <div style={{ fontSize: "14px" }}>{inv.date} <span style={{ opacity: 0.6, fontSize: "12px" }}>{inv.time}</span></div>
                         </div>
                         <div style={{ textAlign: "right" }}>
                             <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Due Date</div>
@@ -65,13 +69,23 @@ export const InvoiceViewModal = ({
                 </div>
 
                 <div style={{ background: "var(--bg-input)", borderRadius: "16px", padding: "16px", marginBottom: "24px", border: `1px solid var(--border-primary)` }}>
+                    {inv.items.map((item, idx) => (
+                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "14px" }}>
+                            <span style={{ color: "var(--text-secondary)", flex: 1, marginRight: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {item.desc} <span style={{ opacity: 0.6, fontSize: "11px" }}>x{item.qty}</span>
+                            </span>
+                            <span style={{ fontWeight: "600", color: "var(--text-primary)" }}>{fmt(Math.round(item.qty * item.price * 100) / 100)}</span>
+                        </div>
+                    ))}
+                    <div style={{ height: "1px", background: "var(--border-primary)", margin: "14px 0", opacity: 0.4 }} />
+
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                         <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>Subtotal</span>
-                        <span style={{ fontWeight: "600" }}>{fmt(subtotal)}</span>
+                        <span style={{ fontWeight: "600" }}>{fmt(inv.items.reduce((s, i) => s + Math.round(i.qty * i.price * 100) / 100, 0))}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", paddingBottom: "12px", borderBottom: `1px solid var(--border-primary)` }}>
                         <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>Taxes</span>
-                        <span style={{ fontWeight: "600" }}>{fmt(taxes)}</span>
+                        <span style={{ fontWeight: "600" }}>{fmt(inv.items.reduce((s, i) => s + itemTaxTotal(i, taxRates), 0))}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                         <span style={{ fontWeight: "bold", fontSize: "16px" }}>Total</span>
@@ -96,7 +110,10 @@ export const InvoiceViewModal = ({
                             return (
                                 <button
                                     key={s}
-                                    onClick={() => updateStatus(inv.id, s)}
+                                    onClick={() => {
+                                        if (inv.status === s) return;
+                                        updateStatus(inv.id, s);
+                                    }}
                                     className={isActive ? "" : "secondary-btn"}
                                     style={{
                                         padding: "10px 4px",
@@ -119,7 +136,7 @@ export const InvoiceViewModal = ({
                     <div style={{ height: "1px", background: "var(--border-primary)", margin: "20px 0 0" }} />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", marginBottom: "16px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "16px" }}>
                     <button onClick={() => downloadReceipt(inv)} className="secondary-btn" style={{ padding: "12px 4px", fontWeight: "bold", fontSize: "11px", borderRadius: "10px" }}>Download</button>
                     <button onClick={() => shareReceipt(inv)} className="secondary-btn" style={{ padding: "12px 4px", fontWeight: "bold", fontSize: "11px", borderRadius: "10px" }}>Share</button>
                     <button onClick={() => printReceipt(inv)} className="secondary-btn" style={{ padding: "12px 4px", fontWeight: "bold", fontSize: "11px", borderRadius: "10px" }}>Print</button>

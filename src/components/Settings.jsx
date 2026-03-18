@@ -40,7 +40,7 @@ export const Settings = ({
                     <button key={s} onClick={() => setSettingsTab(s)} style={{
                         padding: "8px 16px", borderRadius: "12px", whiteSpace: "nowrap", border: `1px solid ${settingsTab === s ? "var(--accent-primary)" : "var(--border-primary)"}`,
                         background: settingsTab === s ? "var(--accent-primary)" : "var(--bg-card)", color: settingsTab === s ? "#000" : "var(--text-secondary)", fontSize: "12px", fontWeight: "bold"
-                    }}>{s.toUpperCase()}</button>
+                    }}>{s === "export" ? "EXPORT/IMPORT" : s.toUpperCase()}</button>
                 ))}
             </div>
 
@@ -71,6 +71,19 @@ export const Settings = ({
                         >
                             {soundEnabled ? "🔊 Enabled" : "🔇 Disabled"}
                         </button>
+                    </div>
+
+                    <div style={{ padding: "14px 0", borderBottom: `1px solid var(--border-primary)` }}>
+                        <div style={{ fontSize: "14px", marginBottom: "8px" }}>Default Payment Due Days</div>
+                        <input
+                            type="number"
+                            className="input-field"
+                            style={{ width: "100%" }}
+                            placeholder="e.g. 7"
+                            value={seller.defaultDueDays || ""}
+                            onChange={(e) => setSellerForm({ ...seller, defaultDueDays: Math.max(0, parseInt(e.target.value) || 0) })}
+                        />
+                        <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>New invoices will automatically set the due date to "Today + X days".</div>
                     </div>
 
                     <div style={{ padding: "14px 0" }}>
@@ -229,7 +242,14 @@ export const Settings = ({
                     {taxRates.map((tr, idx) => (
                         <div key={tr.id} style={{ display: "flex", justifyContent: "space-between", padding: "14px 0", borderBottom: `1px solid var(--border-primary)`, alignItems: "center" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
-                                <button onClick={() => { if (taxRates.length > 1) setTaxRates(prev => prev.filter(t => t.id !== tr.id)); }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>✕</button>
+                                <button onClick={() => {
+                                    if (taxRates.length <= 1) return;
+                                    const usedInDrafts = (invoices || []).filter(inv => inv.status === "draft" && inv.items.some(item => item.taxId === tr.id));
+                                    if (usedInDrafts.length > 0) {
+                                        return showToast(`Cannot delete! This tax is used in ${usedInDrafts.length} draft invoices. Remove it from drafts first.`, "error");
+                                    }
+                                    setTaxRates(prev => prev.filter(t => t.id !== tr.id));
+                                }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>✕</button>
                                 <input style={{ background: "none", border: "none", color: "var(--text-primary)", fontSize: "14px", width: "100%", outline: "none" }} value={tr.label} onChange={(e) => setTaxRates(prev => prev.map(t => t.id === tr.id ? { ...t, label: e.target.value } : t))} />
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -245,7 +265,7 @@ export const Settings = ({
             {settingsTab === "export" && (
                 <div className="premium-card" style={{ padding: "20px", marginBottom: "20px" }}>
                     <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", fontWeight: "bold", textTransform: "uppercase" }}>Data Portability</div>
-                    <div style={{ display: "grid", gap: "12px" }}>
+                    <div style={{ display: "grid", gap: "16px" }}>
                         <button onClick={() => exportInvoicesToCSV(invoices, getClient, taxRates)} className="secondary-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <span>📄 Export Invoices</span>
                             <span style={{ fontSize: "12px", opacity: 0.6 }}>CSV</span>
@@ -262,12 +282,12 @@ export const Settings = ({
                         <div style={{ height: "1px", background: "var(--border-color)", margin: "8px 0" }} />
 
                         <button onClick={() => exportFullDataJSON(fullData)} className="premium-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "12px 16px" }}>
-                            <span>📦 Full Backup</span>
+                            <span>💾 Full Backup Data Download</span>
                             <span style={{ fontSize: "12px", opacity: 0.8 }}>JSON</span>
                         </button>
 
                         <button onClick={() => fileInputRef.current?.click()} className="secondary-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span>📥 Restore Backup</span>
+                            <span>📥 Restore Data Backup</span>
                             <span style={{ fontSize: "12px", opacity: 0.6 }}>JSON</span>
                         </button>
                         <input
@@ -295,8 +315,15 @@ export const Settings = ({
                 </div>
             </div>
 
-            <div style={{ background: "rgba(239,68,68,0.05)", borderRadius: "20px", padding: "20px", border: "1px solid #ef444433" }}>
-                <button onClick={wipeAllData} className="primary-btn" style={{ width: "100%", background: "#ef4444" }}>Wipe All Data</button>
+            <div style={{
+                padding: "24px",
+                borderRadius: "16px",
+                border: "1px solid #ef444433",
+                marginTop: "24px",
+                background: "rgba(239, 68, 68, 0.05)"
+            }}>
+                <p style={{ margin: "0 0 16px", fontSize: "13px", color: "#ef4444", fontWeight: "bold" }}>DANGER ZONE: This will permanently delete ALL data from your device and cloud storage.</p>
+                <button onClick={wipeAllData} style={{ width: "100%", padding: "16px", background: "#ef4444", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "bold" }}>Wipe All Data</button>
             </div>
         </div>
     );

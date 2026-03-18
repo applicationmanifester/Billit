@@ -24,6 +24,8 @@ export const InvoiceManager = ({
     taxRates,
     setSelectedInvoice,
     setShowModal,
+    invoiceSort,
+    setInvoiceSort,
     batchUpdateStatus,
     handleNewInvoice
 }) => {
@@ -31,7 +33,18 @@ export const InvoiceManager = ({
         (filterStatus === "all" || i.status === filterStatus) &&
         (i.id.toLowerCase().includes(search.toLowerCase()) ||
             (getClient(i.clientId)?.name || "").toLowerCase().includes(search.toLowerCase()))
-    ).slice().reverse();
+    ).sort((a, b) => {
+        if (invoiceSort === "dateDesc") return new Date(b.date) - new Date(a.date);
+        if (invoiceSort === "dateAsc") return new Date(a.date) - new Date(b.date);
+        if (invoiceSort === "amountDesc") return totalWithTax(b.items, taxRates) - totalWithTax(a.items, taxRates);
+        if (invoiceSort === "amountAsc") return totalWithTax(a.items, taxRates) - totalWithTax(b.items, taxRates);
+        if (invoiceSort === "client") {
+            const nameA = (getClient(a.clientId)?.name || "").toLowerCase();
+            const nameB = (getClient(b.clientId)?.name || "").toLowerCase();
+            return nameA.localeCompare(nameB);
+        }
+        return 0;
+    });
 
     return (
         <div style={{ paddingTop: isSelectionMode && selectedInvoices.length > 0 ? "280px" : "220px", transition: "padding 0.2s" }} className="animate-slide-up">
@@ -49,20 +62,39 @@ export const InvoiceManager = ({
                     <button onClick={handleNewInvoice} className="primary-btn" style={{ height: "46px", padding: "0 16px", borderRadius: "12px", fontSize: "12px" }}>+ New</button>
                     <button onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedInvoices([]); }} className="secondary-btn" style={{ height: "46px", color: "var(--accent-primary)" }}>{isSelectionMode ? "Cancel" : "Select"}</button>
                 </div>
-                <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px", justifyContent: "center" }}>
-                    {["all", "draft", "sent", "paid", "overdue"].map(s => {
-                        const isActive = filterStatus === s;
-                        const activeColor = s === "all" ? "var(--accent-primary)" : `var(--status-${s})`;
-                        return (
-                            <button key={s} onClick={() => setFilterStatus(s)} style={{
-                                height: "32px", padding: "0 16px", borderRadius: "16px", whiteSpace: "nowrap",
-                                border: `1px solid ${isActive ? activeColor : "var(--border-primary)"}`,
-                                background: isActive ? activeColor : "var(--bg-card)",
-                                color: isActive ? "#000" : "var(--text-secondary)",
-                                fontSize: "11px", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s"
-                            }}>{s.toUpperCase()}</button>
-                        );
-                    })}
+                <div style={{ display: "flex", gap: "10px", alignItems: "center", overflowX: "auto", paddingBottom: "10px", scrollbarWidth: "none" }}>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                        {["all", "draft", "sent", "paid", "overdue"].map(s => {
+                            const isActive = filterStatus === s;
+                            const activeColor = s === "all" ? "var(--accent-primary)" : `var(--status-${s})`;
+                            return (
+                                <button key={s} onClick={() => setFilterStatus(s)} style={{
+                                    height: "32px", padding: "0 14px", borderRadius: "50px", whiteSpace: "nowrap",
+                                    border: `1px solid ${isActive ? activeColor : "var(--border-primary)"}`,
+                                    background: isActive ? activeColor : "var(--bg-card)",
+                                    color: isActive ? "#000" : "var(--text-secondary)",
+                                    fontSize: "10px", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s"
+                                }}>{s.toUpperCase()}</button>
+                            );
+                        })}
+                    </div>
+                    <div style={{ height: "20px", width: "1px", background: "var(--border-primary)", margin: "0 4px" }} />
+                    <select
+                      value={invoiceSort}
+                      onChange={(e) => setInvoiceSort(e.target.value)}
+                      style={{
+                        height: "32px", padding: "0 10px", borderRadius: "16px",
+                        background: "var(--bg-card)", color: "var(--text-primary)",
+                        border: "1px solid var(--border-primary)", fontSize: "10px", fontWeight: "bold",
+                        outline: "none", cursor: "pointer"
+                      }}
+                    >
+                      <option value="dateDesc">Date (Newest)</option>
+                      <option value="dateAsc">Date (Oldest)</option>
+                      <option value="amountDesc">Amount (High)</option>
+                      <option value="amountAsc">Amount (Low)</option>
+                      <option value="client">Client (A-Z)</option>
+                    </select>
                 </div>
 
                 {isSelectionMode && selectedInvoices.length > 0 && (
@@ -74,23 +106,23 @@ export const InvoiceManager = ({
                         borderTop: `1px solid var(--border-primary)`,
                         marginTop: "12px"
                     }}>
-                        <button onClick={deleteInvoices} className="secondary-btn" style={{ padding: "10px 2px", fontSize: "10px", color: "#ef4444" }}>🗑 Delete</button>
+                        <button onClick={deleteInvoices} className="secondary-btn" style={{ padding: "10px 16px", fontSize: "10px", color: "#ef4444" }}>🗑 Delete</button>
                         <button onClick={() => {
                             const selectedInvs = invoices.filter(i => selectedInvoices.includes(i.id));
                             downloadMultipleInvoices(selectedInvs);
-                        }} className="secondary-btn" style={{ padding: "10px 2px", fontSize: "10px", color: "var(--accent-primary)" }}>⬇ Download</button>
+                        }} className="secondary-btn" style={{ padding: "10px 16px", fontSize: "10px", color: "var(--accent-primary)" }}>⬇ Download</button>
                         <button onClick={() => {
                             const selectedInvs = invoices.filter(i => selectedInvoices.includes(i.id));
                             shareMultipleInvoices(selectedInvs);
-                        }} className="secondary-btn" style={{ padding: "10px 2px", fontSize: "10px", color: "var(--accent-primary)" }}>📨 Share</button>
+                        }} className="secondary-btn" style={{ padding: "10px 16px", fontSize: "10px", color: "var(--accent-primary)" }}>📨 Share</button>
                         <button onClick={() => {
                             const selectedInvs = invoices.filter(i => selectedInvoices.includes(i.id));
                             printMultipleInvoices(selectedInvs);
-                        }} className="secondary-btn" style={{ padding: "10px 2px", fontSize: "10px", color: "var(--accent-primary)" }}>🖨️ Print</button>
+                        }} className="secondary-btn" style={{ padding: "10px 16px", fontSize: "10px", color: "var(--accent-primary)" }}>🖨️ Print</button>
                         <button onClick={() => {
                             const selectedInvs = invoices.filter(i => selectedInvoices.includes(i.id));
                             printMultipleInvoicesThermal(selectedInvs);
-                        }} className="secondary-btn" style={{ padding: "10px 2px", fontSize: "10px", color: "var(--accent-primary)" }}>🧾 Thermal</button>
+                        }} className="secondary-btn" style={{ padding: "10px 16px", fontSize: "10px", color: "var(--accent-primary)" }}>🧾 Thermal</button>
                     </div>
                 )}
             </div>
@@ -100,7 +132,7 @@ export const InvoiceManager = ({
                         marginBottom: "12px", border: `1px solid ${selectedInvoices.includes(inv.id) ? "var(--accent-primary)" : "var(--border-primary)"}`,
                         cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", padding: "16px"
                     }} onClick={() => isSelectionMode ? toggleSelection(inv.id) : (setSelectedInvoice(inv), setShowModal("view"))}>
-                        {isSelectionMode && <div style={{ width: "20px", height: "20px", borderRadius: "6px", border: `2px solid ${selectedInvoices.includes(inv.id) ? "var(--accent-primary)" : "var(--border-primary)"}`, background: selectedInvoices.includes(inv.id) ? "var(--accent-primary)" : "none", display: "flex", alignItems: "center", justifyContent: "center" }}>{selectedInvoices.includes(inv.id) && "✓"}</div>}
+                        {isSelectionMode && <div style={{ width: "32px", height: "32px", minWidth: "32px", borderRadius: "10px", border: `2px solid ${selectedInvoices.includes(inv.id) ? "var(--accent-primary)" : "var(--border-primary)"}`, background: selectedInvoices.includes(inv.id) ? "var(--accent-primary)" : "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>{selectedInvoices.includes(inv.id) && "✓"}</div>}
                         <div style={{ flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div>
                                 <div style={{ fontSize: "11px", color: "var(--accent-primary)", fontWeight: "bold" }}>{inv.id}</div>
@@ -121,7 +153,7 @@ export const InvoiceManager = ({
                         <p className="empty-state-text">
                             {search ? `Searching for "${search}" didn't return any results.` : "Create your first invoice to get started with professional billing."}
                         </p>
-                        {!search && <button onClick={handleNewInvoice} className="primary-btn">Create Invoice</button>}
+                        {!search && <button onClick={handleNewInvoice} className="primary-btn" style={{ padding: "12px 24px" }}>Create Invoice</button>}
                     </div>
                 )}
             </div>

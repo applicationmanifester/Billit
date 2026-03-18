@@ -4,13 +4,12 @@
   "webDir": "dist",
   "plugins": {
     "Keyboard": {
-      "resize": "body",
+      "resize": "ionic",
       "style": "dark",
-      "resizeOnFullScreen": true
+      "resizeOnFullScreen": false
     },
     "StatusBar": {
       "style": "DARK",
-      "backgroundColor": "#0a0a0f",
       "overlaysWebView": true
     },
     "SplashScreen": {

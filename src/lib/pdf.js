@@ -1,10 +1,20 @@
 import { total, getItemTaxList, itemTaxTotal, totalWithTax, formatCurrency } from "./calculations";
+import { getProductImage } from "./db";
 
 const hexMap = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0').toUpperCase());
 
+// Cache for expensive image operations
+const imgCache = {
+    currency: {},
+    biz: {},
+    qr: {}
+};
+
 const getQRImage = (dataUrl) => {
+    if (!dataUrl) return Promise.resolve(null);
+    if (imgCache.qr[dataUrl]) return Promise.resolve(imgCache.qr[dataUrl]);
+
     return new Promise((resolve) => {
-        if (!dataUrl) return resolve(null);
         const img = new Image();
         img.onload = () => {
             const canvas = document.createElement("canvas");
@@ -20,12 +30,15 @@ const getQRImage = (dataUrl) => {
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
             const parts = new Array(data.length / 4 * 3);
-            for (let i = 0, k = 0; i < data.length; i += 4) {
+            const len = data.length;
+            for (let i = 0, k = 0; i < len; i += 4) {
                 parts[k++] = hexMap[data[i]];
                 parts[k++] = hexMap[data[i + 1]];
                 parts[k++] = hexMap[data[i + 2]];
             }
-            resolve({ hex: parts.join('') + ">", w: canvas.width, h: canvas.height });
+            const result = { hex: parts.join('') + ">", w: canvas.width, h: canvas.height };
+            imgCache.qr[dataUrl] = result;
+            resolve(result);
         };
         img.onerror = () => resolve(null);
         img.src = dataUrl;
@@ -33,30 +46,40 @@ const getQRImage = (dataUrl) => {
 };
 
 const getCurrencySymbolImage = (symbol, bgColor = "white") => {
+    const cacheKey = `${symbol}_${bgColor}`;
+    if (imgCache.currency[cacheKey]) return Promise.resolve(imgCache.currency[cacheKey]);
+
     return new Promise((resolve) => {
         const canvas = document.createElement("canvas");
-        const size = 64;
+        const size = 128; // Higher res for better quality
         canvas.width = size; canvas.height = size;
         const ctx = canvas.getContext("2d");
         ctx.fillStyle = bgColor; ctx.fillRect(0, 0, size, size);
         ctx.fillStyle = "black";
-        ctx.font = `bold ${size * 0.9}px sans-serif`;
+        // Better font stack for local currency symbols
+        ctx.font = `bold ${size * 0.75}px "Noto Sans", "Segoe UI", Roboto, sans-serif`;
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(symbol, size / 2, size / 2);
+        ctx.fillText(symbol, size / 2, size / 2 + size * 0.05);
 
         const data = ctx.getImageData(0, 0, size, size).data;
         const parts = new Array(data.length / 4 * 3);
-        for (let i = 0, k = 0; i < data.length; i += 4) {
+        const len = data.length;
+        for (let i = 0, k = 0; i < len; i += 4) {
             parts[k++] = hexMap[data[i]];
             parts[k++] = hexMap[data[i + 1]];
             parts[k++] = hexMap[data[i + 2]];
         }
-        resolve({ hex: parts.join('') + ">", w: size, h: size });
+        const result = { hex: parts.join('') + ">", w: size, h: size };
+        imgCache.currency[cacheKey] = result;
+        resolve(result);
     });
 };
 
 export const getInventoryPDFData = async (seller, currency, products, taxRates, title = "INVENTORY LIST") => {
     const biz = seller?.name || "BILLIT";
+    const isBizAscii = /^[\x00-\x7F]*$/.test(biz);
+    
+
     const W = 595, H = 842, M = 40;
     const esc = (s) => String(s || "").replace(/[()\\]/g, (c) => "\\" + c);
 
@@ -82,8 +105,14 @@ export const getInventoryPDFData = async (seller, currency, products, taxRates, 
 
     const prodImages = await Promise.all(products.map(async p => {
         if (p.image) {
-            const data = await getQRImage(p.image);
-            return { id: p.id, data };
+            let imgData = p.image;
+            if (imgData === true) {
+                imgData = await getProductImage(p.id);
+            }
+            if (imgData) {
+                const data = await getQRImage(imgData);
+                return { id: p.id, data };
+            }
         }
         return { id: p.id, data: null };
     }));
@@ -94,24 +123,31 @@ export const getInventoryPDFData = async (seller, currency, products, taxRates, 
     const fl = () => lns.push("f"); const rg = (r, g, b) => lns.push(`${(Number(r) || 0).toFixed(3)} ${(Number(g) || 0).toFixed(3)} ${(Number(b) || 0).toFixed(3)} rg`);
 
     const xObjMap = {};
-    if (logoData) {
+    if (logoData && logoData.hex) {
         const id = addObj(`<< /Type /XObject /Subtype /Image /Width ${logoData.w} /Height ${logoData.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${logoData.hex.length} >>\nstream\n${logoData.hex}\nendstream`);
         xObjMap["ImLogo"] = id;
     }
-    if (qrData) {
+    if (qrData && qrData.hex) {
         const id = addObj(`<< /Type /XObject /Subtype /Image /Width ${qrData.w} /Height ${qrData.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${qrData.hex.length} >>\nstream\n${qrData.hex}\nendstream`);
         xObjMap["ImQR"] = id;
     }
-    if (curImgData) {
+    if (curImgData && curImgData.hex) {
         const id = addObj(`<< /Type /XObject /Subtype /Image /Width ${curImgData.w} /Height ${curImgData.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${curImgData.hex.length} >>\nstream\n${curImgData.hex}\nendstream`);
         xObjMap["ImCur"] = id;
     }
 
     rg(0.059, 0.059, 0.098); rc(0, H - 120, W, 120); fl();
 
-    // Centered Business Name
     const bizWidth = biz.length * 24 * 0.55;
-    rg(0.961, 0.784, 0.259); txt(biz.toUpperCase(), W / 2 - (bizWidth / 2), H - 55, "F2", 24);
+    if (isBizAscii) {
+        rg(0.961, 0.784, 0.259); txt(biz.toUpperCase(), W / 2 - (bizWidth / 2), H - 55, "F2", 24);
+    } else {
+        const bizImg = await getBizImage(biz);
+        const id = addObj(`<< /Type /XObject /Subtype /Image /Width ${bizImg.w} /Height ${bizImg.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${bizImg.hex.length} >>\nstream\n${bizImg.hex}\nendstream`);
+        xObjMap["ImBiz"] = id;
+        const drawW = 250; const drawH = 25;
+        lns.push(`q ${drawW} 0 0 ${drawH} ${W/2 - drawW/2} ${H - 65} cm /ImBiz Do Q`);
+    }
 
     // Centered Inventory Title
     const displayTitle = (title || "INVENTORY LIST").toUpperCase();
@@ -128,8 +164,6 @@ export const getInventoryPDFData = async (seller, currency, products, taxRates, 
     rg(0.2, 0.2, 0.2); txt("ITEM NAME", M + 5, cy, "F2", 9); txt("TOTAL PRICE (INCL. TAX)", W - M - 140, cy, "F2", 9);
     cy -= 30;
 
-    cy -= 30;
-
     // Sort products: images first
     const sortedProducts = [...products].sort((a, b) => {
         const aHasImg = a.image ? 1 : 0;
@@ -140,7 +174,7 @@ export const getInventoryPDFData = async (seller, currency, products, taxRates, 
     for (let i = 0; i < sortedProducts.length; i++) {
         const p = sortedProducts[i];
         const pImg = prodImages.find(img => img.id === p.id);
-        const hasImg = pImg && pImg.data;
+        const hasImg = pImg && pImg.data && pImg.data.hex;
         const nameX = M + 40; // All names in one column
 
         // Calculations moved back into loop to fix ReferenceError
@@ -229,6 +263,9 @@ export const getInventoryPDFData = async (seller, currency, products, taxRates, 
 
 export const getInvoicePageStream = async (inv, client, seller, currency, taxRates) => {
     const biz = seller?.name || "BILLIT";
+    const isBizAscii = /^[\x00-\x7F]*$/.test(biz);
+    
+
     const W = 850, H = 1600, M = 60;
     const esc = (s) => String(s || "").replace(/[()\\]/g, (c) => "\\" + c);
     let lns = [];
@@ -250,7 +287,15 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
         xOffset += 100;
     }
 
-    rg(0.961, 0.784, 0.259); txt(biz.toUpperCase(), xOffset, H - 80, "F2", 36);
+    if (isBizAscii) {
+        rg(0.961, 0.784, 0.259); txt(biz.toUpperCase(), xOffset, H - 80, "F2", 36);
+    } else {
+        const bizImg = await getBizImage(biz);
+        const id = addObj(`<< /Type /XObject /Subtype /Image /Width ${bizImg.w} /Height ${bizImg.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${bizImg.hex.length} >>\nstream\n${bizImg.hex}\nendstream`);
+        xObjMap["ImBiz"] = id;
+        const drawW = 400; const drawH = 40;
+        lns.push(`q ${drawW} 0 0 ${drawH} ${xOffset} ${H - 100} cm /ImBiz Do Q`);
+    }
     rg(0.8, 0.8, 0.8); txt(seller?.tagline || "", xOffset, H - 105, "F1", 12);
     rg(1, 1, 1);
     txt(`Email: ${seller?.email || ""}`, xOffset, H - 140, "F1", 11);
@@ -430,21 +475,21 @@ export const getBatchPDF = async (invList, clients, seller, currency, taxRates) 
     for (let inv of invList) {
         const { stream, qrData, logoData, curImgData, curImgYellowData } = await getInvoicePageStream(inv, getClient(inv.clientId), seller, currency, taxRates);
         const xObjMap = {};
-        if (qrData) {
+        if (qrData && qrData.hex) {
             const id = addObj(`<< /Type /XObject /Subtype /Image /Width ${qrData.w} /Height ${qrData.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${qrData.hex.length} >>\nstream\n${qrData.hex}\nendstream`);
             xObjMap["Im1"] = id;
         }
-        if (logoData) {
+        if (logoData && logoData.hex) {
             const id = addObj(`<< /Type /XObject /Subtype /Image /Width ${logoData.w} /Height ${logoData.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${logoData.hex.length} >>\nstream\n${logoData.hex}\nendstream`);
             xObjMap["ImLogo"] = id;
         }
-        if (curImgData) {
+        if (curImgData && curImgData.hex) {
             const id = addObj(`<< /Type /XObject /Subtype /Image /Width ${curImgData.w} /Height ${curImgData.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${curImgData.hex.length} >>\nstream\n${curImgData.hex}\nendstream`);
             xObjMap["ImCur"] = id;
-            if (curImgYellowData) {
-                const idY = addObj(`<< /Type /XObject /Subtype /Image /Width ${curImgYellowData.w} /Height ${curImgYellowData.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${curImgYellowData.hex.length} >>\nstream\n${curImgYellowData.hex}\nendstream`);
-                xObjMap["ImCurYellow"] = idY;
-            }
+        }
+        if (curImgYellowData && curImgYellowData.hex) {
+            const idY = addObj(`<< /Type /XObject /Subtype /Image /Width ${curImgYellowData.w} /Height ${curImgYellowData.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${curImgYellowData.hex.length} >>\nstream\n${curImgYellowData.hex}\nendstream`);
+            xObjMap["ImCurYellow"] = idY;
         }
 
         const ctID = addObj(`<< /Length ${new TextEncoder().encode(stream).length} >>\nstream\n${stream}\nendstream`);
@@ -590,12 +635,37 @@ export const getThermalInventoryPDFData = async (seller, currency, products, tax
 };
 
 export const getThermalInvoicePageStream = async (inv, clients, seller, currency, taxRates, defaultNote = "") => {
+    const biz = seller?.name || "BILLIT";
+    const isBizAscii = /^[\x00-\x7F]*$/.test(biz);
+
+    const getBizImage = (text) => {
+        return new Promise((resolve) => {
+            const canvas = document.createElement("canvas");
+            const w = 500, h = 60;
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "white"; ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = "black";
+            ctx.font = `bold 40px "Noto Sans", sans-serif`;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(text.toUpperCase(), w/2, h/2);
+            
+            const data = ctx.getImageData(0, 0, w, h).data;
+            const parts = new Array(data.length / 4 * 3);
+            for (let i = 0, k = 0; i < data.length; i += 4) {
+                parts[k++] = hexMap[data[i]];
+                parts[k++] = hexMap[data[i + 1]];
+                parts[k++] = hexMap[data[i + 2]];
+            }
+            resolve({ hex: parts.join('') + ">", w, h });
+        });
+    };
+
     let itemH = inv.items.length * 12;
     const bizH = 70 + (seller?.email ? 10 : 0) + (seller?.phone ? 10 : 0) + (seller?.address ? 10 : 0) + (seller?.gstin ? 10 : 0);
     const client = clients?.find(c => String(c.id) === String(inv.clientId));
     const clientH = client ? 15 : 0;
     const W = 226, H = bizH + itemH + clientH + 220, M = 10;
-    const biz = seller?.name || "";
     const curSymbol = currency?.symbol || "$";
     const isAscii = /^[\x00-\x7F]*$/.test(curSymbol);
     const pdfCur = isAscii ? curSymbol : (currency?.code || "INR");

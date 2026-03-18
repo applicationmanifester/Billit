@@ -6,8 +6,19 @@ export default defineConfig({
     plugins: [react()],
     build: {
         rollupOptions: {
-            input: {
-                main: './index.html'
+            output: {
+                manualChunks: {
+                    vendor: ['react', 'react-dom'],
+                    firebase: ['firebase/app', 'firebase/firestore', 'firebase/auth'],
+                    pdf: ['pdf-lib']
+                }
+            }
+        },
+        minify: 'terser',
+        terserOptions: {
+            compress: {
+                drop_console: false,
+                drop_debugger: true
             }
         }
     }

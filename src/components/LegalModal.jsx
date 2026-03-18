@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export const LegalModal = ({ show, onAccept, onClose, onDecline, hasAcceptedLegal }) => {
     const [checked, setChecked] = useState(hasAcceptedLegal || false);
     const [hasScrolledToBottom, setHasScrolledToBottom] = useState(hasAcceptedLegal || false);
 
     // Sync state whenever modal is opened
-    React.useEffect(() => {
+    useEffect(() => {
         if (show) {
             setChecked(hasAcceptedLegal || false);
             setHasScrolledToBottom(hasAcceptedLegal || false);

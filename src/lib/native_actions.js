@@ -42,7 +42,7 @@ export const sharePDF = async (blob, filename, title, text) => {
             const savedFile = await Filesystem.writeFile({
                 path: filename,
                 data: base64Data,
-                directory: Directory.Cache,
+                directory: Directory.Downloads,
             });
 
             await Share.share({
