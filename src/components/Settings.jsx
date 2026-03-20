@@ -10,6 +10,7 @@ export const Settings = ({
     exportFullDataJSON, importFullDataJSON, fullData, setters,
     getClient,
     defaultNote, setDefaultNote,
+    defaultClientId, setDefaultClientId,
     hapticsEnabled, setHapticsEnabled, soundEnabled, setSoundEnabled,
     hasAcceptedLegal, viewLegal
 }) => {
@@ -84,6 +85,22 @@ export const Settings = ({
                             onChange={(e) => setSellerForm({ ...seller, defaultDueDays: Math.max(0, parseInt(e.target.value) || 0) })}
                         />
                         <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>New invoices will automatically set the due date to "Today + X days".</div>
+                    </div>
+
+                    <div style={{ padding: "14px 0", borderBottom: `1px solid var(--border-primary)` }}>
+                        <div style={{ fontSize: "14px", marginBottom: "8px" }}>Default Client</div>
+                        <select
+                            className="input-field"
+                            style={{ width: "100%", background: "var(--bg-input)", color: "var(--text-primary)" }}
+                            value={defaultClientId || ""}
+                            onChange={(e) => setDefaultClientId(e.target.value)}
+                        >
+                            <option value="">None (Always pick first)</option>
+                            {[...clients].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                        </select>
+                        <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>New invoices will automatically select this customer.</div>
                     </div>
 
                     <div style={{ padding: "14px 0" }}>
@@ -282,19 +299,24 @@ export const Settings = ({
                         <div style={{ height: "1px", background: "var(--border-color)", margin: "8px 0" }} />
 
                         <button onClick={() => exportFullDataJSON(fullData)} className="premium-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "12px 16px" }}>
-                            <span>💾 Full Backup Data Download</span>
-                            <span style={{ fontSize: "12px", opacity: 0.8 }}>JSON</span>
+                            <span>💾 Secure Full Backup Download</span>
+                            <span style={{ fontSize: "12px", opacity: 0.8 }}>.BILLIT</span>
                         </button>
+                    </div>
 
-                        <button onClick={() => fileInputRef.current?.click()} className="secondary-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span>📥 Restore Data Backup</span>
-                            <span style={{ fontSize: "12px", opacity: 0.6 }}>JSON</span>
+                    <div style={{ padding: "16px", background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--border-color)", marginTop: "12px" }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", opacity: 0.8, display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span>📥 Restore Backup</span>
+                        </h4>
+                        <button onClick={() => fileInputRef.current?.click()} className="secondary-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                            <span>Upload Backup File</span>
+                            <span style={{ fontSize: "12px", opacity: 0.6 }}>.BILLIT / .JSON</span>
                         </button>
                         <input
                             type="file"
                             ref={fileInputRef}
                             style={{ display: "none" }}
-                            accept=".json"
+                            accept=".json,.billit"
                             onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {

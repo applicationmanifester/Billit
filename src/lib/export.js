@@ -89,18 +89,40 @@ export const exportProductsToCSV = (products) => {
 };
 
 /**
- * Exports all application data as a single JSON file.
+ * Generates a SHA-256 signature for the given data.
+ */
+const generateSignature = async (data) => {
+    const salt = "billit-secure-v1-2024"; // Internal salt for integrity
+    const msgUint8 = new TextEncoder().encode(JSON.stringify(data) + salt);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+/**
+ * Exports all application data as a single JSON file with integrity check.
  * @param {Object} data 
  */
-export const exportFullDataJSON = (data) => {
-    const jsonString = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
+export const exportFullDataJSON = async (data) => {
+    // Clone and prepare data
+    const exportData = { ...data };
+    delete exportData._signature; // Remove old signature if present
+    
+    // Generate signature
+    const signature = await generateSignature(exportData);
+    exportData._signature = signature;
+
+    const jsonString = JSON.stringify(exportData, null, 2);
+    // Base64 encode for obfuscation (locking)
+    const encodedData = btoa(unescape(encodeURIComponent(jsonString)));
+    
+    const blob = new Blob([encodedData], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     
     link.setAttribute("href", url);
-    link.setAttribute("download", `Billit-Full-Backup-${timestamp}.json`);
+    link.setAttribute("download", `Billit-Backup-${timestamp}.billit`);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -109,20 +131,45 @@ export const exportFullDataJSON = (data) => {
 };
 
 /**
- * Imports application data from a JSON file.
+ * Imports application data from a JSON file with integrity check.
  * @param {File} file 
  * @param {Object} setters 
  * @param {Function} showToast 
  */
-export const importFullDataJSON = (file, setters, showToast) => {
+export const importFullDataJSON = async (file, setters, showToast) => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         try {
-            const data = JSON.parse(e.target.result);
+            let content = e.target.result;
+            let data;
+
+            // Try decoding Base64 first
+            try {
+                const decoded = decodeURIComponent(escape(atob(content)));
+                data = JSON.parse(decoded);
+            } catch (err) {
+                // If Base64 fails, try raw JSON (legacy support)
+                data = JSON.parse(content);
+            }
             
-            // Basic validation: check if key fields exist
+            // Signature Verification
+            if (data._signature) {
+                const receivedSignature = data._signature;
+                const checkData = { ...data };
+                delete checkData._signature;
+                const expectedSignature = await generateSignature(checkData);
+
+                if (receivedSignature !== expectedSignature) {
+                    throw new Error("SECURITY ALERT: This backup file has been tampered with or is corrupted. Restore blocked for your safety.");
+                }
+            } else {
+                console.warn("Importing legacy backup without signature.");
+                // For legacy files, we still check basic structure
+            }
+            
+            // Basic validation
             if (!data.invoices && !data.clients && !data.products && !data.seller) {
                 throw new Error("Invalid backup file format.");
             }
@@ -139,11 +186,12 @@ export const importFullDataJSON = (file, setters, showToast) => {
             if (data.theme) setters.setTheme(data.theme);
             if (data.hapticsEnabled !== undefined) setters.setHapticsEnabled(data.hapticsEnabled);
             if (data.soundEnabled !== undefined) setters.setSoundEnabled(data.soundEnabled);
+            if (data.defaultClientId) setters.setDefaultClientId(data.defaultClientId);
 
             showToast("Backup restored successfully!", "success");
         } catch (error) {
             console.error("Import Error:", error);
-            showToast(`Failed to restore backup: ${error.message}`, "error");
+            showToast(`${error.message}`, "error");
         }
     };
     reader.readAsText(file);

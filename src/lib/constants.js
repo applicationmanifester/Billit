@@ -1,4 +1,14 @@
-export const initialClients = [];
+export const initialClients = [
+    {
+        id: "default-customer",
+        name: "Customer",
+        email: "",
+        phone: "",
+        address: "General Delivery",
+        gstin: "",
+        notes: "Default walk-in customer"
+    }
+];
 
 export const initialInvoices = [];
 

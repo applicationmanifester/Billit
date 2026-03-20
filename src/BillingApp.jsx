@@ -135,6 +135,7 @@ export default function BillingApp() {
   // 4. UI / Modal States
   const [inventoryTitle, setInventoryTitle] = useState(() => getStorage("inventoryTitle", "Inventory List"));
   const [defaultNote, setDefaultNote] = useState(() => getStorage("defaultNote", ""));
+  const [defaultClientId, setDefaultClientId] = useState(() => getStorage("defaultClientId", ""));
   const [showModal, setShowModal] = useState(null);
   const [showSellerModal, setShowSellerModal] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState(false);
@@ -250,13 +251,14 @@ export default function BillingApp() {
     products,
     seller,
     inventoryTitle,
-    defaultNote
+    defaultNote,
+    defaultClientId
     // hapticsEnabled, soundEnabled are device-local only
-  }), [invoices, clients, currency, taxRates, products, seller, inventoryTitle, defaultNote]);
+  }), [invoices, clients, currency, taxRates, products, seller, inventoryTitle, defaultNote, defaultClientId]);
 
   const setters = useMemo(() => ({
-    setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setTheme, setHapticsEnabled, setSoundEnabled, setHasAcceptedLegal
-  }), [setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setTheme, setHapticsEnabled, setSoundEnabled, setHasAcceptedLegal]);
+    setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setDefaultClientId, setTheme, setHapticsEnabled, setSoundEnabled, setHasAcceptedLegal
+  }), [setInvoices, setClients, setProducts, setSeller, setTaxRates, setCurrency, setInventoryTitle, setDefaultNote, setDefaultClientId, setTheme, setHapticsEnabled, setSoundEnabled, setHasAcceptedLegal]);
 
   // Sync theme separately with a dedicated effect:
   useEffect(() => {
@@ -300,12 +302,13 @@ export default function BillingApp() {
   useEffect(() => { sellerRef.current = seller; }, [seller]);
   useEffect(() => { clientsRef.current = clients; }, [clients]);
 
-  // Auto-select first client if none selected and one exists
+  // Auto-select default client (or first client) if none selected and one exists
   useEffect(() => {
     if (clients.length > 0 && !form.clientId) {
-      setForm(prev => ({ ...prev, clientId: clients[0].id }));
+      const defaultClient = clients.find(c => String(c.id) === String(defaultClientId));
+      setForm(prev => ({ ...prev, clientId: defaultClient ? defaultClient.id : clients[0].id }));
     }
-  }, [clients.length]);
+  }, [clients.length, defaultClientId]);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -352,9 +355,10 @@ export default function BillingApp() {
     localStorage.setItem("billit_currency", JSON.stringify(currency));
     localStorage.setItem("billit_inventoryTitle", JSON.stringify(inventoryTitle));
     localStorage.setItem("billit_defaultNote", JSON.stringify(defaultNote));
+    localStorage.setItem("billit_defaultClientId", JSON.stringify(defaultClientId));
     localStorage.setItem("billit_hapticsEnabled", JSON.stringify(hapticsEnabled));
     localStorage.setItem("billit_soundEnabled", JSON.stringify(soundEnabled));
-  }, [taxRates, currency, inventoryTitle, defaultNote, hapticsEnabled, soundEnabled]);
+  }, [taxRates, currency, inventoryTitle, defaultNote, defaultClientId, hapticsEnabled, soundEnabled]);
 
   useEffect(() => {
     localStorage.setItem("billit_hasAcceptedLegal", JSON.stringify(hasAcceptedLegal));
@@ -373,6 +377,7 @@ export default function BillingApp() {
       setCurrency(CURRENCIES[0]);
       setInventoryTitle("Inventory List");
       setDefaultNote("");
+      setDefaultClientId("");
       setHasAcceptedLegal(false);
       localStorage.clear();
       await clearProductImages();
@@ -393,6 +398,7 @@ export default function BillingApp() {
       currency: CURRENCIES[0],
       inventoryTitle: "Inventory List",
       defaultNote: "",
+      defaultClientId: "",
       lastSync: new Date().toLocaleTimeString()
     };
 
@@ -401,7 +407,14 @@ export default function BillingApp() {
 
   // Effect 1: Status Bar Init - Only on theme change to prevent flicker
   useEffect(() => {
-    initAndroidNative({ theme });
+    const native = initAndroidNative({ 
+      theme,
+      onBack: () => onBackRef.current && onBackRef.current()
+    });
+    nativeRef.current = native;
+    return () => {
+      if (native.backListener) native.backListener.remove();
+    };
   }, [theme]);
 
   onBackRef.current = () => {
@@ -420,15 +433,6 @@ export default function BillingApp() {
     App.exitApp();
   };
 
-  useEffect(() => {
-    const handler = App.addListener('backButton', () => {
-      if (onBackRef.current) onBackRef.current();
-    });
-
-    return () => {
-      handler.remove();
-    };
-  }, []);
 
   // Handle body scroll lock
   useEffect(() => {
@@ -457,13 +461,17 @@ export default function BillingApp() {
     return [{ id: crypto.randomUUID(), desc: "", qty: 1, price: 0, tax: taxIds }];
   }, [products, taxRates]);
 
-  const [form, setForm] = useState(() => ({
-    clientId: String((clients && clients[0] ? clients[0].id : (initialClients[0] || {}).id) || ""),
-    date: getLocalISODate(),
-    due: getLocalISODate(),
-    items: getInitialItems(),
-    notes: defaultNote
-  }));
+  const [form, setForm] = useState(() => {
+    const defaultClient = clients.find(c => String(c.id) === String(defaultClientId));
+    const initialClientId = defaultClient ? defaultClient.id : (clients[0] ? clients[0].id : (initialClients[0] || {}).id);
+    return {
+      clientId: String(initialClientId || ""),
+      date: getLocalISODate(),
+      due: getLocalISODate(),
+      items: getInitialItems(),
+      notes: defaultNote
+    };
+  });
 
   const resetForm = useCallback(() => {
     const today = getLocalISODate();
@@ -472,14 +480,17 @@ export default function BillingApp() {
     dueDate.setDate(dueDate.getDate() + dueDays);
     const dueString = new Date(dueDate.getTime() - (dueDate.getTimezoneOffset() * 60 * 1000)).toISOString().split('T')[0];
 
+    const defaultClient = clients.find(c => String(c.id) === String(defaultClientId));
+    const initialClientId = defaultClient ? defaultClient.id : (clients[0] ? clients[0].id : (initialClients[0] || {}).id);
+
     setForm({
-      clientId: String((clients && clients[0] ? clients[0].id : (initialClients[0] || {}).id) || ""),
+      clientId: String(initialClientId || ""),
       date: today,
       due: dueString,
       items: getInitialItems(),
       notes: defaultNote
     });
-  }, [clients, getInitialItems, defaultNote, seller.defaultDueDays, initialClients]);
+  }, [clients, getInitialItems, defaultNote, seller.defaultDueDays, defaultClientId, initialClients]);
 
   useEffect(() => {
     resetFormRef.current = resetForm;
@@ -539,6 +550,19 @@ export default function BillingApp() {
   }, [taxRates]);
 
   const showBatchPrint = useCallback((url) => {
+    // Detect mobile browsers
+    const isMobileBrowser = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobileBrowser && !isNativePlatform()) {
+      // On mobile browsers, iframes for printing are unreliable. 
+      // Opening in a new tab allows the browser's native PDF viewer to handle printing.
+      const newWindow = window.open(url, '_blank');
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          showToast("Popup blocked! Please allow popups to print/preview.", "error");
+      }
+      return;
+    }
+
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
     iframe.style.right = "-1000px";
@@ -565,7 +589,7 @@ export default function BillingApp() {
         }, 3000);
       }, 500);
     };
-  }, []);
+  }, [isNativePlatform, showToast]);
 
   const downloadReceipt = useCallback(async (inv) => {
     try {
@@ -834,6 +858,9 @@ export default function BillingApp() {
         showToast("Item deleted from inventory");
       } else if (deleteConfirm.type === "client") {
         setClients(prev => prev.filter(c => c.id !== deleteConfirm.id));
+        if (String(defaultClientId) === String(deleteConfirm.id)) {
+          setDefaultClientId("");
+        }
         showToast("Client deleted");
       } else if (deleteConfirm.type === "wipe") {
         showToast("Deleting data…");
@@ -861,7 +888,7 @@ export default function BillingApp() {
     } finally {
       setIsDeleting(false);
     }
-  }, [deleteConfirm, selectedInvoices, swipeConfirmText, wipeCloudState, clearLocalState, showToast, isDeleting]);
+  }, [deleteConfirm, selectedInvoices, swipeConfirmText, wipeCloudState, clearLocalState, showToast, isDeleting, defaultClientId, setDefaultClientId]);
 
   const toggleSelection = (id) => setSelectedInvoices(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
 
@@ -1137,7 +1164,7 @@ export default function BillingApp() {
             handleNewInvoice={handleNewInvoice}
           />
         )}
-      {tab === "clients" && <ClientManager clients={clients} setClients={setClients} setClientForm={setClientForm} setSelectedClient={setSelectedClient} setShowModal={setShowModal} invoices={invoices} fmt={fmt} setDeleteConfirm={setDeleteConfirm} totalWithTax={totalWithTax} taxRates={taxRates} search={search} setSearch={setSearch} />}
+      {tab === "clients" && <ClientManager clients={clients} setClients={setClients} setClientForm={setClientForm} setSelectedClient={setSelectedClient} setShowModal={setShowModal} invoices={invoices} fmt={fmt} setDeleteConfirm={setDeleteConfirm} totalWithTax={totalWithTax} taxRates={taxRates} search={search} setSearch={setSearch} defaultClientId={defaultClientId} setDefaultClientId={setDefaultClientId} showToast={showToast} />}
       {tab === "items" && (
           <InventoryManager
             inventoryTitle={inventoryTitle}
@@ -1176,7 +1203,7 @@ export default function BillingApp() {
             setReportRange={setReportRange}
           />
         )}
-      {tab === "settings" && <Settings user={user} seller={seller} setSellerForm={setSellerForm} setShowSellerModal={setShowSellerModal} authLoading={authLoading} syncStatus={syncStatus} lastSync={lastSync} invoices={invoices} clients={clients} products={products} fetchFromCloud={fetchFromCloud} logout={logout} clearLocalState={clearLocalState} signInWithPopup={handleGatedLogin} authError={authError} showToast={showToast} syncLog={syncLog} theme={theme} setTheme={setTheme} toggleTheme={toggleTheme} currency={currency} setShowCurrencyPicker={setShowCurrencyPicker} taxRates={taxRates} setTaxRates={setTaxRates} wipeAllData={wipeAllData} settingsTab={settingsTab} setSettingsTab={setSettingsTab} isDark={isDark} exportInvoicesToCSV={exportInvoicesToCSV} exportClientsToCSV={exportClientsToCSV} exportProductsToCSV={exportProductsToCSV} exportFullDataJSON={exportFullDataJSON} importFullDataJSON={importFullDataJSON} fullData={cloudSyncData} setters={setters} getClient={getClient} defaultNote={defaultNote} setDefaultNote={setDefaultNote} hapticsEnabled={hapticsEnabled} setHapticsEnabled={setHapticsEnabled} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} hasAcceptedLegal={hasAcceptedLegal} viewLegal={() => setShowLegalModal(true)} />}
+      {tab === "settings" && <Settings user={user} seller={seller} setSellerForm={setSellerForm} setShowSellerModal={setShowSellerModal} authLoading={authLoading} syncStatus={syncStatus} lastSync={lastSync} invoices={invoices} clients={clients} products={products} fetchFromCloud={fetchFromCloud} logout={logout} clearLocalState={clearLocalState} signInWithPopup={handleGatedLogin} authError={authError} showToast={showToast} syncLog={syncLog} theme={theme} setTheme={setTheme} toggleTheme={toggleTheme} currency={currency} setShowCurrencyPicker={setShowCurrencyPicker} taxRates={taxRates} setTaxRates={setTaxRates} wipeAllData={wipeAllData} settingsTab={settingsTab} setSettingsTab={setSettingsTab} isDark={isDark} exportInvoicesToCSV={exportInvoicesToCSV} exportClientsToCSV={exportClientsToCSV} exportProductsToCSV={exportProductsToCSV} exportFullDataJSON={exportFullDataJSON} importFullDataJSON={importFullDataJSON} fullData={cloudSyncData} setters={setters} getClient={getClient} defaultNote={defaultNote} setDefaultNote={setDefaultNote} defaultClientId={defaultClientId} setDefaultClientId={setDefaultClientId} hapticsEnabled={hapticsEnabled} setHapticsEnabled={setHapticsEnabled} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} hasAcceptedLegal={hasAcceptedLegal} viewLegal={() => setShowLegalModal(true)} />}
 
       <InvoiceModal showModal={showModal} setShowModal={(val) => { setShowModal(val); if (!val) { setSelectedInvoice(null); resetForm(); } }} form={form} setForm={setForm} clients={clients} products={products} taxRates={taxRates} saveInvoice={saveInvoice} addItem={addItem} removeItem={removeItem} updateItem={updateItem} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} playFeedback={playFeedback} showToast={showToast} selectedInvoice={selectedInvoice} resetForm={resetForm} isSaving={isSaving} />
       <InvoiceViewModal showModal={showModal} setShowModal={setShowModal} selectedInvoice={selectedInvoice} setSelectedInvoice={setSelectedInvoice} setForm={setForm} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} taxRates={taxRates} downloadReceipt={downloadReceipt} printReceipt={printReceipt} printReceiptThermal={printReceiptThermal} shareReceipt={shareReceipt} setDeleteConfirm={setDeleteConfirm} updateStatus={updateInvoiceStatus} showToast={showToast} />

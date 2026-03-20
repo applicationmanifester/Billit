@@ -1,6 +1,6 @@
 import React from "react";
 
-export const ClientManager = ({ clients, setClients, setClientForm, setSelectedClient, setShowModal, invoices, fmt, setDeleteConfirm, totalWithTax, taxRates, search }) => {
+export const ClientManager = ({ clients, setClients, setClientForm, setSelectedClient, setShowModal, invoices, fmt, setDeleteConfirm, totalWithTax, taxRates, search, defaultClientId, setDefaultClientId, showToast }) => {
     const filteredClients = clients.filter(c => {
         if (!search) return true;
         const s = search.toLowerCase();
@@ -32,6 +32,18 @@ export const ClientManager = ({ clients, setClients, setClientForm, setSelectedC
                                 </div>
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                {String(defaultClientId) === String(c.id) ? (
+                                    <button onClick={() => { setDefaultClientId(""); showToast("Default customer removed"); }} style={{ 
+                                        padding: "4px 8px", borderRadius: "8px", background: "rgba(74, 222, 128, 0.1)", 
+                                        color: "#4ade80", fontSize: "10px", fontWeight: "bold", textAlign: "center",
+                                        border: "1px solid rgba(74, 222, 128, 0.2)", cursor: "pointer",
+                                        width: "100%"
+                                    }}>⭐ DEFAULT</button>
+                                ) : (
+                                    <button onClick={() => { setDefaultClientId(String(c.id)); showToast(`${c.name} set as default`); }} style={{
+                                        padding: "8px 12px", borderRadius: "10px", background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", border: "1px solid var(--border-primary)", fontWeight: "bold", fontSize: "11px", cursor: "pointer", transition: "all 0.2s"
+                                    }}>Set Default</button>
+                                )}
                                 <button onClick={() => { setClientForm(c); setSelectedClient(c); setShowModal("client"); }} style={{
                                     padding: "8px 12px", borderRadius: "10px", background: "var(--accent-primary)", color: "#000", border: "none", fontWeight: "bold", fontSize: "12px", cursor: "pointer", transition: "all 0.2s"
                                 }}>Edit</button>
