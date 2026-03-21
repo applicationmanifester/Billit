@@ -278,7 +278,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     const qrData = seller.qrCode ? await getQRImage(seller.qrCode) : null;
     const logoData = seller.logo ? await getQRImage(seller.logo) : null;
 
-    rg(0.059, 0.059, 0.098); rc(0, H - 240, W, 240); fl();
+    rg(0.059, 0.059, 0.098); rc(0, H - 160, W, 160); fl();
 
     let xOffset = M;
     if (logoData) {
@@ -309,12 +309,12 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     if (inv.time) txt(`Time: ${inv.time}`, W - M - 140, H - 111, "F1", 9);
     txt(`Due: ${inv.due || inv.date}`, W - M - 140, H - 122, "F1", 9);
 
-    rg(0, 0, 0); txt("BILL TO", M, H - 190, "F2", 11);
-    rg(0.2, 0.2, 0.2); txt(client?.name || "Customer", M, H - 208, "F2", 14);
+    rg(0, 0, 0); txt("BILL TO", M, H - 185, "F2", 11);
+    rg(0.2, 0.2, 0.2); txt(client?.name || "Customer", M, H - 203, "F2", 14);
     rg(0.4, 0.4, 0.4);
-    txt(client?.email || "", M, H - 222, "F1", 10);
-    txt(client?.phone || "", M, H - 233, "F1", 10);
-    txt(client?.address || "", M, H - 244, "F1", 10);
+    txt(client?.email || "", M, H - 217, "F1", 10);
+    txt(client?.phone || "", M, H - 228, "F1", 10);
+    txt(client?.address || "", M, H - 239, "F1", 10);
 
     let cy = H - 280;
     rg(0.95, 0.95, 0.95); rc(M, cy - 10, W - M * 2, 30); fl();
