@@ -624,10 +624,8 @@ export default function BillingApp() {
     const pdf = await getBatchPDF(invs, clientsRef.current, sellerRef.current, currency, taxRates);
     const filename = `Billit-Batch-Print.pdf`;
     
-    // On native, use share sheet for printing
     if (isNativePlatform()) {
         await sharePDF(pdf.blob, filename, "Print Invoices", "Send this PDF to your printer");
-        URL.revokeObjectURL(pdf.url);
     } else {
         const oldTitle = document.title;
         document.title = `Billit - Professional Billing_Bundle`;
@@ -637,7 +635,7 @@ export default function BillingApp() {
             URL.revokeObjectURL(pdf.url);
         }, 30000);
     }
-  }, [currency, taxRates, showBatchPrint, showToast]);
+  }, [currency, taxRates, isNativePlatform, showBatchPrint, showToast]);
 
   const printMultipleInvoicesThermal = useCallback(async (invs) => {
     showToast("Preparing Thermal PDF...");
@@ -648,9 +646,9 @@ export default function BillingApp() {
         await sharePDF(pdf.blob, filename, "Thermal Print", "Send this PDF to your thermal printer");
     } else {
         showBatchPrint(pdf.url);
-        setTimeout(() => URL.revokeObjectURL(pdf.url), 30000);
+        setTimeout(() => URL.revokeObjectURL(pdf.url), 30030);
     }
-  }, [currency, taxRates, defaultNote, showBatchPrint, showToast]);
+  }, [currency, taxRates, defaultNote, isNativePlatform, showBatchPrint, showToast]);
 
   const printReceipt = useCallback(async (inv) => {
     try {
@@ -715,7 +713,7 @@ export default function BillingApp() {
         showBatchPrint(url);
         setTimeout(() => URL.revokeObjectURL(url), 30000);
     }
-  }, [currency, products, taxRates, inventoryTitle, showBatchPrint, showToast]);
+  }, [currency, products, taxRates, inventoryTitle, isNativePlatform, showBatchPrint, showToast]);
 
   const shareReceipt = useCallback(async (inv) => {
     try {
@@ -731,16 +729,8 @@ export default function BillingApp() {
     showToast("Preparing PDF bundle...");
     const pdf = await getBatchPDF(invs, clientsRef.current, sellerRef.current, currency, taxRates);
     const filename = `Billit - Professional Billing_Bundle.pdf`;
-    const file = new File([pdf.blob], filename, { type: "application/pdf" });
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: `Multiple Invoices`, text: `Check attached invoices from ${seller.name}` });
-      } catch (e) { if (e.name !== "AbortError") showToast("Sharing failed", "error"); }
-    } else {
-      await nativeDownloadPDF(pdf.blob, filename);
-      showToast("Download started (Share unsupported)");
-    }
-  }, [clients, seller, currency, taxRates, showToast]);
+    await sharePDF(pdf.blob, filename, `Multiple Invoices`, `Check attached invoices from ${seller.name}`);
+  }, [currency, taxRates, seller.name, showToast]);
 
   const handleNewInvoice = useCallback(() => {
     setSelectedInvoice(null);

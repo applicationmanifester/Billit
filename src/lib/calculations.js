@@ -13,7 +13,7 @@ export const getItemTaxList = (item, taxPool) => {
         return item.taxSnapshots.map(tr => ({
             label: tr.label,
             rate: tr.rate,
-            amount: base * (tr.rate / 100)
+            amount: Math.round(base * (tr.rate / 100) * 100) / 100
         }));
     }
 

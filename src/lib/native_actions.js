@@ -29,39 +29,40 @@ const isNative = async () => {
 };
 
 /**
- * Shares a PDF file using native or web APIs.
+ * Shares a file using native or web APIs.
  * @param {Blob} blob 
  * @param {string} filename 
  * @param {string} title 
  * @param {string} text 
+ * @param {string} mimeType 
  */
-export const sharePDF = async (blob, filename, title, text) => {
+export const shareFile = async (blob, filename, title, text, mimeType = 'application/pdf') => {
     try {
         if (await isNative()) {
             const base64Data = await blobToBase64(blob);
             const savedFile = await Filesystem.writeFile({
                 path: filename,
                 data: base64Data,
-                directory: Directory.Downloads,
+                directory: Directory.Cache,
             });
 
             await Share.share({
-                title: title || 'Share PDF',
-                text: text || 'Check out this PDF',
+                title: title || 'Share File',
+                text: text || 'Transferring file...',
                 url: savedFile.uri,
-                dialogTitle: title || 'Share PDF',
+                dialogTitle: title || 'Share File',
             });
         } else {
             // Web fallback
-            const file = new File([blob], filename, { type: 'application/pdf' });
+            const file = new File([blob], filename, { type: mimeType });
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     files: [file],
-                    title: title || 'Share PDF',
-                    text: text || 'Check out this PDF',
+                    title: title || 'Share',
+                    text: text || '',
                 });
             } else {
-                // Clipboard fallback if sharing is not supported
+                // Download fallback
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -71,22 +72,28 @@ export const sharePDF = async (blob, filename, title, text) => {
             }
         }
     } catch (error) {
-        console.error('Error sharing PDF:', error);
+        console.error('Error sharing file:', error);
         throw error;
     }
 };
 
 /**
- * Downloads a PDF file. On native, this uses the share sheet to allow "Save to Files".
+ * Specifically shares a PDF file.
+ */
+export const sharePDF = (blob, filename, title, text) => 
+    shareFile(blob, filename, title, text, 'application/pdf');
+
+/**
+ * Downloads a file. On native, this uses the share sheet for better destination picking.
  * @param {Blob} blob 
  * @param {string} filename 
+ * @param {string} mimeType
  */
-export const downloadPDF = async (blob, filename) => {
+export const downloadFile = async (blob, filename, mimeType = 'application/octet-stream') => {
     try {
         if (await isNative()) {
             // Sharing is the most reliable way to "download" on mobile WebViews
-            // as it allows user to pick a target (drive, files, etc.)
-            await sharePDF(blob, filename, 'Save PDF', 'Download your document');
+            await shareFile(blob, filename, 'Save File', 'Download your document', mimeType);
         } else {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -96,7 +103,13 @@ export const downloadPDF = async (blob, filename) => {
             setTimeout(() => URL.revokeObjectURL(url), 10000);
         }
     } catch (error) {
-        console.error('Error downloading PDF:', error);
+        console.error('Error downloading file:', error);
         throw error;
     }
 };
+
+/**
+ * Specifically downloads a PDF file.
+ */
+export const downloadPDF = (blob, filename) => 
+    downloadFile(blob, filename, 'application/pdf');

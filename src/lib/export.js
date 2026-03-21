@@ -1,3 +1,5 @@
+import { downloadFile } from "./native_actions";
+
 /**
  * Converts an array of objects to a CSV string.
  * @param {Array<Object>} data 
@@ -29,14 +31,7 @@ export const convertToCSV = (data, headers) => {
  */
 export const downloadCSV = (csvContent, fileName) => {
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", fileName);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadFile(blob, fileName, "text/csv");
 };
 
 /**
@@ -117,17 +112,8 @@ export const exportFullDataJSON = async (data) => {
     const encodedData = btoa(unescape(encodeURIComponent(jsonString)));
     
     const blob = new Blob([encodedData], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Billit-Backup-${timestamp}.billit`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    await downloadFile(blob, `Billit-Backup-${timestamp}.billit`, "application/octet-stream");
 };
 
 /**
