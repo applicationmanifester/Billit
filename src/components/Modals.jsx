@@ -37,6 +37,10 @@ export const ClientModal = ({ showModal, setShowModal, clientForm, setClientForm
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>GSTIN</div>
                         <input className="input-field" placeholder="GSTIN (Optional)" value={clientForm.gstin || ""} onChange={(e) => setClientForm({ ...clientForm, gstin: e.target.value.toUpperCase() })} onKeyDown={(e) => e.key === "Enter" && saveClient()} />
                     </div>
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Location URL (Optional)</div>
+                        <input className="input-field" placeholder="https://maps.google.com/..." value={clientForm.locationUrl || ""} onChange={(e) => setClientForm({ ...clientForm, locationUrl: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveClient()} />
+                    </div>
                 </div>
                 <div style={{ display: "flex", gap: "10px" }}>
                     {selectedClient && (

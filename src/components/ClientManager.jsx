@@ -12,7 +12,7 @@ export const ClientManager = ({ clients, setClients, setClientForm, setSelectedC
 
     return (
         <div style={{ padding: "16px" }} className="animate-slide-up">
-            <button onClick={() => { setClientForm({ name: "", email: "", phone: "", address: "", gstin: "" }); setSelectedClient(null); setShowModal("client"); }} style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "none", border: `2px dashed var(--border-primary)`, color: "var(--accent-primary)", fontWeight: "bold", marginBottom: "20px" }}>+ Add New Client</button>
+            <button onClick={() => { setClientForm({ name: "", email: "", phone: "", address: "", gstin: "", locationUrl: "" }); setSelectedClient(null); setShowModal("client"); }} style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "none", border: `2px dashed var(--border-primary)`, color: "var(--accent-primary)", fontWeight: "bold", marginBottom: "20px" }}>+ Add New Client</button>
             {filteredClients.map(c => {
                 const clientInvoices = invoices.filter(inv => inv.clientId === c.id);
                 const ltv = clientInvoices.reduce((sum, inv) => sum + (inv.totalAmount || totalWithTax(inv.items, taxRates)), 0);

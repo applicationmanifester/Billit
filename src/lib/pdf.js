@@ -302,6 +302,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     txt(`Phone: ${seller?.phone || ""}`, xOffset, H - 116, "F1", 9);
     txt(`Address: ${seller?.address || ""}`, xOffset, H - 127, "F1", 9);
     if (seller?.gstin) txt(`Tax ID: ${seller.gstin}`, xOffset, H - 138, "F1", 9);
+    if (seller?.locationUrl) txt(`Loc: ${seller.locationUrl.length > 50 ? seller.locationUrl.substring(0, 47) + "..." : seller.locationUrl}`, xOffset, H - 149, "F1", 8);
 
     rg(1, 1, 1); txt("INVOICE", W - M - 140, H - 65, "F2", 24);
     txt(`No: ${inv.id}`, W - M - 140, H - 85, "F2", 12);
@@ -315,6 +316,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     txt(client?.email || "", M, H - 217, "F1", 10);
     txt(client?.phone || "", M, H - 228, "F1", 10);
     txt(client?.address || "", M, H - 239, "F1", 10);
+    if (client?.locationUrl) txt(`Location: ${client.locationUrl.length > 55 ? client.locationUrl.substring(0, 52) + "..." : client.locationUrl}`, M, H - 250, "F1", 8);
 
     let cy = H - 280;
     rg(0.95, 0.95, 0.95); rc(M, cy - 10, W - M * 2, 30); fl();

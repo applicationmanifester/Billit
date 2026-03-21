@@ -104,6 +104,13 @@ export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, s
                                 onKeyDown={(e) => e.key === "Enter" && (setSeller(sellerForm), setShowSellerModal(false), showToast("Profile updated!"))}
                             />
                         </div>
+                        <div>
+                            <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Location URL (Google Maps)</div>
+                            <input className="input-field" placeholder="https://maps.google.com/..." value={sellerForm.locationUrl || ""} 
+                                onChange={(e) => setSellerForm({ ...sellerForm, locationUrl: e.target.value })} 
+                                onKeyDown={(e) => e.key === "Enter" && (setSeller(sellerForm), setShowSellerModal(false), showToast("Profile updated!"))} 
+                            />
+                        </div>
                     </div>
 
                     <button onClick={() => {
