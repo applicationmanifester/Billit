@@ -914,23 +914,34 @@ export default function BillingApp() {
     const clientStats = {};
     invs.forEach(inv => {
       counts[inv.status]++;
-      const sub = (inv.items || []).reduce((sum, it) => sum + (it.qty * it.price), 0);
-      const itemsTaxes = (inv.items || []).reduce((acc, it) => {
+      // Use the stored total if available to avoid rounding drift in aggregations
+      const gtotal = inv.totalAmount !== undefined ? inv.totalAmount : totalWithTax(inv.items, taxRates);
+      
+      // For breakdown (pre-tax/tax), we still need to sum them up, but we round each invoice's share
+      const sub = (inv.items || []).reduce((sum, it) => sum + (Number(it.qty) * Number(it.price)), 0);
+      const tx = gtotal - sub; // Ensure it adds up exactly to the rounded total
+      
+      // Update tax breakdown by labels
+      (inv.items || []).forEach(it => {
         const itemTaxes = getItemTaxList(it, taxRates);
         itemTaxes.forEach(t => {
-          acc.total += t.amount;
           taxBreakdown[t.label] = (taxBreakdown[t.label] || 0) + t.amount;
         });
-        return acc;
-      }, { total: 0 });
+      });
 
-      const tx = itemsTaxes.total;
-      const gtotal = sub + tx;
-      revenue.total += gtotal; revenue.pretax += sub; revenue.tax += tx;
-      if (inv.status === "paid") { revenue.paid += gtotal; revenue.paidPretax += sub; revenue.paidTax += tx; }
+      revenue.total += gtotal; 
+      revenue.pretax += sub; 
+      revenue.tax += tx;
+
+      if (inv.status === "paid") { 
+        revenue.paid += gtotal; 
+        revenue.paidPretax += sub; 
+        revenue.paidTax += tx; 
+      }
       else if (inv.status === "overdue") revenue.overdueAmt += gtotal;
       else if (inv.status === "draft") revenue.draftTotal += gtotal;
       else revenue.awaiting += gtotal;
+
       const clientId = String(inv.clientId);
       if (!clientStats[clientId]) clientStats[clientId] = 0;
       clientStats[clientId] += gtotal;
@@ -961,22 +972,31 @@ export default function BillingApp() {
     const clientStats = {};
     invs.forEach(inv => {
         counts[inv.status]++;
-        const sub = (inv.items || []).reduce((sum, it) => sum + (it.qty * it.price), 0);
-        const itemTaxes = (inv.items || []).reduce((acc, it) => {
+        const gtotal = inv.totalAmount !== undefined ? inv.totalAmount : totalWithTax(inv.items, taxRates);
+        const sub = (inv.items || []).reduce((sum, it) => sum + (Number(it.qty) * Number(it.price)), 0);
+        const tx = gtotal - sub;
+
+        // Update tax breakdown by labels
+        (inv.items || []).forEach(it => {
             const taxes = getItemTaxList(it, taxRates);
             taxes.forEach(t => {
-                acc.total += t.amount;
                 taxBreakdown[t.label] = (taxBreakdown[t.label] || 0) + t.amount;
             });
-            return acc;
-        }, { total: 0 });
-        const tx = itemTaxes.total;
-        const gtotal = sub + tx;
-        revenue.total += gtotal; revenue.pretax += sub; revenue.tax += tx;
-        if (inv.status === "paid") { revenue.paid += gtotal; revenue.paidPretax += sub; revenue.paidTax += tx; }
+        });
+
+        revenue.total += gtotal; 
+        revenue.pretax += sub; 
+        revenue.tax += tx;
+
+        if (inv.status === "paid") { 
+            revenue.paid += gtotal; 
+            revenue.paidPretax += sub; 
+            revenue.paidTax += tx; 
+        }
         else if (inv.status === "overdue") revenue.overdueAmt += gtotal;
         else if (inv.status === "draft") revenue.draftTotal += gtotal;
         else revenue.awaiting += gtotal;
+
         const clientId = String(inv.clientId);
         if (!clientStats[clientId]) clientStats[clientId] = 0;
         clientStats[clientId] += gtotal;
