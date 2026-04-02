@@ -4,9 +4,14 @@ export const ClientModal = ({ showModal, setShowModal, clientForm, setClientForm
     if (showModal !== "client") return null;
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
-            <div className="premium-card animate-slide-up modal-content-wrapper" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
-                <h2 style={{ marginTop: 0 }}>{selectedClient ? "Edit Client" : "New Client"}</h2>
+        <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "calc(20px + var(--safe-area-top)) 20px 40px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
+            <div className="premium-card animate-slide-up modal-card modal-content-wrapper" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+                    <button onClick={() => setShowModal(null)} style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: "50%", width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-primary)" }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                    </button>
+                    <h2 style={{ margin: 0, fontSize: "20px" }}>{selectedClient ? "Edit Client" : "New Client"}</h2>
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Client Name</div>
@@ -57,9 +62,14 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
     if (showModal !== "product") return null;
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
-            <div className="premium-card animate-slide-up modal-content-wrapper" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
-                <h2 style={{ marginTop: 0 }}>{editingProductId ? "Edit Item" : "Add to Inventory"}</h2>
+        <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "calc(20px + var(--safe-area-top)) 20px 40px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
+            <div className="premium-card animate-slide-up modal-card modal-content-wrapper" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+                    <button onClick={() => setShowModal(null)} style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: "50%", width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-primary)" }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                    </button>
+                    <h2 style={{ margin: 0, fontSize: "20px" }}>{editingProductId ? "Edit Item" : "Add to Inventory"}</h2>
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
                     <div>
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Item Name</div>

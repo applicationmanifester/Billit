@@ -1,6 +1,6 @@
 import React from "react";
 
-export const Dashboard = ({ statsMemo, fmt, invoices, getClient, totalWithTax, taxRates, setSelectedInvoice, setShowModal, setTab, search }) => {
+export const Dashboard = ({ statsMemo, fmt, invoices, getClient, totalWithTax, taxRates, setSelectedInvoice, setShowModal, setTab, search, seller }) => {
     const filteredInvoices = (invoices || []).filter(inv => {
         if (!search) return true;
         const s = search.toLowerCase();
@@ -10,6 +10,35 @@ export const Dashboard = ({ statsMemo, fmt, invoices, getClient, totalWithTax, t
 
     return (
         <div className="animate-slide-up">
+            {!search && (
+                <div style={{ marginBottom: "24px" }}>
+                    <div style={{ fontSize: "11px", color: "var(--accent-primary)", fontWeight: "bold", letterSpacing: "1.5px", marginBottom: "4px", opacity: 0.8 }}>
+                        ✨ WELCOME BACK
+                    </div>
+                    <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "900", color: "var(--text-primary)" }}>{seller?.name || "My Business"}</h1>
+                    
+                    {/* Dynamic Insight Banner */}
+                    <div style={{ 
+                        marginTop: "16px", 
+                        padding: "12px 16px", 
+                        background: statsMemo.overdue > 0 ? "rgba(239, 68, 68, 0.08)" : "rgba(34, 197, 94, 0.08)", 
+                        borderRadius: "12px", 
+                        border: `1px solid ${statsMemo.overdue > 0 ? "rgba(239, 68, 68, 0.1)" : "rgba(34, 197, 94, 0.1)"}`,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px"
+                    }}>
+                        <span style={{ fontSize: "18px" }}>{statsMemo.overdue > 0 ? "🔔" : "✨"}</span>
+                        <div style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: "500" }}>
+                            {statsMemo.overdue > 0 
+                                ? `You have ${fmt(statsMemo.overdue)} outstanding. ${statsMemo.counts.overdue} invoices are overdue.`
+                                : statsMemo.pending > 0 
+                                    ? `Everything looks great! You're expecting ${fmt(statsMemo.pending)} in incoming payments.`
+                                    : "All caught up! No pending or overdue invoices at the moment."}
+                        </div>
+                    </div>
+                </div>
+            )}
             {!search && (
                 <>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "10px" }}>

@@ -36,6 +36,7 @@ import { InvoiceViewModal } from "./components/InvoiceViewModal";
 import { ClientModal, ProductModal } from "./components/Modals";
 import { LegalModal } from "./components/LegalModal";
 import { SellerModal } from "./components/SellerModal";
+import { Onboarding } from "./components/Onboarding";
 import { initAndroidNative } from "./lib/android_native";
 import { App } from "@capacitor/app";
 
@@ -101,6 +102,9 @@ export default function BillingApp() {
   );
   const [hapticsEnabled, setHapticsEnabled] = useState(() => getStorage("hapticsEnabled", true));
   const [soundEnabled, setSoundEnabled] = useState(() => getStorage("soundEnabled", true));
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(
+    () => localStorage.getItem("billit_hasSeenOnboarding") === "true"
+  );
 
   // 3. Core Data States
   const { theme, setTheme, toggleTheme } = useTheme();
@@ -717,13 +721,23 @@ export default function BillingApp() {
 
   const shareReceipt = useCallback(async (inv) => {
     try {
-      showToast("Preparing PDF...");
+      showToast("Preparing Professional PDF...");
       const bytes = await getPDFData(inv, clientsRef.current, sellerRef.current, currency, taxRates);
       const blob = new Blob([bytes], { type: "application/pdf" });
-      const filename = `Billit - Professional Billing_${inv.id}.pdf`;
-      await sharePDF(blob, filename, `Invoice ${inv.id}`, `Check attached invoice from ${sellerRef.current.name}`);
+      const filename = `Billit-Invoice-${inv.id}.pdf`;
+      await sharePDF(blob, filename, `Invoice ${inv.id}`, `Hello! Here is your professional invoice from ${sellerRef.current.name}. Thank you!`);
     } catch (e) { if (e.name !== "AbortError") showToast("Sharing failed", "error"); }
   }, [currency, taxRates, showToast]);
+
+  const shareReceiptThermal = useCallback(async (inv) => {
+    try {
+      showToast("Preparing Thermal PDF...");
+      const bytes = await getThermalPDFData(inv, clientsRef.current, sellerRef.current, currency, taxRates, defaultNote);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const filename = `Billit-Thermal-${inv.id}.pdf`;
+      await sharePDF(blob, filename, `Receipt ${inv.id}`, `Hello! Here is your quick receipt from ${sellerRef.current.name}. Thank you!`);
+    } catch (e) { if (e.name !== "AbortError") showToast("Sharing failed", "error"); }
+  }, [currency, taxRates, defaultNote, showToast]);
 
   const shareMultipleInvoices = useCallback(async (invs) => {
     showToast("Preparing PDF bundle...");
@@ -1110,6 +1124,18 @@ export default function BillingApp() {
     hasMigratedRef.current = true;
   }, [invoices, taxRates]);
 
+  const handleNewClient = () => {
+    setClientForm({ name: "", email: "", phone: "", address: "" });
+    setSelectedClient(null);
+    setShowModal("client");
+  };
+
+  const handleNewProduct = () => {
+    setProductForm({ name: "", price: "", isDefault: false, tax: (taxRates || []).map(t => t.id) });
+    setEditingProductId(null);
+    setShowModal("product");
+  };
+
   return (
     <Layout
       seller={seller} setTab={setTab} tab={tab} isDark={isDark} setShowModal={setShowModal}
@@ -1118,11 +1144,13 @@ export default function BillingApp() {
       loginWithPopup={handleGatedLogin}
       logout={logout}
       handleNewInvoice={handleNewInvoice}
+      handleNewClient={handleNewClient}
+      handleNewProduct={handleNewProduct}
       isNativePlatform={isNativePlatform()}
       openSellerModal={() => { setSellerForm(seller); setShowSellerModal(true); }}
       search={search} setSearch={setSearch}
     >
-      {tab === "home" && <Dashboard statsMemo={statsMemo} fmt={fmt} invoices={invoices} getClient={getClient} totalWithTax={totalWithTax} taxRates={taxRates} setSelectedInvoice={setSelectedInvoice} setShowModal={setShowModal} setTab={setTab} search={search} />}
+      {tab === "home" && <Dashboard statsMemo={statsMemo} fmt={fmt} invoices={invoices} getClient={getClient} totalWithTax={totalWithTax} taxRates={taxRates} setSelectedInvoice={setSelectedInvoice} setShowModal={setShowModal} setTab={setTab} search={search} seller={seller} />}
       {tab === "bills" && (
           <InvoiceManager
             invoices={invoices}
@@ -1196,7 +1224,7 @@ export default function BillingApp() {
       {tab === "settings" && <Settings user={user} seller={seller} setSellerForm={setSellerForm} setShowSellerModal={setShowSellerModal} authLoading={authLoading} syncStatus={syncStatus} lastSync={lastSync} invoices={invoices} clients={clients} products={products} fetchFromCloud={fetchFromCloud} logout={logout} clearLocalState={clearLocalState} signInWithPopup={handleGatedLogin} authError={authError} showToast={showToast} syncLog={syncLog} theme={theme} setTheme={setTheme} toggleTheme={toggleTheme} currency={currency} setShowCurrencyPicker={setShowCurrencyPicker} taxRates={taxRates} setTaxRates={setTaxRates} wipeAllData={wipeAllData} settingsTab={settingsTab} setSettingsTab={setSettingsTab} isDark={isDark} exportInvoicesToCSV={exportInvoicesToCSV} exportClientsToCSV={exportClientsToCSV} exportProductsToCSV={exportProductsToCSV} exportFullDataJSON={exportFullDataJSON} importFullDataJSON={importFullDataJSON} fullData={cloudSyncData} setters={setters} getClient={getClient} defaultNote={defaultNote} setDefaultNote={setDefaultNote} defaultClientId={defaultClientId} setDefaultClientId={setDefaultClientId} hapticsEnabled={hapticsEnabled} setHapticsEnabled={setHapticsEnabled} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} hasAcceptedLegal={hasAcceptedLegal} viewLegal={() => setShowLegalModal(true)} />}
 
       <InvoiceModal showModal={showModal} setShowModal={(val) => { setShowModal(val); if (!val) { setSelectedInvoice(null); resetForm(); } }} form={form} setForm={setForm} clients={clients} products={products} taxRates={taxRates} saveInvoice={saveInvoice} addItem={addItem} removeItem={removeItem} updateItem={updateItem} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} playFeedback={playFeedback} showToast={showToast} selectedInvoice={selectedInvoice} resetForm={resetForm} isSaving={isSaving} />
-      <InvoiceViewModal showModal={showModal} setShowModal={setShowModal} selectedInvoice={selectedInvoice} setSelectedInvoice={setSelectedInvoice} setForm={setForm} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} taxRates={taxRates} downloadReceipt={downloadReceipt} printReceipt={printReceipt} printReceiptThermal={printReceiptThermal} shareReceipt={shareReceipt} setDeleteConfirm={setDeleteConfirm} updateStatus={updateInvoiceStatus} showToast={showToast} />
+      <InvoiceViewModal showModal={showModal} setShowModal={setShowModal} selectedInvoice={selectedInvoice} setSelectedInvoice={setSelectedInvoice} setForm={setForm} getClient={getClient} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} taxRates={taxRates} downloadReceipt={downloadReceipt} printReceipt={printReceipt} printReceiptThermal={printReceiptThermal} shareReceipt={shareReceipt} shareReceiptThermal={shareReceiptThermal} setDeleteConfirm={setDeleteConfirm} updateStatus={updateInvoiceStatus} showToast={showToast} />
       <ClientModal showModal={showModal} setShowModal={setShowModal} clientForm={clientForm} setClientForm={setClientForm} selectedClient={selectedClient} saveClient={saveClient} setDeleteConfirm={setDeleteConfirm} />
       <ProductModal showModal={showModal} setShowModal={setShowModal} productForm={productForm} setProductForm={setProductForm} editingProductId={editingProductId} saveProduct={saveProduct} compressImage={compressImage} taxRates={taxRates} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} setDeleteConfirm={setDeleteConfirm} />
 
@@ -1222,12 +1250,39 @@ export default function BillingApp() {
       />
       <SellerModal showSellerModal={showSellerModal} setShowSellerModal={setShowSellerModal} sellerForm={sellerForm} setSellerForm={setSellerForm} setSeller={setSeller} showToast={showToast} compressImage={compressImage} />
 
+      {!hasSeenOnboarding && (
+        <Onboarding onComplete={() => {
+          setHasSeenOnboarding(true);
+          localStorage.setItem("billit_hasSeenOnboarding", "true");
+        }} />
+      )}
+
       {showCurrencyPicker && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 3000, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
           <div className="premium-card" style={{ width: "100%", maxWidth: "500px", borderBottomLeftRadius: 0, borderBottomRightRadius: 0, maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "calc(20px + var(--safe-area-bottom))" }}>
-            <div style={{ padding: "20px", borderBottom: "1px solid var(--border-primary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ padding: "20px", borderBottom: "1px solid var(--border-primary)", display: "flex", alignItems: "center", gap: "16px" }}>
+              <button
+                onClick={() => setShowCurrencyPicker(false)}
+                className="secondary-btn"
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "var(--bg-input)",
+                  border: "1px solid var(--border-primary)",
+                  cursor: "pointer",
+                  padding: 0,
+                  flexShrink: 0
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+              </button>
               <h3 style={{ margin: 0 }}>Select Currency</h3>
-              <button onClick={() => setShowCurrencyPicker(false)} className="secondary-btn" style={{ padding: "8px 12px" }}>Done</button>
             </div>
             <div style={{ padding: "16px", borderBottom: "1px solid var(--border-primary)" }}>
               <input

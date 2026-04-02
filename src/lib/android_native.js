@@ -21,6 +21,10 @@ export const initAndroidNative = (callbacks = {}) => {
       await StatusBar.setBackgroundColor({
         color: '#00000000',
       });
+      // Ensure the webview extends under the transparent status bar
+      await StatusBar.setOverlaysWebView({
+        overlay: true,
+      });
     } catch (e) {
       console.warn('StatusBar plugin not available', e);
     }

@@ -4,18 +4,18 @@ export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, s
     if (!showSellerModal) return null;
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 400, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowSellerModal(false)}>
-            <div className="premium-card animate-scale-in" style={{ width: "100%", maxWidth: "440px", padding: "0 0 32px", position: "relative", overflow: "hidden" }}>
+        <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "calc(20px + var(--safe-area-top)) 20px 40px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowSellerModal(false)}>
+            <div className="premium-card animate-slide-in modal-card modal-content-wrapper" style={{ width: "100%", maxWidth: "440px", padding: "0 0 32px", position: "relative", overflow: "hidden", borderRadius: "20px" }}>
                 {/* Sticky Header */}
-                <div style={{ position: "sticky", top: 0, background: "var(--bg-card)", zIndex: 10, padding: "24px 32px 16px", borderBottom: "1px solid var(--border-primary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <h2 style={{ margin: 0, fontSize: "18px" }}>Business Profile</h2>
-                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                        <button onClick={() => {
-                            if (!sellerForm.name.trim()) return showToast("Business name is required!");
-                            setSeller(sellerForm); setShowSellerModal(false); showToast("Profile updated!");
-                        }} className="primary-btn" style={{ padding: "8px 16px", fontSize: "12px", borderRadius: "10px" }}>Save</button>
-                        <button onClick={() => setShowSellerModal(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "var(--text-secondary)" }}>✕</button>
-                    </div>
+                <div style={{ position: "sticky", top: 0, background: "var(--bg-card)", zIndex: 10, padding: "20px 24px", borderBottom: "1px solid var(--border-primary)", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <button onClick={() => setShowSellerModal(false)} style={{ background: "rgba(0,0,0,0.05)", border: "none", borderRadius: "50%", width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-primary)" }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                    </button>
+                    <h2 style={{ margin: 0, fontSize: "18px", flex: 1 }}>Business Profile</h2>
+                    <button onClick={() => {
+                        if (!sellerForm.name.trim()) return showToast("Business name is required!");
+                        setSeller(sellerForm); setShowSellerModal(false); showToast("Profile updated!");
+                    }} className="primary-btn" style={{ padding: "8px 16px", fontSize: "12px", borderRadius: "10px" }}>Save</button>
                 </div>
 
                 <div style={{ padding: "32px" }}>

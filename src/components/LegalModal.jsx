@@ -32,12 +32,11 @@ export const LegalModal = ({ show, onAccept, onClose, onDecline, hasAcceptedLega
                 maxWidth: "800px", margin: "0 auto", width: "100%", height: "100%",
                 display: "flex", flexDirection: "column"
             }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-                    <h1 style={{ margin: 0, fontSize: "24px", color: "var(--accent-primary)" }}>Billit - Terms & Conditions and Privacy Policy</h1>
-                    <button onClick={onClose} style={{
-                        background: "var(--bg-card)", border: "1px solid var(--border-primary)",
-                        padding: "8px 16px", borderRadius: "10px", color: "var(--text-primary)", cursor: "pointer"
-                    }}>Close</button>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
+                    <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                    </button>
+                    <h1 style={{ margin: 0, fontSize: "22px", color: "var(--accent-primary)", flex: 1 }}>Terms & Privacy</h1>
                 </div>
 
                 <div

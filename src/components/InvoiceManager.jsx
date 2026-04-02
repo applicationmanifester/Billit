@@ -47,20 +47,14 @@ export const InvoiceManager = ({
     });
 
     return (
-        <div style={{ paddingTop: isSelectionMode && selectedInvoices.length > 0 ? "280px" : "220px", transition: "padding 0.2s" }} className="animate-slide-up">
-            <div style={{ padding: "16px", position: "fixed", top: "72px", left: 0, width: "100%", background: "var(--bg-primary)", zIndex: 190, borderBottom: `1px solid var(--border-primary)`, boxSizing: "border-box" }}>
-                <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
-                    <div style={{ flex: 1, position: "relative" }}>
-                        <input className="input-field" style={{ width: "100%", paddingRight: search ? "40px" : "12px" }} placeholder="Search invoices..." value={search} onChange={(e) => setSearch(e.target.value)} />
-                        {search && (
-                            <button
-                                onClick={() => setSearch("")}
-                                style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-secondary)", fontSize: "16px", cursor: "pointer", padding: "4px" }}
-                            >✕</button>
-                        )}
+        <div className="animate-slide-up">
+            <div style={{ padding: "16px", background: "var(--bg-primary)", borderBottom: `1px solid var(--border-primary)`, boxSizing: "border-box", marginBottom: "16px" }}>
+                <div style={{ display: "flex", gap: "10px", marginBottom: "16px", alignItems: "center" }}>
+                    <h2 style={{ margin: 0, fontSize: "18px", fontWeight: "bold", flex: 1 }}>Invoices</h2>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                        <button onClick={handleNewInvoice} className="primary-btn" style={{ height: "40px", padding: "0 14px", borderRadius: "10px", fontSize: "12px" }}>+ New</button>
+                        <button onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedInvoices([]); }} className="secondary-btn" style={{ height: "40px", fontSize: "12px", borderRadius: "10px", color: "var(--accent-primary)" }}>{isSelectionMode ? "Cancel" : "Select"}</button>
                     </div>
-                    <button onClick={handleNewInvoice} className="primary-btn" style={{ height: "46px", padding: "0 16px", borderRadius: "12px", fontSize: "12px" }}>+ New</button>
-                    <button onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedInvoices([]); }} className="secondary-btn" style={{ height: "46px", color: "var(--accent-primary)" }}>{isSelectionMode ? "Cancel" : "Select"}</button>
                 </div>
                 <div style={{ display: "flex", gap: "10px", alignItems: "center", overflowX: "auto", paddingBottom: "10px", scrollbarWidth: "none" }}>
                     <div style={{ display: "flex", gap: "6px" }}>
