@@ -1,6 +1,6 @@
 import React from "react";
 
-export const ClientManager = ({ clients, setClients, setClientForm, setSelectedClient, setShowModal, invoices, fmt, setDeleteConfirm, totalWithTax, taxRates, search, defaultClientId, setDefaultClientId, showToast }) => {
+export const ClientManager = ({ clients, setClients, setClientForm, setSelectedClient, setShowModal, invoices, fmt, setDeleteConfirm, totalWithTax, taxRates, search, defaultClientId, setDefaultClientId, showToast, downloadClientsPDF, printClientsPDF, shareClientsPDF }) => {
     const filteredClients = clients.filter(c => {
         if (!search) return true;
         const s = search.toLowerCase();
@@ -12,7 +12,14 @@ export const ClientManager = ({ clients, setClients, setClientForm, setSelectedC
 
     return (
         <div style={{ padding: "16px" }} className="animate-slide-up">
-            <button onClick={() => { setClientForm({ name: "", email: "", phone: "", address: "", gstin: "", locationUrl: "" }); setSelectedClient(null); setShowModal("client"); }} style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "none", border: `2px dashed var(--border-primary)`, color: "var(--accent-primary)", fontWeight: "bold", marginBottom: "20px" }}>+ Add New Client</button>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    <button onClick={printClientsPDF} className="secondary-btn" style={{ flex: "1 1 auto", minWidth: "80px", padding: "10px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "11px", borderRadius: "8px" }}>Print List</button>
+                    <button onClick={downloadClientsPDF} className="secondary-btn" style={{ flex: "1 1 auto", minWidth: "80px", padding: "10px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "11px", borderRadius: "8px" }}>Download</button>
+                    <button onClick={shareClientsPDF} className="secondary-btn" style={{ flex: "1 1 auto", minWidth: "80px", padding: "10px", border: "1px solid var(--accent-primary)", color: "var(--accent-primary)", background: "none", fontSize: "11px", borderRadius: "8px" }}>Share PDF</button>
+                </div>
+                <button onClick={() => { setClientForm({ name: "", email: "", phone: "", address: "", gstin: "", locationUrl: "" }); setSelectedClient(null); setShowModal("client"); }} style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "none", border: `2px dashed var(--border-primary)`, color: "var(--accent-primary)", fontWeight: "bold" }}>+ Add New Client</button>
+            </div>
             {filteredClients.map(c => {
                 const clientInvoices = invoices.filter(inv => inv.clientId === c.id);
                 const ltv = clientInvoices.reduce((sum, inv) => sum + (inv.totalAmount || totalWithTax(inv.items, taxRates)), 0);

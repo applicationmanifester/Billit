@@ -2,6 +2,17 @@
   "projects": {
     "default": "billit-88039090-1a029"
   },
-  "targets": {},
+  "targets": {
+    "billit-88039090-1a029": {
+      "hosting": {
+        "pro": [
+          "billit-professional-billing"
+        ],
+        "default": [
+          "billit-88039090-1a029"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

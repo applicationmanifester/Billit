@@ -14,6 +14,7 @@ const LineItem = memo(({ item, idx, updateItem, removeItem, taxRates, itemTaxTot
     const preventScrollValueChange = (e) => e.currentTarget.blur();
     const taxArr = Array.isArray(item.tax) ? item.tax : (item.tax ? [item.tax] : []);
     const [showSuggestions, setShowSuggestions] = React.useState(false);
+    const [localTotal, setLocalTotal] = React.useState(null);
 
     const filteredProducts = (products || []).filter(p => 
         (p.name || "").toLowerCase().includes((item.desc || "").toLowerCase()) && 
@@ -79,11 +80,16 @@ const LineItem = memo(({ item, idx, updateItem, removeItem, taxRates, itemTaxTot
                     <input
                         className="input-field"
                         type="number"
+                        step="any"
                         placeholder="Base"
                         value={item.price}
                         onWheel={preventScrollValueChange}
                         onFocus={(e) => e.target.select()}
-                        onChange={(e) => updateItem(idx, "price", e.target.value)}
+                        onChange={(e) => {
+                            let val = e.target.value;
+                            if (val.length > 20) val = val.slice(0, 20);
+                            updateItem(idx, "price", val);
+                        }}
                     />
                 </div>
                 <div>
@@ -94,13 +100,22 @@ const LineItem = memo(({ item, idx, updateItem, removeItem, taxRates, itemTaxTot
                         type="text"
                         inputMode="decimal"
                         placeholder="Total"
-                        value={Math.round((Number(item.price || 0) + itemTaxTotal({ ...item, qty: 1 }, taxRates)) * 100) / 100}
+                        value={localTotal !== null ? localTotal : Math.round((Number(item.price || 0) + itemTaxTotal({ ...item, qty: 1 }, taxRates)) * 100) / 100}
                         onWheel={preventScrollValueChange}
-                        onFocus={(e) => e.target.select()}
+                        onFocus={(e) => {
+                            setLocalTotal(e.target.value);
+                            e.target.select();
+                        }}
+                        onBlur={() => setLocalTotal(null)}
                         onChange={(e) => {
                             let raw = e.target.value;
+                            if (raw.length > 20) return;
                             // Allow only numbers and a single decimal point
                             raw = raw.replace(/[^0-9.]/g, '');
+                            const parts = raw.split('.');
+                            if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join('');
+                            setLocalTotal(raw);
+
                             if (raw === "" || raw === ".") {
                                 updateItem(idx, "price", 0);
                                 return;
@@ -176,7 +191,7 @@ export const InvoiceModal = ({
                 </div>
 
                 <div style={{ marginBottom: "20px" }}>
-                    <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Select Client</label>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Select Client <span style={{color: '#ef4444'}}>*</span></label>
                     <select className="input-field" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: String(e.target.value) })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%", height: "50px", appearance: "none" }}>
                         {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -184,7 +199,7 @@ export const InvoiceModal = ({
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
                     <div>
-                        <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Date</label>
+                        <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Date <span style={{color: '#ef4444'}}>*</span></label>
                         <input type="date" className="input-field" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
                     </div>
                     <div>
@@ -208,7 +223,7 @@ export const InvoiceModal = ({
 
                 <div style={{ marginBottom: "24px", borderTop: "1px solid var(--border-primary)", paddingTop: "24px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                        <label style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase" }}>Line Items</label>
+                        <label style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase" }}>Line Items <span style={{color: '#ef4444'}}>*</span></label>
                         <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{form.items.length} items</span>
                     </div>
 

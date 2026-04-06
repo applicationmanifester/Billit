@@ -15,6 +15,7 @@ import { initialClients, initialInvoices, statusColors, CURRENCIES, DEFAULT_SELL
 import { total, getItemTaxList, itemTaxTotal, totalWithTax, formatCurrency, calculateBaseFromTotal } from "./lib/calculations";
 import {
   getInventoryPDFData,
+  getClientListPDFData,
   getPDFData,
   getBatchPDF,
   getBatchThermalPDF,
@@ -929,9 +930,11 @@ export default function BillingApp() {
         });
       });
 
-      revenue.total += gtotal; 
-      revenue.pretax += sub; 
-      revenue.tax += tx;
+      if (inv.status !== "draft") {
+          revenue.total += gtotal; 
+          revenue.pretax += sub; 
+          revenue.tax += tx;
+      }
 
       if (inv.status === "paid") { 
         revenue.paid += gtotal; 
@@ -1071,7 +1074,7 @@ export default function BillingApp() {
     const blob = new Blob([bytes], { type: "application/pdf" });
     const filename = `Billit-Inventory.pdf`;
 
-    if (nativeRef.current) {
+    if (isNativePlatform()) {
         await sharePDF(blob, filename, "Print Inventory", "Send this PDF to your printer");
     } else {
         const url = URL.createObjectURL(blob);
@@ -1093,6 +1096,66 @@ export default function BillingApp() {
       await sharePDF(blob, filename, 'Inventory List', `Check our inventory list from ${seller.name}`);
     } catch (e) { if (e.name !== "AbortError") showToast("Sharing failed", "error"); }
   }, [seller, currency, products, taxRates, inventoryTitle, showToast]);
+
+  const downloadClientsPDF = useCallback(async () => {
+    const filtered = clients.filter(c => {
+      if (!search) return true;
+      const s = search.toLowerCase();
+      return (c.name || "").toLowerCase().includes(s) || 
+             (c.email || "").toLowerCase().includes(s) || 
+             (c.phone || "").toLowerCase().includes(s) || 
+             (c.gstin || "").toLowerCase().includes(s);
+    });
+    const bytes = await getClientListPDFData(seller, filtered, invoices, taxRates, currency);
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const filename = `Billit - Professional Billing_Clients.pdf`;
+    await nativeDownloadPDF(blob, filename);
+  }, [seller, clients, invoices, taxRates, currency, search]);
+
+  const printClientsPDF = useCallback(async () => {
+    showToast("Preparing Clients for print...");
+    const filtered = clients.filter(c => {
+      if (!search) return true;
+      const s = search.toLowerCase();
+      return (c.name || "").toLowerCase().includes(s) || 
+             (c.email || "").toLowerCase().includes(s) || 
+             (c.phone || "").toLowerCase().includes(s) || 
+             (c.gstin || "").toLowerCase().includes(s);
+    });
+    const bytes = await getClientListPDFData(seller, filtered, invoices, taxRates, currency);
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    const filename = `Billit-Clients.pdf`;
+
+    if (isNativePlatform()) {
+        await sharePDF(blob, filename, "Print Clients", "Send this PDF to your printer");
+    } else {
+        const url = URL.createObjectURL(blob);
+        const oldTitle = document.title;
+        document.title = `Billit - Professional Billing_Clients`;
+        showBatchPrint(url);
+        setTimeout(() => {
+          document.title = oldTitle;
+        }, 30000);
+    }
+  }, [seller, clients, invoices, taxRates, currency, showBatchPrint, showToast, search]);
+
+  const shareClientsPDF = useCallback(async () => {
+    showToast("Preparing Clients PDF...");
+    try {
+      const filtered = clients.filter(c => {
+        if (!search) return true;
+        const s = search.toLowerCase();
+        return (c.name || "").toLowerCase().includes(s) || 
+               (c.email || "").toLowerCase().includes(s) || 
+               (c.phone || "").toLowerCase().includes(s) || 
+               (c.gstin || "").toLowerCase().includes(s);
+      });
+      const bytes = await getClientListPDFData(seller, filtered, invoices, taxRates, currency);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const filename = `Billit - Professional Billing_Clients.pdf`;
+      await sharePDF(blob, filename, 'Client List', `Check our client list from ${seller.name}`);
+    } catch (e) { if (e.name !== "AbortError") showToast("Sharing failed", "error"); }
+  }, [seller, clients, invoices, taxRates, currency, showToast, search]);
 
   const handleGatedLogin = async () => {
     if (!hasAcceptedLegal) {
@@ -1202,7 +1265,28 @@ export default function BillingApp() {
             handleNewInvoice={handleNewInvoice}
           />
         )}
-      {tab === "clients" && <ClientManager clients={clients} setClients={setClients} setClientForm={setClientForm} setSelectedClient={setSelectedClient} setShowModal={setShowModal} invoices={invoices} fmt={fmt} setDeleteConfirm={setDeleteConfirm} totalWithTax={totalWithTax} taxRates={taxRates} search={search} setSearch={setSearch} defaultClientId={defaultClientId} setDefaultClientId={setDefaultClientId} showToast={showToast} />}
+      {tab === "clients" && (
+        <ClientManager
+          clients={clients}
+          setClients={setClients}
+          setClientForm={setClientForm}
+          setSelectedClient={setSelectedClient}
+          setShowModal={setShowModal}
+          invoices={invoices}
+          fmt={fmt}
+          setDeleteConfirm={setDeleteConfirm}
+          totalWithTax={totalWithTax}
+          taxRates={taxRates}
+          search={search}
+          setSearch={setSearch}
+          defaultClientId={defaultClientId}
+          setDefaultClientId={setDefaultClientId}
+          showToast={showToast}
+          downloadClientsPDF={downloadClientsPDF}
+          printClientsPDF={printClientsPDF}
+          shareClientsPDF={shareClientsPDF}
+        />
+      )}
       {tab === "items" && (
           <InventoryManager
             inventoryTitle={inventoryTitle}

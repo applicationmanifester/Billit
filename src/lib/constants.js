@@ -93,5 +93,9 @@ export const DEFAULT_SELLER = {
     website: "",
     qrCode: "",
     logo: "",
-    invoicePrefix: "INV"
+    invoicePrefix: "INV",
+    bankName: "",
+    accountHolder: "",
+    accountNumber: "",
+    ifscCode: ""
 };

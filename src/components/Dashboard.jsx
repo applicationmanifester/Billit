@@ -68,38 +68,46 @@ export const Dashboard = ({ statsMemo, fmt, invoices, getClient, totalWithTax, t
                                     );
                                 })()}
                             </div>
-                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--status-paid)" }}>{fmt(statsMemo.paid)}</div>
+                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--status-paid)", wordBreak: "break-all" }}>{fmt(statsMemo.paid)}</div>
                         </div>
                         <div className="premium-card" style={{ padding: "12px" }}>
                             <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Pretax</div>
-                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--text-primary)" }}>{fmt(statsMemo.pretax)}</div>
+                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--text-primary)", wordBreak: "break-all" }}>{fmt(statsMemo.pretax)}</div>
                         </div>
                         <div className="premium-card" style={{ padding: "12px" }}>
                             <div style={{ fontSize: "10px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Taxes</div>
-                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--accent-primary)" }}>{fmt(statsMemo.tax)}</div>
+                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--accent-primary)", wordBreak: "break-all" }}>{fmt(statsMemo.tax)}</div>
                         </div>
                         <div className="premium-card" style={{ padding: "12px" }}>
                             <div style={{ fontSize: "12px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Pending</div>
-                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--status-pending)" }}>{fmt(statsMemo.pending)}</div>
+                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--status-pending)", wordBreak: "break-all" }}>{fmt(statsMemo.pending)}</div>
                         </div>
                         <div className="premium-card" style={{ padding: "12px" }}>
                             <div style={{ fontSize: "12px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Overdue</div>
-                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--status-overdue)" }}>{fmt(statsMemo.overdueAmt)}</div>
+                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--status-overdue)", wordBreak: "break-all" }}>{fmt(statsMemo.overdueAmt)}</div>
                         </div>
                         <div className="premium-card" style={{ padding: "12px" }}>
                             <div style={{ fontSize: "12px", color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: "4px" }}>Drafts</div>
-                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--status-draft)" }}>{fmt(statsMemo.draftTotal)}</div>
+                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--status-draft)", wordBreak: "break-all" }}>{fmt(statsMemo.draftTotal)}</div>
                         </div>
                     </div>
 
                     <div className="premium-card" style={{ margin: "16px 0", background: "var(--border-accent)", border: "1px solid var(--border-accent)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                             <span style={{ fontSize: "12px", color: "var(--text-secondary)", textTransform: "uppercase" }}>Total Collected</span>
-                            <span style={{ fontSize: "12px", color: "var(--status-paid)", fontWeight: "bold" }}>{statsMemo.total > 0 ? Math.round((statsMemo.paid / statsMemo.total) * 100) : 0}%</span>
+                            <span style={{ fontSize: "12px", color: "var(--status-paid)", fontWeight: "bold" }}>
+                                {(() => {
+                                    if (statsMemo.total <= 0) return "0";
+                                    const pct = (statsMemo.paid / statsMemo.total) * 100;
+                                    if (statsMemo.paid >= statsMemo.total) return "100";
+                                    if (pct > 0 && pct < 0.1) return "< 0.1";
+                                    return Math.min(99.9, pct).toFixed(1).replace(/\.0$/, '');
+                                })()}%
+                            </span>
                         </div>
-                        <div style={{ fontSize: "28px", fontWeight: "bold" }}>{fmt(statsMemo.paid)} <span style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: "normal" }}>/ {fmt(statsMemo.total)}</span></div>
+                        <div style={{ fontSize: "28px", fontWeight: "bold", wordBreak: "break-all" }}>{fmt(statsMemo.paid)} <span style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: "normal" }}>/ {fmt(statsMemo.total)}</span></div>
                         <div style={{ height: "6px", background: "var(--border-primary)", borderRadius: "3px", marginTop: "12px", overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: `${statsMemo.total > 0 ? (statsMemo.paid / statsMemo.total) * 100 : 0}%`, background: "var(--status-paid)" }} />
+                            <div style={{ height: "100%", width: `${statsMemo.total > 0 ? Math.max(statsMemo.paid > 0 ? 0.5 : 0, (statsMemo.paid / statsMemo.total) * 100) : 0}%`, background: "var(--status-paid)" }} />
                         </div>
                     </div>
                 </>
