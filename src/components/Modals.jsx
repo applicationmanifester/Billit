@@ -83,6 +83,10 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                         <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Item Name <span style={{color: '#ef4444'}}>*</span></div>
                         <input className="input-field" placeholder="Item Name" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveProduct(false)} />
                     </div>
+                    <div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>HSN/SAC (Optional)</div>
+                        <input className="input-field" placeholder="HSN/SAC Code" value={productForm.hsn || ""} onChange={(e) => setProductForm({ ...productForm, hsn: e.target.value.toUpperCase() })} onKeyDown={(e) => e.key === "Enter" && saveProduct(false)} />
+                    </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Base Price <span style={{color: '#ef4444'}}>*</span></div>

@@ -826,7 +826,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     txt(`Invoice No: ${inv.id}`, rx, ri, "F2", 10);
     txt(`Dt: ${inv.date}`, W - M - 70, ri, "F1", 9);
     ri -= 20;
-    txt(`Your P.O No: ---`, rx, ri, "F1", 9); // Placeholder for PO
+    txt(`Your P.O No: ${inv.poNumber || "---"}`, rx, ri, "F1", 9);
     ri -= 20;
     txt(`Due Date: ${inv.due || inv.date}`, rx, ri, "F1", 9);
 

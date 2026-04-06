@@ -116,6 +116,7 @@ export default function BillingApp() {
       ...inv,
       items: (inv.items || []).map(it => ({
         ...it,
+        hsn: it.hsn || "",
         tax: Array.isArray(it.tax) ? it.tax : (it.tax ? [it.tax] : [])
       }))
     }));
@@ -132,6 +133,7 @@ export default function BillingApp() {
     const raw = getStorage("products", []);
     return raw.map(p => ({
       ...p,
+      hsn: p.hsn || "",
       tax: Array.isArray(p.tax) ? p.tax : (p.tax ? [p.tax] : [])
     }));
   });
@@ -157,7 +159,7 @@ export default function BillingApp() {
   const [sellerForm, setSellerForm] = useState(seller);
   const [editingProductId, setEditingProductId] = useState(null);
   const [productForm, setProductForm] = useState({ 
-    name: "", desc: "", price: 0, isDefault: false, image: null, 
+    name: "", desc: "", price: 0, isDefault: false, image: null, hsn: "",
     tax: taxRates.map(t => t.id) 
   });
   const [clientForm, setClientForm] = useState({ name: "", email: "", phone: "", address: "", gstin: "" });
@@ -474,7 +476,8 @@ export default function BillingApp() {
       date: getLocalISODate(),
       due: getLocalISODate(),
       items: getInitialItems(),
-      notes: defaultNote
+      notes: defaultNote,
+      poNumber: ""
     };
   });
 
@@ -493,7 +496,8 @@ export default function BillingApp() {
       date: today,
       due: dueString,
       items: getInitialItems(),
-      notes: defaultNote
+      notes: defaultNote,
+      poNumber: ""
     });
   }, [clients, getInitialItems, defaultNote, seller.defaultDueDays, defaultClientId, initialClients]);
 
@@ -524,7 +528,7 @@ export default function BillingApp() {
         const taxIds = (taxRates || []).map(t => t.id);
         return {
             ...prev,
-            items: [...prev.items, { id: crypto.randomUUID(), desc: "", qty: 1, price: 0, tax: taxIds }]
+            items: [...prev.items, { id: crypto.randomUUID(), desc: "", qty: 1, price: 0, hsn: "", tax: taxIds }]
         };
     });
   }, [taxRates]);

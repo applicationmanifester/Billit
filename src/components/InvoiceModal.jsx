@@ -70,7 +70,11 @@ const LineItem = memo(({ item, idx, updateItem, removeItem, taxRates, itemTaxTot
                 <button onClick={() => removeItem(idx)} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>✕</button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.6fr 0.8fr 1fr", gap: "10px" }}>
+                <div>
+                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px", fontWeight: "bold" }}>HSN/SAC</label>
+                    <input className="input-field" style={{ width: "100%", padding: "10px" }} placeholder="---" value={item.hsn || ""} onChange={(e) => updateItem(idx, "hsn", e.target.value.toUpperCase())} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} />
+                </div>
                 <div>
                     <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px", fontWeight: "bold" }}>Qty</label>
                     <input type="number" min="1" className="input-field" style={{ width: "100%", padding: "10px" }} value={item.qty} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "qty", e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} />
@@ -165,7 +169,7 @@ export const InvoiceModal = ({
 
     const handleQuickAdd = useCallback((p) => {
         const taxIds = (p.tax && p.tax.length > 0) ? p.tax : taxRates.map(t => t.id);
-        const newItem = { id: crypto.randomUUID(), desc: p.name, qty: 1, price: p.price, tax: taxIds };
+        const newItem = { id: crypto.randomUUID(), desc: p.name, qty: 1, price: p.price, hsn: p.hsn || "", tax: taxIds };
         
         setForm(prev => {
             if (prev.items.length === 1 && !prev.items[0].desc) {
@@ -197,7 +201,7 @@ export const InvoiceModal = ({
                     </select>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "24px" }}>
                     <div>
                         <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Date <span style={{color: '#ef4444'}}>*</span></label>
                         <input type="date" className="input-field" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
@@ -205,6 +209,10 @@ export const InvoiceModal = ({
                     <div>
                         <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Due Date</label>
                         <input type="date" className="input-field" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
+                    </div>
+                    <div>
+                        <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>P.O. Number</label>
+                        <input className="input-field" placeholder="P.O. #" value={form.poNumber || ""} onChange={(e) => setForm({ ...form, poNumber: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
                     </div>
                 </div>
 

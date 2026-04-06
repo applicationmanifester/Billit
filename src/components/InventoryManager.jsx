@@ -139,6 +139,11 @@ export const InventoryManager = ({
                                 <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                                     Price: <span style={{ color: "var(--text-primary)", fontWeight: "bold" }}>{fmt(p.price)}</span>
                                 </div>
+                                {p.hsn && (
+                                    <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                                        HSN: <span style={{ color: "var(--text-primary)", fontWeight: "bold" }}>{p.hsn}</span>
+                                    </div>
+                                )}
                                 <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                                     Tax: <span style={{ color: "var(--accent-secondary)", fontWeight: "bold" }}>{fmt(itemTaxTotal({ ...p, qty: 1, tax: p.tax || (taxRates || []).map(t => t.id) }, taxRates))}</span>
                                 </div>
