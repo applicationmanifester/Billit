@@ -70,11 +70,7 @@ const LineItem = memo(({ item, idx, updateItem, removeItem, taxRates, itemTaxTot
                 <button onClick={() => removeItem(idx)} style={{ color: "#ef4444", background: "none", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>✕</button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.6fr 0.8fr 1fr", gap: "10px" }}>
-                <div>
-                    <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px", fontWeight: "bold" }}>HSN/SAC</label>
-                    <input className="input-field" style={{ width: "100%", padding: "10px" }} placeholder="---" value={item.hsn || ""} onChange={(e) => updateItem(idx, "hsn", e.target.value.toUpperCase())} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} />
-                </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
                 <div>
                     <label style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", marginBottom: "4px", fontWeight: "bold" }}>Qty</label>
                     <input type="number" min="1" className="input-field" style={{ width: "100%", padding: "10px" }} value={item.qty} onWheel={preventScrollValueChange} onChange={(e) => updateItem(idx, "qty", e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} />
@@ -159,13 +155,7 @@ const LineItem = memo(({ item, idx, updateItem, removeItem, taxRates, itemTaxTot
 export const InvoiceModal = ({
     showModal, setShowModal, form, setForm, clients, products, taxRates, saveInvoice, addItem, removeItem, updateItem, fmt, totalWithTax, itemTaxTotal, calculateBaseFromTotal, playFeedback, showToast, selectedInvoice, isSaving
 }) => {
-    if (showModal !== "invoice") return null;
-
-    const isEdit = !!selectedInvoice;
-    const toNumber = (value) => {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : 0;
-    };
+    const [modalTab, setModalTab] = React.useState("items");
 
     const handleQuickAdd = useCallback((p) => {
         const taxIds = (p.tax && p.tax.length > 0) ? p.tax : taxRates.map(t => t.id);
@@ -182,6 +172,14 @@ export const InvoiceModal = ({
         playFeedback();
     }, [taxRates, showToast, playFeedback, setForm]);
 
+    if (showModal !== "invoice") return null;
+
+    const isEdit = !!selectedInvoice;
+    const toNumber = (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
     return (
         <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "calc(20px + var(--safe-area-top)) 20px 40px", overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && setShowModal(null)}>
             <div className="premium-card animate-slide-up modal-card modal-content-wrapper" style={{ borderRadius: "20px", width: "100%", maxWidth: "480px", padding: "24px 20px 40px", position: "relative" }}>
@@ -194,77 +192,119 @@ export const InvoiceModal = ({
                     <h2 style={{ margin: 0, fontSize: "20px" }}>{isEdit ? "Edit Invoice" : "New Invoice"}</h2>
                 </div>
 
-                <div style={{ marginBottom: "20px" }}>
-                    <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Select Client <span style={{color: '#ef4444'}}>*</span></label>
-                    <select className="input-field" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: String(e.target.value) })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%", height: "50px", appearance: "none" }}>
-                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "24px" }}>
-                    <div>
-                        <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Date <span style={{color: '#ef4444'}}>*</span></label>
-                        <input type="date" className="input-field" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
-                    </div>
-                    <div>
-                        <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Due Date</label>
-                        <input type="date" className="input-field" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
-                    </div>
-                    <div>
-                        <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>P.O. Number</label>
-                        <input className="input-field" placeholder="P.O. #" value={form.poNumber || ""} onChange={(e) => setForm({ ...form, poNumber: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
-                    </div>
-                </div>
-
-                {/* Quick Add Shelf */}
-                <div style={{ marginBottom: "24px" }}>
-                    <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Quick Add from Inventory</label>
-                    <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px", scrollbarWidth: "none" }}>
-                        {(products || []).map(p => (
-                            <QuickAddItem key={p.id} product={p} onAdd={handleQuickAdd} fmt={fmt} />
-                        ))}
-                        {(!products || products.length === 0) && (
-                            <div style={{ fontSize: "12px", color: "var(--text-secondary)", opacity: 0.6 }}>No inventory items yet.</div>
-                        )}
-                    </div>
-                </div>
-
-                <div style={{ marginBottom: "24px", borderTop: "1px solid var(--border-primary)", paddingTop: "24px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                        <label style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase" }}>Line Items <span style={{color: '#ef4444'}}>*</span></label>
-                        <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{form.items.length} items</span>
-                    </div>
-
-                    {form.items.map((item, idx) => (
-                        <LineItem 
-                            key={item.id} 
-                            item={item} 
-                            idx={idx} 
-                            updateItem={updateItem} 
-                            removeItem={removeItem} 
-                            taxRates={taxRates} 
-                            itemTaxTotal={itemTaxTotal} 
-                            calculateBaseFromTotal={calculateBaseFromTotal} 
-                            saveInvoice={saveInvoice} 
-                            isLast={idx === form.items.length - 1}
-                            products={products}
-                        />
+                <div style={{ display: "flex", gap: "8px", marginBottom: "24px", background: "var(--bg-input)", padding: "4px", borderRadius: "14px" }}>
+                    {["items", "info", "advanced"].map(t => (
+                        <button key={t} onClick={() => setModalTab(t)} style={{
+                            flex: 1, padding: "10px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase",
+                            border: "none", cursor: "pointer", transition: "all 0.2s",
+                            background: modalTab === t ? "var(--accent-primary)" : "transparent",
+                            color: modalTab === t ? "#000" : "var(--text-secondary)"
+                        }}>{t}</button>
                     ))}
-                    <button onClick={addItem} style={{ width: "100%", padding: "12px", marginTop: "8px", fontSize: "12px", color: "var(--accent-primary)", background: "rgba(255,193,7,0.05)", border: `1px dashed var(--accent-primary)`, borderRadius: "12px", fontWeight: "bold", cursor: "pointer" }}>+ Add Line Item</button>
                 </div>
 
-                <div style={{ marginBottom: "24px" }}>
-                    <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Notes</label>
-                    <textarea
-                        className="input-field"
-                        style={{ height: "60px", resize: "none" }}
-                        placeholder="Add some notes for the seller..."
-                        value={form.notes}
-                        onFocus={(e) => e.target.scrollIntoView({ behavior: "smooth", block: "center" })}
-                        onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                        onKeyDown={(e) => e.key === "Enter" && saveInvoice()}
-                    />
-                </div>
+                {modalTab === "info" && (
+                    <div className="animate-fade-in">
+                        <div style={{ marginBottom: "20px" }}>
+                            <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Select Client <span style={{color: '#ef4444'}}>*</span></label>
+                            <select className="input-field" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: String(e.target.value) })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%", height: "50px", appearance: "none" }}>
+                                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+                            <div>
+                                <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Date <span style={{color: '#ef4444'}}>*</span></label>
+                                <input type="date" className="input-field" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
+                            </div>
+                            <div>
+                                <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Due Date</label>
+                                <input type="date" className="input-field" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: "24px" }}>
+                            <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Notes</label>
+                            <textarea
+                                className="input-field"
+                                style={{ height: "100px", resize: "none" }}
+                                placeholder="Add some notes for the seller..."
+                                value={form.notes}
+                                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {modalTab === "items" && (
+                    <div className="animate-fade-in">
+                        <div style={{ marginBottom: "24px" }}>
+                            <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Quick Add from Inventory</label>
+                            <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px", scrollbarWidth: "none" }}>
+                                {(products || []).map(p => (
+                                    <QuickAddItem key={p.id} product={p} onAdd={handleQuickAdd} fmt={fmt} />
+                                ))}
+                                {(!products || products.length === 0) && (
+                                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", opacity: 0.6 }}>No inventory items yet.</div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: "24px", borderTop: "1px solid var(--border-primary)", paddingTop: "24px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                                <label style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase" }}>Line Items <span style={{color: '#ef4444'}}>*</span></label>
+                                <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{form.items.length} items</span>
+                            </div>
+
+                            {form.items.map((item, idx) => (
+                                <LineItem 
+                                    key={item.id} 
+                                    item={item} 
+                                    idx={idx} 
+                                    updateItem={updateItem} 
+                                    removeItem={removeItem} 
+                                    taxRates={taxRates} 
+                                    itemTaxTotal={itemTaxTotal} 
+                                    calculateBaseFromTotal={calculateBaseFromTotal} 
+                                    saveInvoice={saveInvoice} 
+                                    isLast={idx === form.items.length - 1}
+                                    products={products}
+                                />
+                            ))}
+                            <button onClick={addItem} style={{ width: "100%", padding: "12px", marginTop: "8px", fontSize: "12px", color: "var(--accent-primary)", background: "rgba(255,193,7,0.05)", border: `1px dashed var(--accent-primary)`, borderRadius: "12px", fontWeight: "bold", cursor: "pointer" }}>+ Add Line Item</button>
+                        </div>
+                    </div>
+                )}
+
+                {modalTab === "advanced" && (
+                    <div className="animate-fade-in">
+                        <div style={{ marginBottom: "24px" }}>
+                            <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>P.O. Number</label>
+                            <input className="input-field" placeholder="P.O. #" value={form.poNumber || ""} onChange={(e) => setForm({ ...form, poNumber: e.target.value })} onKeyDown={(e) => e.key === "Enter" && saveInvoice()} style={{ width: "100%" }} />
+                        </div>
+
+                        <div style={{ marginBottom: "24px" }}>
+                            <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "12px" }}>HSN/SAC Management</label>
+                            <div style={{ background: "var(--bg-input)", borderRadius: "16px", padding: "12px", border: "1px solid var(--border-primary)" }}>
+                                {form.items.map((item, idx) => (
+                                    <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: idx === form.items.length - 1 ? 0 : "12px", paddingBottom: idx === form.items.length - 1 ? 0 : "12px", borderBottom: idx === form.items.length - 1 ? "none" : "1px solid var(--border-primary)" }}>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: "12px", fontWeight: "bold", color: "var(--text-primary)", marginBottom: "2px" }}>{item.desc || "Untitled Item"}</div>
+                                            <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>Item {idx + 1}</div>
+                                        </div>
+                                        <input
+                                            className="input-field"
+                                            style={{ width: "120px", height: "40px", fontSize: "12px" }}
+                                            placeholder="HSN/SAC"
+                                            value={item.hsn || ""}
+                                            onChange={(e) => updateItem(idx, "hsn", e.target.value.toUpperCase())}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div style={{ background: "var(--bg-input)", borderRadius: "20px", padding: "20px", marginBottom: "32px", border: `1px solid var(--border-primary)` }}>
                     {form.items.filter(i => i.desc || toNumber(i.price) > 0).map((item, idx) => (

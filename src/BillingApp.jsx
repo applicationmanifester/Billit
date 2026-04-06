@@ -21,7 +21,7 @@ import {
   getBatchThermalPDF,
   getThermalPDFData,
   getThermalInventoryPDFData,
-  getInvoicePageStream
+  getLetterPDF
 } from "./lib/pdf";
 
 // Components
@@ -1317,18 +1317,7 @@ export default function BillingApp() {
             setSearch={setSearch}
           />
         )}
-      {tab === "reports" && (
-          <Reports
-            invoices={invoices}
-            clients={clients}
-            fmt={fmt}
-            totalWithTax={totalWithTax}
-            taxRates={taxRates}
-            statsMemo={reportStats}
-            reportRange={reportRange}
-            setReportRange={setReportRange}
-          />
-        )}
+      {tab === "reports" && <Reports seller={seller} invoices={invoices} clients={clients} products={products} taxRates={taxRates} currency={currency} reportRange={reportRange} setReportRange={setReportRange} fmt={fmt} totalWithTax={totalWithTax} total={total} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} statsMemo={reportStats} />}
       {tab === "settings" && <Settings user={user} seller={seller} setSellerForm={setSellerForm} setShowSellerModal={setShowSellerModal} authLoading={authLoading} syncStatus={syncStatus} lastSync={lastSync} invoices={invoices} clients={clients} products={products} fetchFromCloud={fetchFromCloud} logout={logout} clearLocalState={clearLocalState} signInWithPopup={handleGatedLogin} authError={authError} showToast={showToast} syncLog={syncLog} theme={theme} setTheme={setTheme} toggleTheme={toggleTheme} currency={currency} setShowCurrencyPicker={setShowCurrencyPicker} taxRates={taxRates} setTaxRates={setTaxRates} wipeAllData={wipeAllData} settingsTab={settingsTab} setSettingsTab={setSettingsTab} isDark={isDark} exportInvoicesToCSV={exportInvoicesToCSV} exportClientsToCSV={exportClientsToCSV} exportProductsToCSV={exportProductsToCSV} exportFullDataJSON={exportFullDataJSON} importFullDataJSON={importFullDataJSON} fullData={cloudSyncData} setters={setters} getClient={getClient} defaultNote={defaultNote} setDefaultNote={setDefaultNote} defaultClientId={defaultClientId} setDefaultClientId={setDefaultClientId} hapticsEnabled={hapticsEnabled} setHapticsEnabled={setHapticsEnabled} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} hasAcceptedLegal={hasAcceptedLegal} viewLegal={() => setShowLegalModal(true)} />}
 
       <InvoiceModal showModal={showModal} setShowModal={(val) => { setShowModal(val); if (!val) { setSelectedInvoice(null); resetForm(); } }} form={form} setForm={setForm} clients={clients} products={products} taxRates={taxRates} saveInvoice={saveInvoice} addItem={addItem} removeItem={removeItem} updateItem={updateItem} fmt={fmt} totalWithTax={totalWithTax} itemTaxTotal={itemTaxTotal} calculateBaseFromTotal={calculateBaseFromTotal} playFeedback={playFeedback} showToast={showToast} selectedInvoice={selectedInvoice} resetForm={resetForm} isSaving={isSaving} />
