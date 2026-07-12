@@ -1,20 +1,37 @@
 import React from "react";
+import { Trash2 } from "lucide-react";
 
 export const Settings = ({
-    user, seller, setSellerForm, setShowSellerModal, authLoading,
+    user, seller, setSeller, setSellerForm, setShowSellerModal, authLoading,
     syncStatus, lastSync, invoices, clients, products, fetchFromCloud, logout, clearLocalState,
     signInWithPopup, authError, showToast,
     syncLog, theme, setTheme, toggleTheme, currency, setShowCurrencyPicker,
-    taxRates, setTaxRates, defaultTaxId, setDefaultTaxId, wipeAllData, settingsTab, setSettingsTab, isDark,
-    exportInvoicesToCSV, exportClientsToCSV, exportProductsToCSV,
-    exportFullDataJSON, importFullDataJSON, fullData, setters,
+    taxRates, setTaxRates, wipeAllData, settingsTab, setSettingsTab, isDark,
     getClient,
     defaultNote, setDefaultNote,
     defaultClientId, setDefaultClientId,
     hapticsEnabled, setHapticsEnabled, soundEnabled, setSoundEnabled,
-    hasAcceptedLegal, viewLegal
+    hasAcceptedLegal, viewLegal,
+    plan = "free", invoicesGenerated = 0, billingPeriodStart = new Date().toISOString(),
+    setShowModal, onManageSubscription,
+    billingHistory = [], isFetchingHistory = false, onFetchHistory
 }) => {
-    const fileInputRef = React.useRef(null);
+
+    React.useEffect(() => {
+        if (settingsTab === 'subscription' && onFetchHistory) {
+            onFetchHistory();
+        }
+    }, [settingsTab, onFetchHistory]);
+
+    const subscriptionLimits = {
+        free: 100,
+        pro: 500,
+        business: Infinity
+    };
+
+    const currentLimit = subscriptionLimits[plan.toLowerCase()] || 100;
+    const usagePercent = currentLimit === Infinity ? 0 : Math.min(100, (invoicesGenerated / currentLimit) * 100);
+
     return (
         <div style={{ padding: "16px" }} className="animate-slide-up">
             <div className="premium-card" style={{ padding: "20px", marginBottom: "16px" }}>
@@ -37,19 +54,52 @@ export const Settings = ({
             </div>
 
             <div style={{ display: "flex", gap: "10px", marginBottom: "16px", overflowX: "auto", paddingBottom: "4px" }}>
-                {["account", "app", "currency", "taxes", "export"].map(s => (
+                {["account", "app", "currency", "taxes"].map(s => (
                     <button key={s} onClick={() => setSettingsTab(s)} style={{
                         padding: "8px 16px", borderRadius: "12px", whiteSpace: "nowrap", border: `1px solid ${settingsTab === s ? "var(--accent-primary)" : "var(--border-primary)"}`,
                         background: settingsTab === s ? "var(--accent-primary)" : "var(--bg-card)", color: settingsTab === s ? "#000" : "var(--text-secondary)", fontSize: "12px", fontWeight: "bold"
-                    }}>{s === "export" ? "EXPORT/IMPORT" : s.toUpperCase()}</button>
+                    }}>{s.toUpperCase()}</button>
                 ))}
             </div>
+
 
             {settingsTab === "app" && (
                 <div className="premium-card" style={{ padding: "0 16px", marginBottom: "20px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0", alignItems: "center", borderBottom: `1px solid var(--border-primary)` }}>
                         <div style={{ fontSize: "14px" }}>Theme Mode</div>
                         <button onClick={toggleTheme} className="secondary-btn" style={{ padding: "8px 12px", fontSize: "16px" }}>{isDark ? "🌙 Dark" : "☀️ Light"}</button>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0", alignItems: "center", borderBottom: `1px solid var(--border-primary)` }}>
+                        <div style={{ fontSize: "14px" }}>PDF Invoice Layout</div>
+                        <select 
+                            value={seller.pdfTheme || "classic"}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = { ...seller, pdfTheme: val };
+                                setSeller(updated);
+                                setSellerForm(updated);
+                                showToast("PDF Layout updated successfully!");
+                            }}
+                            className="input-field"
+                            style={{ 
+                                width: "auto", 
+                                minWidth: "140px", 
+                                padding: "6px 12px", 
+                                borderRadius: "10px", 
+                                margin: 0,
+                                background: "var(--bg-input)",
+                                color: "var(--text-primary)",
+                                border: "1px solid var(--border-primary)",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                                cursor: "pointer"
+                            }}
+                        >
+                            <option value="classic">Classic Pro</option>
+                            <option value="minimal">Minimalist Modern</option>
+                            <option value="bold">Bold Accent</option>
+                        </select>
                     </div>
 
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 0", alignItems: "center", borderBottom: `1px solid var(--border-primary)` }}>
@@ -259,14 +309,34 @@ export const Settings = ({
                     {taxRates.map((tr, idx) => (
                         <div key={tr.id} style={{ display: "flex", justifyContent: "space-between", padding: "14px 0", borderBottom: `1px solid var(--border-primary)`, alignItems: "center" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
-                                <button onClick={() => {
-                                    if (taxRates.length <= 1) return;
-                                    const usedInDrafts = (invoices || []).filter(inv => inv.status === "draft" && inv.items.some(item => item.taxId === tr.id));
-                                    if (usedInDrafts.length > 0) {
-                                        return showToast(`Cannot delete! This tax is used in ${usedInDrafts.length} draft invoices. Remove it from drafts first.`, "error");
-                                    }
-                                    setTaxRates(prev => prev.filter(t => t.id !== tr.id));
-                                }} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>✕</button>
+                                <button 
+                                    onClick={() => {
+                                        if (taxRates.length <= 1) return;
+                                        const usedInDrafts = (invoices || []).filter(inv => inv.status === "draft" && inv.items.some(item => (Array.isArray(item.tax) ? item.tax : []).map(String).includes(String(tr.id))));
+                                        if (usedInDrafts.length > 0) {
+                                            return showToast(`Cannot delete! This tax is used in ${usedInDrafts.length} draft invoices. Remove it from drafts first.`, "error");
+                                        }
+                                        setTaxRates(prev => prev.filter(t => t.id !== tr.id));
+                                    }} 
+                                    style={{ 
+                                        background: "rgba(239, 68, 68, 0.1)", 
+                                        border: "none", 
+                                        color: taxRates.length <= 1 ? "var(--text-muted)" : "#ef4444", 
+                                        cursor: taxRates.length <= 1 ? "not-allowed" : "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        padding: "6px",
+                                        borderRadius: "50%",
+                                        width: "28px",
+                                        height: "28px",
+                                        opacity: taxRates.length <= 1 ? 0.3 : 1,
+                                        transition: "all 0.2s"
+                                    }}
+                                    disabled={taxRates.length <= 1}
+                                >
+                                    <Trash2 size={16} />
+                                </button>
                                 <input style={{ background: "none", border: "none", color: "var(--text-primary)", fontSize: "14px", width: "100%", outline: "none" }} value={tr.label} onChange={(e) => setTaxRates(prev => prev.map(t => t.id === tr.id ? { ...t, label: e.target.value } : t))} />
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -279,55 +349,6 @@ export const Settings = ({
                 </div>
             )}
 
-            {settingsTab === "export" && (
-                <div className="premium-card" style={{ padding: "20px", marginBottom: "20px" }}>
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", fontWeight: "bold", textTransform: "uppercase" }}>Data Portability</div>
-                    <div style={{ display: "grid", gap: "16px" }}>
-                        <button onClick={() => exportInvoicesToCSV(invoices, getClient, taxRates)} className="secondary-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span>📄 Export Invoices</span>
-                            <span style={{ fontSize: "12px", opacity: 0.6 }}>CSV</span>
-                        </button>
-                        <button onClick={() => exportClientsToCSV(clients)} className="secondary-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span>👥 Export Clients</span>
-                            <span style={{ fontSize: "12px", opacity: 0.6 }}>CSV</span>
-                        </button>
-                        <button onClick={() => exportProductsToCSV(products)} className="secondary-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span>📦 Export Inventory</span>
-                            <span style={{ fontSize: "12px", opacity: 0.6 }}>CSV</span>
-                        </button>
-
-                        <div style={{ height: "1px", background: "var(--border-color)", margin: "8px 0" }} />
-
-                        <button onClick={() => exportFullDataJSON(fullData)} className="premium-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "12px 16px" }}>
-                            <span>💾 Secure Full Backup Download</span>
-                            <span style={{ fontSize: "12px", opacity: 0.8 }}>.BILLIT</span>
-                        </button>
-                    </div>
-
-                    <div style={{ padding: "16px", background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--border-color)", marginTop: "12px" }}>
-                        <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", opacity: 0.8, display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span>📥 Restore Backup</span>
-                        </h4>
-                        <button onClick={() => fileInputRef.current?.click()} className="secondary-btn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                            <span>Upload Backup File</span>
-                            <span style={{ fontSize: "12px", opacity: 0.6 }}>.BILLIT / .JSON</span>
-                        </button>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            style={{ display: "none" }}
-                            accept=".json,.billit"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                    importFullDataJSON(file, setters, showToast);
-                                    e.target.value = ""; // Reset for next selection
-                                }
-                            }}
-                        />
-                    </div>
-                </div>
-            )}
 
             <div className="premium-card" style={{ padding: "16px", background: "var(--accent-gradient)", color: "#000", textAlign: "left", marginBottom: "20px" }}>
                 <div style={{ fontWeight: "900", fontSize: "14px", marginBottom: "12px" }}>Report & Feedback</div>

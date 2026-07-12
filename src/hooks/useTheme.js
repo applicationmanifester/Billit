@@ -10,20 +10,36 @@ export const useTheme = () => {
         }
     });
 
+    const [isDark, setIsDark] = useState(() => {
+        const checkDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        return checkDark;
+    });
+
     useEffect(() => {
         const root = window.document.documentElement;
-        const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-        root.setAttribute("data-theme", isDark ? "dark" : "light");
-        
         const meta = document.getElementById("theme-color-meta");
-        if (meta) meta.setAttribute("content", isDark ? "#0a0a0f" : "#ffffff");
 
+        const updateTheme = () => {
+            const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+            setIsDark(dark);
+            root.setAttribute("data-theme", dark ? "dark" : "light");
+            if (meta) meta.setAttribute("content", dark ? "#0a0a0f" : "#ffffff");
+        };
+
+        updateTheme();
         localStorage.setItem("billit_theme", theme);
+
+        if (theme === "system") {
+            const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+            const listener = () => updateTheme();
+            mediaQuery.addEventListener("change", listener);
+            return () => mediaQuery.removeEventListener("change", listener);
+        }
     }, [theme]);
 
     const toggleTheme = () => {
         setTheme(prev => prev === "light" ? "dark" : "light");
     };
 
-    return { theme, setTheme, toggleTheme };
+    return { theme, setTheme, toggleTheme, isDark };
 };

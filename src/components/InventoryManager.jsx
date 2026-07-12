@@ -96,7 +96,7 @@ export const InventoryManager = ({
                 </div>
             </div>
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px", alignItems: "center" }}>
-                <button onClick={() => { setProductForm({ name: "", desc: "", price: "", isDefault: false, tax: (taxRates || []).map(t => t.id) }); setEditingProductId(null); setShowModal("product"); }} style={{ flex: 1, padding: "14px", borderRadius: "12px", background: "none", border: `2px dashed var(--border-primary)`, color: "var(--accent-primary)", fontWeight: "bold" }}>+ Add to Inventory</button>
+                <button onClick={() => { setProductForm({ name: "", desc: "", price: "", isDefault: false, tax: (taxRates || []).map(t => t.id), isInclusive: false }); setEditingProductId(null); setShowModal("product"); }} style={{ flex: 1, padding: "14px", borderRadius: "12px", background: "none", border: `2px dashed var(--border-primary)`, color: "var(--accent-primary)", fontWeight: "bold" }}>+ Add to Inventory</button>
                 <select
                   value={inventorySort}
                   onChange={(e) => setInventorySort(e.target.value)}
@@ -181,7 +181,7 @@ export const InventoryManager = ({
                     <div className="empty-state-icon">{search ? "🔍" : "📦"}</div>
                     <div className="empty-state-title">{search ? "No matches found" : "Your inventory is empty"}</div>
                     <p className="empty-state-text">{search ? `We couldn't find any items matching "${search}"` : "Add your products or services to speed up invoice creation with pre-filled details."}</p>
-                    {!search && <button onClick={() => { setProductForm({ name: "", price: "", isDefault: false, tax: (taxRates || []).map(t => t.id) }); setEditingProductId(null); setShowModal("product"); }} className="primary-btn">Add First Item</button>}
+                    {!search && <button onClick={() => { setProductForm({ name: "", price: "", isDefault: false, tax: (taxRates || []).map(t => t.id), isInclusive: false }); setEditingProductId(null); setShowModal("product"); }} className="primary-btn">Add First Item</button>}
                 </div>
             )}
         </div>

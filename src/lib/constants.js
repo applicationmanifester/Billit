@@ -92,6 +92,8 @@ export const DEFAULT_SELLER = {
     gstin: "",
     website: "",
     qrCode: "",
+    upiId: "",
+    pdfTheme: "classic",
     logo: "",
     invoicePrefix: "INV",
     bankName: "",

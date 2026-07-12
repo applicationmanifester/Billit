@@ -1,6 +1,16 @@
 import React from "react";
 
 export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, setSellerForm, setSeller, showToast, compressImage }) => {
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter") {
+            const name = sellerForm.name?.trim();
+            if (!name) return showToast("Business name is required!");
+            setSeller({ ...sellerForm, name });
+            setShowSellerModal(false);
+            showToast("Profile updated!");
+        }
+    };
+
     if (!showSellerModal) return null;
 
     return (
@@ -134,49 +144,25 @@ export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, s
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Business Name <span style={{color: '#ef4444'}}>*</span></div>
                             <input className="input-field" placeholder="Business Name" value={sellerForm.name} onChange={(e) => setSellerForm({ ...sellerForm, name: e.target.value })} 
-                                onKeyDown={(e) => {
-                                    if(e.key === "Enter") {
-                                        const name = sellerForm.name?.trim();
-                                        if (!name) return showToast("Business name is required!");
-                                        setSeller({ ...sellerForm, name }); setShowSellerModal(false); showToast("Profile updated!");
-                                    }
-                                }}
+                                onKeyDown={handleKeyDown}
                             />
                         </div>
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Tagline / Motto</div>
                             <input className="input-field" placeholder="Tagline / Motto" value={sellerForm.tagline} onChange={(e) => setSellerForm({ ...sellerForm, tagline: e.target.value })} 
-                                onKeyDown={(e) => {
-                                    if(e.key === "Enter") {
-                                        const name = sellerForm.name?.trim();
-                                        if (!name) return showToast("Business name is required!");
-                                        setSeller({ ...sellerForm, name }); setShowSellerModal(false); showToast("Profile updated!");
-                                    }
-                                }}
+                                onKeyDown={handleKeyDown}
                             />
                         </div>
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Email</div>
                             <input className="input-field" placeholder="Email" value={sellerForm.email} onChange={(e) => setSellerForm({ ...sellerForm, email: e.target.value })} 
-                                onKeyDown={(e) => {
-                                    if(e.key === "Enter") {
-                                        const name = sellerForm.name?.trim();
-                                        if (!name) return showToast("Business name is required!");
-                                        setSeller({ ...sellerForm, name }); setShowSellerModal(false); showToast("Profile updated!");
-                                    }
-                                }}
+                                onKeyDown={handleKeyDown}
                             />
                         </div>
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Phone</div>
                             <input className="input-field" type="tel" placeholder="Phone" value={sellerForm.phone}
-                                onKeyDown={(e) => {
-                                    if(e.key === "Enter") {
-                                        const name = sellerForm.name?.trim();
-                                        if (!name) return showToast("Business name is required!");
-                                        setSeller({ ...sellerForm, name }); setShowSellerModal(false); showToast("Profile updated!");
-                                    }
-                                }}
+                                onKeyDown={handleKeyDown}
                                 onChange={(e) => {
                                     const val = e.target.value.replace(/[^0-9+]/g, '');
                                     setSellerForm({ ...sellerForm, phone: val });
@@ -186,37 +172,25 @@ export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, s
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>GSTIN (Optional)</div>
                             <input className="input-field" placeholder="GSTIN (Optional)" value={sellerForm.gstin} onChange={(e) => setSellerForm({ ...sellerForm, gstin: e.target.value })} 
-                                onKeyDown={(e) => {
-                                    if(e.key === "Enter") {
-                                        const name = sellerForm.name?.trim();
-                                        if (!name) return showToast("Business name is required!");
-                                        setSeller({ ...sellerForm, name }); setShowSellerModal(false); showToast("Profile updated!");
-                                    }
-                                }}
+                                onKeyDown={handleKeyDown}
+                            />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>UPI ID for Payments (Optional)</div>
+                            <input className="input-field" placeholder="e.g. name@bank" value={sellerForm.upiId || ""} onChange={(e) => setSellerForm({ ...sellerForm, upiId: e.target.value })} 
+                                onKeyDown={handleKeyDown}
                             />
                         </div>
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Invoice Prefix</div>
                             <input className="input-field" placeholder="Invoice Prefix (e.g. INV)" value={sellerForm.invoicePrefix} onChange={(e) => setSellerForm({ ...sellerForm, invoicePrefix: e.target.value })} 
-                                onKeyDown={(e) => {
-                                    if(e.key === "Enter") {
-                                        const name = sellerForm.name?.trim();
-                                        if (!name) return showToast("Business name is required!");
-                                        setSeller({ ...sellerForm, name }); setShowSellerModal(false); showToast("Profile updated!");
-                                    }
-                                }}
+                                onKeyDown={handleKeyDown}
                             />
                         </div>
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Default Payment Due Days</div>
                             <input className="input-field" type="number" placeholder="e.g. 7" value={sellerForm.defaultDueDays || ""} onChange={(e) => setSellerForm({ ...sellerForm, defaultDueDays: Math.max(0, parseInt(e.target.value) || 0) })} 
-                                onKeyDown={(e) => {
-                                    if(e.key === "Enter") {
-                                        const name = sellerForm.name?.trim();
-                                        if (!name) return showToast("Business name is required!");
-                                        setSeller({ ...sellerForm, name }); setShowSellerModal(false); showToast("Profile updated!");
-                                    }
-                                }}
+                                onKeyDown={handleKeyDown}
                             />
                         </div>
                         <div>
@@ -224,26 +198,14 @@ export const SellerModal = ({ showSellerModal, setShowSellerModal, sellerForm, s
                             <textarea className="input-field" placeholder="Full Address" style={{ height: "80px", paddingTop: "12px" }} value={sellerForm.address}
                                 onFocus={(e) => e.target.scrollIntoView({ behavior: "smooth", block: "center" })}
                                 onChange={(e) => setSellerForm({ ...sellerForm, address: e.target.value })}
-                                onKeyDown={(e) => {
-                                    if(e.key === "Enter") {
-                                        const name = sellerForm.name?.trim();
-                                        if (!name) return showToast("Business name is required!");
-                                        setSeller({ ...sellerForm, name }); setShowSellerModal(false); showToast("Profile updated!");
-                                    }
-                                }}
+                                onKeyDown={handleKeyDown}
                             />
                         </div>
                         <div>
                             <div style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", marginBottom: "4px", marginLeft: "4px" }}>Location URL (Google Maps)</div>
                             <input className="input-field" placeholder="https://maps.google.com/..." value={sellerForm.locationUrl || ""} 
                                 onChange={(e) => setSellerForm({ ...sellerForm, locationUrl: e.target.value })} 
-                                onKeyDown={(e) => {
-                                    if(e.key === "Enter") {
-                                        const name = sellerForm.name?.trim();
-                                        if (!name) return showToast("Business name is required!");
-                                        setSeller({ ...sellerForm, name }); setShowSellerModal(false); showToast("Profile updated!");
-                                    }
-                                }}
+                                onKeyDown={handleKeyDown}
                             />
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>

@@ -46,13 +46,31 @@ export const InvoiceManager = ({
         return 0;
     });
 
+    const allFilteredSelected = filtered.length > 0 && filtered.every(i => selectedInvoices.includes(i.id));
+
+    const toggleSelectAll = () => {
+        if (allFilteredSelected) {
+            const filteredIds = filtered.map(i => i.id);
+            setSelectedInvoices(prev => prev.filter(id => !filteredIds.includes(id)));
+        } else {
+            const filteredIds = filtered.map(i => i.id);
+            setSelectedInvoices(prev => Array.from(new Set([...prev, ...filteredIds])));
+        }
+    };
+
     return (
         <div className="animate-slide-up">
             <div style={{ padding: "16px", background: "var(--bg-primary)", borderBottom: `1px solid var(--border-primary)`, boxSizing: "border-box", marginBottom: "16px" }}>
                 <div style={{ display: "flex", gap: "10px", marginBottom: "16px", alignItems: "center" }}>
                     <h2 style={{ margin: 0, fontSize: "18px", fontWeight: "bold", flex: 1 }}>Invoices</h2>
                     <div style={{ display: "flex", gap: "8px" }}>
-                        <button onClick={handleNewInvoice} className="primary-btn" style={{ height: "40px", padding: "0 14px", borderRadius: "10px", fontSize: "12px" }}>+ New</button>
+                        {isSelectionMode ? (
+                            <button onClick={toggleSelectAll} className="secondary-btn" style={{ height: "40px", fontSize: "12px", borderRadius: "10px", padding: "0 14px", color: "var(--accent-primary)", border: "1px solid var(--border-primary)" }}>
+                                {allFilteredSelected ? "Deselect All" : "Select All"}
+                            </button>
+                        ) : (
+                            <button onClick={handleNewInvoice} className="primary-btn" style={{ height: "40px", padding: "0 14px", borderRadius: "10px", fontSize: "12px" }}>+ New</button>
+                        )}
                         <button onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedInvoices([]); }} className="secondary-btn" style={{ height: "40px", fontSize: "12px", borderRadius: "10px", color: "var(--accent-primary)" }}>{isSelectionMode ? "Cancel" : "Select"}</button>
                     </div>
                 </div>

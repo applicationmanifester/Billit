@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.0.1 --port 5175",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -21,6 +21,7 @@
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.1",
     "firebase": "^11.6.0",
+    "lucide-react": "^1.7.0",
     "pdf-lib": "^1.17.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
@@ -30,7 +31,7 @@
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.0",
-    "terser": "^5.31.6"
+    "terser": "^5.31.6",
+    "vite": "^5.4.0"
   }
 }

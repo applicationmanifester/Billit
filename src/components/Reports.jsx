@@ -15,6 +15,7 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
     }, {});
 
     const sortedMonths = Object.keys(monthlyGroups).sort().slice(-6);
+    const maxMonthlyRevenue = Math.max(...Object.values(monthlyGroups), 0);
 
     const totalRevenue = statsMemo.total;
     const totalTaxes = statsMemo.tax;
@@ -87,21 +88,38 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
 
             {/* Revenue Breakdown */}
             <div className="premium-card" style={{ padding: "20px", marginBottom: "20px" }}>
-                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", fontWeight: "bold" }}>REVENUE BREAKDOWN</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-                    <div style={{ textAlign: "center", padding: "12px", background: "var(--bg-primary)", borderRadius: "12px" }}>
-                        <div style={{ fontSize: "10px", color: "var(--status-paid)", fontWeight: "bold", marginBottom: "4px" }}>COLLECTED</div>
-                        <div style={{ fontWeight: "900", fontSize: "14px" }}>{fmt(collected)}</div>
-                    </div>
-                    <div style={{ textAlign: "center", padding: "12px", background: "var(--bg-primary)", borderRadius: "12px" }}>
-                        <div style={{ fontSize: "10px", color: "var(--status-sent)", fontWeight: "bold", marginBottom: "4px" }}>AWAITING</div>
-                        <div style={{ fontWeight: "900", fontSize: "14px" }}>{fmt(awaiting)}</div>
-                    </div>
-                    <div style={{ textAlign: "center", padding: "12px", background: "var(--bg-primary)", borderRadius: "12px" }}>
-                        <div style={{ fontSize: "10px", color: "var(--status-overdue)", fontWeight: "bold", marginBottom: "4px" }}>OVERDUE</div>
-                        <div style={{ fontWeight: "900", fontSize: "14px" }}>{fmt(overdue)}</div>
-                    </div>
-                </div>
+                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", fontWeight: "bold" }}>REVENUE COLLECTION EFFICIENCY</div>
+                
+                {(() => {
+                    const totalBreakdown = collected + awaiting + overdue;
+                    const pctPaid = totalBreakdown > 0 ? (collected / totalBreakdown) * 100 : 0;
+                    const pctAwaiting = totalBreakdown > 0 ? (awaiting / totalBreakdown) * 100 : 0;
+                    const pctOverdue = totalBreakdown > 0 ? (overdue / totalBreakdown) * 100 : 0;
+
+                    return (
+                        <>
+                            <div style={{ height: "12px", background: "var(--bg-primary)", borderRadius: "6px", display: "flex", overflow: "hidden", marginBottom: "16px", border: "1px solid var(--border-primary)" }}>
+                                {pctPaid > 0 && <div style={{ width: `${pctPaid}%`, background: "var(--status-paid)", transition: "width 0.3s" }} title={`Collected: ${pctPaid.toFixed(1)}%`} />}
+                                {pctAwaiting > 0 && <div style={{ width: `${pctAwaiting}%`, background: "var(--status-sent)", transition: "width 0.3s" }} title={`Awaiting: ${pctAwaiting.toFixed(1)}%`} />}
+                                {pctOverdue > 0 && <div style={{ width: `${pctOverdue}%`, background: "var(--status-overdue)", transition: "width 0.3s" }} title={`Overdue: ${pctOverdue.toFixed(1)}%`} />}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+                                <div style={{ textAlign: "center", padding: "12px", background: "var(--bg-primary)", borderRadius: "12px", border: "1px solid var(--border-primary)" }}>
+                                    <div style={{ fontSize: "10px", color: "var(--status-paid)", fontWeight: "bold", marginBottom: "4px" }}>COLLECTED ({pctPaid.toFixed(0)}%)</div>
+                                    <div style={{ fontWeight: "900", fontSize: "14px" }}>{fmt(collected)}</div>
+                                </div>
+                                <div style={{ textAlign: "center", padding: "12px", background: "var(--bg-primary)", borderRadius: "12px", border: "1px solid var(--border-primary)" }}>
+                                    <div style={{ fontSize: "10px", color: "var(--status-sent)", fontWeight: "bold", marginBottom: "4px" }}>AWAITING ({pctAwaiting.toFixed(0)}%)</div>
+                                    <div style={{ fontWeight: "900", fontSize: "14px" }}>{fmt(awaiting)}</div>
+                                </div>
+                                <div style={{ textAlign: "center", padding: "12px", background: "var(--bg-primary)", borderRadius: "12px", border: "1px solid var(--border-primary)" }}>
+                                    <div style={{ fontSize: "10px", color: "var(--status-overdue)", fontWeight: "bold", marginBottom: "4px" }}>OVERDUE ({pctOverdue.toFixed(0)}%)</div>
+                                    <div style={{ fontWeight: "900", fontSize: "14px" }}>{fmt(overdue)}</div>
+                                </div>
+                            </div>
+                        </>
+                    );
+                })()}
             </div>
 
             {/* Invoice Stats */}
@@ -145,14 +163,34 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
             </div>
 
             <div className="premium-card" style={{ padding: "20px", marginBottom: "20px" }}>
-                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", fontWeight: "bold" }}>TOP CLIENTS (LTV)</div>
-                <div style={{ display: "grid", gap: "10px" }}>
-                    {clientLTV.map(client => (
-                        <div key={client.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--border-primary)" }}>
-                            <div style={{ fontSize: "14px" }}>{client.name}</div>
-                            <div style={{ fontWeight: "bold", fontSize: "14px" }}>{fmt(client.ltv)}</div>
-                        </div>
-                    ))}
+                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", fontWeight: "bold" }}>TOP CLIENTS CONTRIBUTION (LTV)</div>
+                <div style={{ display: "grid", gap: "14px" }}>
+                    {clientLTV.map(client => {
+                        const clientShare = totalRevenue > 0 ? (client.ltv / totalRevenue) * 100 : 0;
+                        return (
+                            <div key={client.id} style={{ paddingBottom: "10px", borderBottom: "1px solid var(--border-primary)" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <div style={{ fontSize: "14px", fontWeight: "bold" }}>{client.name}</div>
+                                        <span style={{ 
+                                            fontSize: "10px", 
+                                            background: "rgba(245, 200, 66, 0.1)", 
+                                            color: "var(--accent-primary)", 
+                                            padding: "2px 8px", 
+                                            borderRadius: "10px", 
+                                            fontWeight: "bold" 
+                                        }}>
+                                            {clientShare.toFixed(1)}% share
+                                        </span>
+                                    </div>
+                                    <div style={{ fontWeight: "900", fontSize: "14px" }}>{fmt(client.ltv)}</div>
+                                </div>
+                                <div style={{ height: "6px", background: "var(--bg-primary)", borderRadius: "3px", overflow: "hidden" }}>
+                                    <div style={{ height: "100%", width: `${clientShare}%`, background: "var(--accent-primary)", borderRadius: "3px", transition: "width 0.3s" }}></div>
+                                </div>
+                            </div>
+                        );
+                    })}
                     {clientLTV.length === 0 && <div style={{ fontSize: "14px", opacity: 0.6 }}>No client data available for this period.</div>}
                 </div>
             </div>
@@ -165,7 +203,7 @@ export const Reports = ({ invoices, clients, fmt, totalWithTax, taxRates, statsM
                     <div style={{ display: "flex", alignItems: "flex-end", gap: "12px", height: "150px", paddingTop: "20px" }}>
                         {sortedMonths.map(month => {
                             const val = monthlyGroups[month];
-                            const max = Math.max(...Object.values(monthlyGroups));
+                            const max = maxMonthlyRevenue;
                             const height = max ? (val / max) * 100 : 0;
                             return (
                                 <div key={month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>

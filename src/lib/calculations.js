@@ -8,24 +8,51 @@ export const getItemTaxList = (item, taxPool) => {
     const price = item?.price || 0;
     const base = qty * price;
 
-    // Use snapshot if available (for historical data preservation)
-    if (item?.taxSnapshots && Array.isArray(item.taxSnapshots)) {
-        return item.taxSnapshots.map(tr => ({
-            label: tr.label,
-            rate: tr.rate,
-            amount: Math.round(base * (tr.rate / 100) * 100) / 100
-        }));
-    }
-
     const appliedTaxIds = (Array.isArray(item?.tax) ? item.tax : []).map(String);
-    return taxPool.filter(tr => appliedTaxIds.includes(String(tr.id))).map(tr => {
-        const amount = base * (tr.rate / 100);
-        return {
-            label: tr.label,
-            rate: tr.rate,
-            amount: Math.round(amount * 100) / 100
-        };
-    });
+    const activeTaxes = taxPool.filter(tr => appliedTaxIds.includes(String(tr.id)));
+    const totalRate = activeTaxes.reduce((sum, tr) => sum + (Number(tr.rate) || 0), 0);
+
+    if (item?.isInclusive) {
+        // Option B: Tax inclusive calculations
+        const totalVal = base / (1 - (totalRate / 100));
+
+        if (item?.taxSnapshots && Array.isArray(item.taxSnapshots)) {
+            const snapshotTotalRate = item.taxSnapshots.reduce((sum, tr) => sum + (Number(tr.rate) || 0), 0);
+            const totalValSnap = base / (1 - (snapshotTotalRate / 100));
+            return item.taxSnapshots.map(tr => ({
+                label: tr.label,
+                rate: tr.rate,
+                amount: Math.round(totalValSnap * (tr.rate / 100) * 100) / 100
+            }));
+        }
+
+        return activeTaxes.map(tr => {
+            const amount = totalVal * (tr.rate / 100);
+            return {
+                label: tr.label,
+                rate: tr.rate,
+                amount: Math.round(amount * 100) / 100
+            };
+        });
+    } else {
+        // Option A: Tax exclusive calculations
+        if (item?.taxSnapshots && Array.isArray(item.taxSnapshots)) {
+            return item.taxSnapshots.map(tr => ({
+                label: tr.label,
+                rate: tr.rate,
+                amount: Math.round(base * (tr.rate / 100) * 100) / 100
+            }));
+        }
+
+        return activeTaxes.map(tr => {
+            const amount = base * (tr.rate / 100);
+            return {
+                label: tr.label,
+                rate: tr.rate,
+                amount: Math.round(amount * 100) / 100
+            };
+        });
+    }
 };
 
 export const itemTaxTotal = (item, taxPool) => {
@@ -60,6 +87,7 @@ export const calculateBaseFromTotal = (total, taxPool, appliedTaxIds) => {
         .filter(tr => ids.includes(String(tr.id)))
         .reduce((sum, tr) => sum + (Number(tr.rate) || 0), 0);
 
-    // Keep high precision for base calculation to minimize rounding errors in sum
-    return total / (1 + (totalRate / 100));
+    // Flat tax deduction: Base = Total * (1 - (Rate/100))
+    const base = total * (1 - (totalRate / 100));
+    return Math.round(base * 100) / 100;
 };

@@ -80,6 +80,25 @@ export const useCloudSync = (user, localData, setters, showToast, hasAcceptedLeg
         if (data.inventoryTitle !== undefined) setters.setInventoryTitle(data.inventoryTitle);
         if (data.defaultNote !== undefined) setters.setDefaultNote(data.defaultNote);
         if (data.theme !== undefined) setters.setTheme(data.theme);
+        if (data.plan !== undefined) setters.setPlan(data.plan);
+        if (data.invoicesGenerated !== undefined) {
+            // Lazy Evaluation: Reset usage if cycle (30 days) has passed
+            const cycleDays = 30;
+            const startStr = data.billingPeriodStart || new Date().toISOString();
+            const start = new Date(startStr);
+            const now = new Date();
+            const diffMs = now - start;
+            const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+            if (diffDays >= cycleDays) {
+                setters.setInvoicesGenerated(0);
+                setters.setBillingPeriodStart(now.toISOString());
+                addLog("🔄 Billing cycle reset: Usage counter cleared.");
+            } else {
+                setters.setInvoicesGenerated(data.invoicesGenerated);
+                setters.setBillingPeriodStart(startStr);
+            }
+        }
 
         setLastSync(data.lastSync || new Date().toLocaleTimeString());
     }, [setters]);

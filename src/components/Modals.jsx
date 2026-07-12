@@ -109,7 +109,7 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                                         onChange={(e) => {
                                             let raw = e.target.value;
                                             if (raw.length > 20) raw = raw.slice(0, 20);
-                                            setProductForm({ ...productForm, price: raw });
+                                            setProductForm({ ...productForm, price: raw, isInclusive: false });
                                         }}
                                     />
                                 </div>
@@ -146,12 +146,12 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                                         setLocalTotal(raw);
 
                                         if (raw === "" || raw === ".") {
-                                            setProductForm({ ...productForm, price: "" });
+                                            setProductForm({ ...productForm, price: "", isInclusive: true });
                                             return;
                                         }
                                         const newVal = parseFloat(raw) || 0;
                                         const base = calculateBaseFromTotal(newVal, taxRates, productForm.tax || []);
-                                        setProductForm({ ...productForm, price: base });
+                                        setProductForm({ ...productForm, price: base, isInclusive: true });
                                     }}
                                 />
                             </div>
@@ -183,7 +183,7 @@ export const ProductModal = ({ showModal, setShowModal, productForm, setProductF
                                                 border: (Array.isArray(productForm.tax) ? productForm.tax : (productForm.tax ? [productForm.tax] : [])).includes(tr.id) ? "none" : "1px solid var(--border-primary)"
                                             }}
                                         >
-                                            {tr.name} ({tr.rate}%)
+                                            {tr.label} ({tr.rate}%)
                                         </button>
                                     ))}
                                 </div>

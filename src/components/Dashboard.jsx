@@ -1,6 +1,9 @@
 import React from "react";
 
-export const Dashboard = ({ statsMemo, fmt, invoices, getClient, totalWithTax, taxRates, setSelectedInvoice, setShowModal, setTab, search, seller }) => {
+export const Dashboard = ({ statsMemo, fmt, invoices, getClient, totalWithTax, taxRates, setSelectedInvoice, setShowModal, setTab, search, seller, plan = "free", invoicesGenerated = 0 }) => {
+    const limit = plan === "free" ? 100 : (plan === "pro" ? 500 : Infinity);
+    const limitLabel = limit === Infinity ? "Unlimited" : limit;
+    const usagePct = limit === Infinity ? 0 : (invoicesGenerated / limit) * 100;
     const filteredInvoices = (invoices || []).filter(inv => {
         if (!search) return true;
         const s = search.toLowerCase();
@@ -91,6 +94,7 @@ export const Dashboard = ({ statsMemo, fmt, invoices, getClient, totalWithTax, t
                             <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--status-draft)", wordBreak: "break-all" }}>{fmt(statsMemo.draftTotal)}</div>
                         </div>
                     </div>
+
 
                     <div className="premium-card" style={{ margin: "16px 0", background: "var(--border-accent)", border: "1px solid var(--border-accent)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>

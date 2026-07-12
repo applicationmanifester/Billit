@@ -4,16 +4,18 @@ export const InvoiceViewModal = ({
     showModal, setShowModal, selectedInvoice, setSelectedInvoice,
     setForm, getClient, fmt, totalWithTax, itemTaxTotal, taxRates,
     downloadReceipt, printReceipt, printReceiptThermal, shareReceipt, shareReceiptThermal, setDeleteConfirm,
-    updateStatus, showToast
+    updateStatus, recordPayment, showToast, seller = {}
 }) => {
     if (showModal !== "view" || !selectedInvoice) return null;
 
     const inv = selectedInvoice;
     const client = getClient(inv.clientId);
-    const seller = JSON.parse(localStorage.getItem("billit_seller") || "{}");
     const subtotal = inv.items.reduce((s, i) => s + (i.qty * i.price), 0);
     const taxes = inv.items.reduce((s, i) => s + itemTaxTotal(i, taxRates), 0);
     const total = totalWithTax(inv.items, taxRates);
+    const paidSoFar = Math.round((Number(inv.amountPaid) || 0) * 100) / 100;
+    const outstanding = Math.round((total - paidSoFar) * 100) / 100;
+    const [payAmount, setPayAmount] = React.useState("");
     
     const statuses = ["draft", "sent", "paid", "overdue"];
 
@@ -100,6 +102,89 @@ export const InvoiceViewModal = ({
                     <div style={{ marginBottom: "24px" }}>
                         <div style={{ fontSize: "10px", color: "var(--text-secondary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "8px" }}>Notes</div>
                         <div style={{ fontSize: "13px", color: "var(--text-secondary)", background: "var(--bg-input)", padding: "12px", borderRadius: "12px", border: `1px solid var(--border-primary)`, whiteSpace: "pre-wrap" }}>{inv.notes}</div>
+                    </div>
+                )}
+
+                {seller.upiId && (
+                    <div style={{ 
+                        background: "rgba(245, 200, 66, 0.05)", 
+                        border: "1px solid var(--border-primary)", 
+                        borderRadius: "16px", 
+                        padding: "16px", 
+                        marginBottom: "24px", 
+                        display: "flex", 
+                        alignItems: "center", 
+                        gap: "16px" 
+                    }}>
+                        <div style={{ background: "#fff", padding: "8px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(
+                                    `upi://pay?pa=${seller.upiId}&pn=${encodeURIComponent(seller.name || "Merchant")}&am=${total}&tn=${encodeURIComponent(inv.id)}&cu=${inv.currency || "INR"}`
+                                )}`}
+                                style={{ width: "80px", height: "80px" }}
+                                alt="UPI QR Code"
+                            />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: "10px", color: "var(--accent-primary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "4px" }}>⚡ Dynamic UPI Payment</div>
+                            <div style={{ fontSize: "13px", fontWeight: "bold", color: "var(--text-primary)" }}>Scan to Pay</div>
+                            <div style={{ fontSize: "11px", color: "var(--text-secondary)", wordBreak: "break-all", marginTop: "2px" }}>{seller.upiId}</div>
+                            <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "bold", marginTop: "4px" }}>Amount: <span style={{ color: "var(--text-primary)" }}>{fmt(total)}</span></div>
+                        </div>
+                    </div>
+                )}
+
+                <div style={{ background: "var(--bg-input)", borderRadius: "16px", padding: "16px", marginBottom: "20px", border: `1px solid var(--border-primary)` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                        <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>Paid so far</span>
+                        <span style={{ fontWeight: "600" }}>{fmt(paidSoFar)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: outstanding > 0 ? "var(--status-overdue)" : "var(--status-paid)", fontSize: "13px", fontWeight: "bold" }}>
+                            {outstanding > 0 ? "Balance due" : "Fully paid"}
+                        </span>
+                        <span style={{ fontWeight: "bold", color: outstanding > 0 ? "var(--status-overdue)" : "var(--status-paid)" }}>{fmt(outstanding)}</span>
+                    </div>
+                </div>
+
+                {inv.status !== "paid" && (
+                    <div style={{ background: "var(--bg-input)", borderRadius: "16px", padding: "16px", marginBottom: "24px", border: `1px solid var(--border-primary)` }}>
+                        <div style={{ fontSize: "10px", color: "var(--accent-primary)", fontWeight: "bold", textTransform: "uppercase", marginBottom: "12px" }}>Record Payment</div>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                            <input
+                                type="number"
+                                min="0"
+                                max={outstanding}
+                                step="0.01"
+                                placeholder={`Amount (${fmt(outstanding)} due)`}
+                                value={payAmount}
+                                onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (raw === "" || raw === "-") { setPayAmount(raw); return; }
+                                    const n = Number(raw);
+                                    const capped = Math.min(n, outstanding);
+                                    setPayAmount(String(capped));
+                                }}
+                                className="input-field"
+                                style={{ flex: 1 }}
+                            />
+                            <button
+                                onClick={() => {
+                                    const amt = Math.min(Number(payAmount) || 0, outstanding);
+                                    setPayAmount("");
+                                    recordPayment(inv.id, amt);
+                                }}
+                                className="primary-btn"
+                                style={{ padding: "0 18px", borderRadius: "12px", fontWeight: "bold", fontSize: "12px" }}
+                            >Add</button>
+                        </div>
+                        {outstanding > 0 && (
+                            <button
+                                onClick={() => recordPayment(inv.id, outstanding)}
+                                className="secondary-btn"
+                                style={{ width: "100%", marginTop: "10px", padding: "10px", borderRadius: "12px", border: "1px solid var(--border-primary)", fontSize: "11px", fontWeight: "bold" }}
+                            >Mark Full Payment ({fmt(outstanding)})</button>
+                        )}
                     </div>
                 )}
 

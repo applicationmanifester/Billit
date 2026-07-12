@@ -49,6 +49,7 @@ const LineItem = memo(({ item, idx, updateItem, removeItem, taxRates, itemTaxTot
                                     onClick={() => {
                                         updateItem(idx, "desc", p.name);
                                         updateItem(idx, "price", p.price);
+                                        updateItem(idx, "isInclusive", p.isInclusive || false);
                                         if (p.tax && p.tax.length > 0) {
                                             updateItem(idx, "tax", p.tax);
                                         }
@@ -89,6 +90,7 @@ const LineItem = memo(({ item, idx, updateItem, removeItem, taxRates, itemTaxTot
                             let val = e.target.value;
                             if (val.length > 20) val = val.slice(0, 20);
                             updateItem(idx, "price", val);
+                            updateItem(idx, "isInclusive", false);
                         }}
                     />
                 </div>
@@ -118,11 +120,13 @@ const LineItem = memo(({ item, idx, updateItem, removeItem, taxRates, itemTaxTot
 
                             if (raw === "" || raw === ".") {
                                 updateItem(idx, "price", 0);
+                                updateItem(idx, "isInclusive", true);
                                 return;
                             }
                             const newVal = parseFloat(raw) || 0;
                             const base = calculateBaseFromTotal(newVal, taxRates, item.tax);
                             updateItem(idx, "price", base);
+                            updateItem(idx, "isInclusive", true);
                         }}
                     />
                 </div>
@@ -159,7 +163,7 @@ export const InvoiceModal = ({
 
     const handleQuickAdd = useCallback((p) => {
         const taxIds = (p.tax && p.tax.length > 0) ? p.tax : taxRates.map(t => t.id);
-        const newItem = { id: crypto.randomUUID(), desc: p.name, qty: 1, price: p.price, hsn: p.hsn || "", tax: taxIds };
+        const newItem = { id: crypto.randomUUID(), desc: p.name, qty: 1, price: p.price, hsn: p.hsn || "", tax: taxIds, isInclusive: p.isInclusive || false };
         
         setForm(prev => {
             if (prev.items.length === 1 && !prev.items[0].desc) {

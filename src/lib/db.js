@@ -4,7 +4,10 @@
 const DB_NAME = 'billit-images';
 const STORE_NAME = 'images';
 
+let dbInstance = null;
+
 const openDB = () => {
+  if (dbInstance) return Promise.resolve(dbInstance);
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
     request.onupgradeneeded = (e) => {
@@ -13,7 +16,10 @@ const openDB = () => {
         db.createObjectStore(STORE_NAME);
       }
     };
-    request.onsuccess = (e) => resolve(e.target.result);
+    request.onsuccess = (e) => {
+      dbInstance = e.target.result;
+      resolve(dbInstance);
+    };
     request.onerror = (e) => reject(e.target.error);
   });
 };

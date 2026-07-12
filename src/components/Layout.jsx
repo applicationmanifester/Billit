@@ -1,7 +1,19 @@
 import React from "react";
 import { SearchBar } from "./SearchBar";
+import { 
+    Home, 
+    FileText, 
+    BarChart3, 
+    Users, 
+    Package, 
+    Settings, 
+    Plus, 
+    X, 
+    Building2 
+} from "lucide-react";
 
-export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoading, loginWithPopup, logout, setShowModal, setShowSellerModal, handleNewInvoice, handleNewClient, handleNewProduct, search, setSearch }) => {
+export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoading, loginWithPopup, logout, setShowModal, setShowSellerModal, handleNewInvoice, handleNewClient, handleNewProduct, search, setSearch, plan = "free" }) => {
+    // Unused props from BillingApp: isNativePlatform, openSellerModal (Layout uses setShowSellerModal directly)
     const brandLogoSrc = '/billit_logo.png';
     const [isFabOpen, setIsFabOpen] = React.useState(false);
 
@@ -18,23 +30,29 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
             {/* Floating Action Button (Mobile Only via CSS) */}
             <div className="fab-container">
                 {isFabOpen && (
-                    <div className="fab-menu">
+                    <div className="fab-menu animate-slide-up">
                         <button className="fab-item" onClick={() => { handleNewProduct(); setIsFabOpen(false); }}>
-                            <span className="fab-item-icon">📦</span>
+                            <span className="fab-item-icon" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <Package size={16} color="var(--accent-primary)" />
+                            </span>
                             <span>New Item</span>
                         </button>
                         <button className="fab-item" onClick={() => { handleNewClient(); setIsFabOpen(false); }}>
-                            <span className="fab-item-icon">👥</span>
+                            <span className="fab-item-icon" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <Users size={16} color="var(--accent-primary)" />
+                            </span>
                             <span>New Client</span>
                         </button>
                         <button className="fab-item" onClick={() => { handleNewInvoice(); setIsFabOpen(false); }}>
-                            <span className="fab-item-icon">📄</span>
+                            <span className="fab-item-icon" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <FileText size={16} color="var(--accent-primary)" />
+                            </span>
                             <span>New Invoice</span>
                         </button>
                     </div>
                 )}
-                <button className={`fab ${isFabOpen ? 'open' : ''}`} onClick={() => setIsFabOpen(!isFabOpen)}>
-                    {isFabOpen ? '✕' : '+'}
+                <button className={`fab ${isFabOpen ? 'open' : ''}`} onClick={() => setIsFabOpen(!isFabOpen)} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {isFabOpen ? <X size={20} /> : <Plus size={20} />}
                 </button>
             </div>
 
@@ -54,7 +72,7 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
                 {/* Brand & Logo (Left) */}
                 <div 
                     onClick={() => setTab("home")}
-                    style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", minWidth: 0, flexShrink: 1 }}
+                    style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", minWidth: 0, flexShrink: 1 }}
                 >
                     <img src={brandLogoSrc} onError={(e) => { e.currentTarget.src = "/logo.png"; }} style={{ height: "36px", borderRadius: "8px", objectFit: "contain" }} alt="Billit" />
                     <span className="desktop-only" style={{ fontSize: "18px", fontWeight: "900", letterSpacing: "-0.5px" }}>Billit</span>
@@ -76,17 +94,21 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
                         {seller.logo ? (
                             <img src={seller.logo} style={{ width: "24px", height: "24px", borderRadius: "6px", objectFit: "cover" }} alt="" />
                         ) : (
-                            <div style={{ width: "24px", height: "24px", borderRadius: "6px", background: "var(--bg-secondary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" }}>🏢</div>
+                            <div style={{ width: "24px", height: "24px", borderRadius: "6px", background: "var(--bg-secondary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <Building2 size={14} color="var(--text-secondary)" />
+                            </div>
                         )}
                         <div style={{ fontSize: "12px", fontWeight: "bold", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {seller.name}
                         </div>
                     </div>
 
-                    <button onClick={() => setTab("settings")} className="secondary-btn" style={{ padding: "8px", borderRadius: "10px", minWidth: "36px", height: "36px" }}>⚙️</button>
-                    <button className="primary-btn" style={{ padding: "10px 14px", height: "36px", borderRadius: "10px" }} onClick={handleNewInvoice}>
-                        <span style={{ fontSize: "16px" }}>+</span>
-                        <span className="desktop-only" style={{ fontSize: "12px", marginLeft: "4px" }}>New Invoice</span>
+                    <button onClick={() => setTab("settings")} className="secondary-btn" style={{ padding: "8px", borderRadius: "10px", minWidth: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Settings size={16} color="var(--text-primary)" />
+                    </button>
+                    <button className="primary-btn" style={{ padding: "10px 14px", height: "36px", borderRadius: "10px", display: "flex", alignItems: "center", gap: "6px" }} onClick={handleNewInvoice}>
+                        <Plus size={16} />
+                        <span className="desktop-only" style={{ fontSize: "12px" }}>New Invoice</span>
                     </button>
                 </div>
             </div>
@@ -110,22 +132,26 @@ export const Layout = ({ children, seller, setTab, tab, isDark, user, authLoadin
                 }}
             >
                 {[
-                    { id: "home", icon: "🏠", label: "Home" },
-                    { id: "bills", icon: "📄", label: "Invoices" },
-                    { id: "reports", icon: "📊", label: "Reports" },
-                    { id: "clients", icon: "👥", label: "Clients" },
-                    { id: "items", icon: "📦", label: "Items" }
-                ].map(n => (
-                    <button key={n.id} onClick={() => setTab(n.id)} style={{
-                        flex: 1, background: tab === n.id ? "var(--accent-primary)" : "none",
-                        border: "none", borderRadius: "18px", padding: "10px 4px", cursor: "pointer",
-                        display: "flex", flexDirection: "column", alignItems: "center", gap: "2px",
-                        transition: "all 0.2s", minWidth: "60px"
-                    }}>
-                        <span style={{ fontSize: "18px" }}>{n.icon}</span>
-                        <span style={{ fontSize: "9px", fontWeight: "bold", color: tab === n.id ? "#000" : "var(--text-secondary)", opacity: 0.9 }}>{n.label}</span>
-                    </button>
-                ))}
+                    { id: "home", icon: (color) => <Home size={18} color={color} strokeWidth={2.2} />, label: "Home" },
+                    { id: "bills", icon: (color) => <FileText size={18} color={color} strokeWidth={2.2} />, label: "Invoices" },
+                    { id: "reports", icon: (color) => <BarChart3 size={18} color={color} strokeWidth={2.2} />, label: "Reports" },
+                    { id: "clients", icon: (color) => <Users size={18} color={color} strokeWidth={2.2} />, label: "Clients" },
+                    { id: "items", icon: (color) => <Package size={18} color={color} strokeWidth={2.2} />, label: "Items" }
+                ].map(n => {
+                    const isActive = tab === n.id;
+                    const iconColor = isActive ? "#000" : "var(--text-secondary)";
+                    return (
+                        <button key={n.id} onClick={() => setTab(n.id)} style={{
+                            flex: 1, background: isActive ? "var(--accent-primary)" : "none",
+                            border: "none", borderRadius: "18px", padding: "10px 4px", cursor: "pointer",
+                            display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
+                            transition: "all 0.2s", minWidth: "60px"
+                        }}>
+                            <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>{n.icon(iconColor)}</span>
+                            <span style={{ fontSize: "9px", fontWeight: "bold", color: isActive ? "#000" : "var(--text-secondary)", opacity: 0.9 }}>{n.label}</span>
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );

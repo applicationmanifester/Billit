@@ -6,6 +6,22 @@ import { numberToWords } from "./numWords";
 const hexMap = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, '0').toUpperCase());
 const fmtNum = (n) => (Number(n) || 0).toFixed(2);
 
+const fetchAsDataURL = async (url) => {
+    try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.error("Failed to fetch image as data URL:", e);
+        return null;
+    }
+};
+
 // Cache for expensive image operations
 const imgCache = {
     currency: {},
@@ -128,7 +144,7 @@ const getLines = (text, size, maxW) => {
     return lines;
 };
 
-export const getInventoryPDFData = async (seller, currency, products, taxRates, title = "INVENTORY LIST") => {
+export const getInventoryPDFData = async (seller, currency, products, taxRates, title = "INVENTORY LIST", plan = "free") => {
     const biz = seller?.name || "BILLIT";
     const isBizAscii = /^[\x00-\x7F]*$/.test(biz);
 
@@ -401,9 +417,11 @@ export const getInventoryPDFData = async (seller, currency, products, taxRates, 
         rg(0.4, 0.4, 0.4);
         txt("SCAN TO PAY / CONTACT", M + qrSize + 25, qrY + (qrSize / 2) + 5, "F2", 9);
     }
-    const brandingText = "Generated with Billit. Professional. Fast. Free.";
-    const brandingWidth = brandingText.length * 7 * 0.5;
-    txt(brandingText, W - M - brandingWidth, 20, "F1", 7);
+    if (plan === "free") {
+        const brandingText = "Generated with Billit. Professional. Fast. Free.";
+        const brandingWidth = brandingText.length * 7 * 0.5;
+        txt(brandingText, W - M - brandingWidth, 20, "F1", 7);
+    }
 
 
     const stream = lns.join("\n");
@@ -433,7 +451,7 @@ export const getInventoryPDFData = async (seller, currency, products, taxRates, 
     return finalPdf;
 };
 
-export const getClientListPDFData = async (seller, clients, invoices, taxRates, currency) => {
+export const getClientListPDFData = async (seller, clients, invoices, taxRates, currency, plan = "free") => {
     const biz = seller?.name || "BILLIT";
     const isBizAscii = /^[\x00-\x7F]*$/.test(biz);
 
@@ -599,10 +617,12 @@ export const getClientListPDFData = async (seller, clients, invoices, taxRates, 
     lns.push(`${M} ${tableTop} m ${W - M} ${tableTop} l s`);          // Top border
     lns.push(`${M} ${tableBottom} m ${W - M} ${tableBottom} l s`);    // Bottom border
 
-    rg(0.6, 0.6, 0.6);
-    const brandingText = "Generated with Billit. Professional. Fast. Free.";
-    const brandingWidth = brandingText.length * 7 * 0.5;
-    txt(brandingText, W - M - brandingWidth, 20, "F1", 7);
+    if (plan === "free") {
+        rg(0.6, 0.6, 0.6);
+        const brandingText = "Generated with Billit. Professional. Fast. Free.";
+        const brandingWidth = brandingText.length * 7 * 0.5;
+        txt(brandingText, W - M - brandingWidth, 20, "F1", 7);
+    }
 
     const stream = lns.join("\n");
     const ctID = addObj(`<< /Length ${new TextEncoder().encode(stream).length} >>\nstream\n${stream}\nendstream`);
@@ -631,7 +651,7 @@ export const getClientListPDFData = async (seller, clients, invoices, taxRates, 
     return finalPdf;
 };
 
-export const getInvoicePageStream = async (inv, client, seller, currency, taxRates, title = "INVOICE") => {
+export const getInvoicePageStream = async (inv, client, seller, currency, taxRates, title = "INVOICE", plan = "free") => {
     const biz = seller.companyName || seller.name || "MY BUSINESS";
     const bzTitle = seller.logoName || biz;
     const isBizAscii = /^[\x00-\x7F]*$/.test(biz);
@@ -649,7 +669,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
         let s = defaultSize;
         let finalW = estW;
         if (estW > maxW) {
-            s = maxW / (String(t).length * 0.6);
+            s = Math.max(5, maxW / (String(t).length * 0.6));
             finalW = maxW;
         }
         txt(t, rightX - finalW, y, f, s);
@@ -657,17 +677,24 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     const rc = (x, y, w, h) => lns.push(`${(Number(x) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} ${(Number(w) || 0).toFixed(2)} ${(Number(h) || 0).toFixed(2)} re`);
     const fl = () => lns.push("f"); const rg = (r, g, b) => lns.push(`${(Number(r) || 0).toFixed(3)} ${(Number(g) || 0).toFixed(3)} ${(Number(b) || 0).toFixed(3)} rg`);
 
-    const qrData = seller.qrCode ? await getQRImage(seller.qrCode) : null;
+    let qrData = null;
+    if (seller.qrCode) {
+        qrData = await getQRImage(seller.qrCode);
+    } else if (seller.upiId) {
+        const amt = totalWithTax(inv.items, taxRates);
+        const upiUrl = `upi://pay?pa=${seller.upiId}&pn=${encodeURIComponent(seller.name || "Merchant")}&am=${amt}&tn=${encodeURIComponent(inv.id)}&cu=${currency?.code || "INR"}`;
+        const qrServerUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiUrl)}`;
+        const base64Qr = await fetchAsDataURL(qrServerUrl);
+        if (base64Qr) {
+            qrData = await getQRImage(base64Qr);
+        }
+    }
     const logoData = seller.logo ? await getQRImage(seller.logo) : null;
     let bizImgData = null;
-    let curImgYellowData = null;
     const centerX = W / 2;
+    const themeId = seller.pdfTheme || "classic";
 
-    // Removed dark header background
-
-
-    // Section 1: Business Identification (Refined Proforma Style)
-    // Header Details
+    // Section 1: Business Identification
     let bizY = H - 35;
 
     // Top Row: GSTIN (Right)
@@ -675,93 +702,160 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     const gstStr = seller.gstin ? `GSTIN: ${seller.gstin}` : "";
     if (gstStr) txt(gstStr, W - M - (gstStr.length * 8 * 0.5), H - 35, "F2", 8);
 
-    // Business Logo (Always left of header)
-    if (logoData && logoData.hex) {
-        const logoSize = 55;
-        lns.push(`q ${logoSize} 0 0 ${logoSize} ${M} ${H - M - logoSize} cm /ImLogo Do Q`);
-        const lName = seller.logoName;
-        if (lName) {
-            const lw = lName.length * 7 * 0.5;
-            rg(0.4, 0.4, 0.4); txt(lName, M + (logoSize / 2) - (lw / 2), H - M - logoSize - 10, "F2", 7);
-        }
-    }
-
-    // Document Title (INVOICE) Above Business Name
     const docTitle = (title || "INVOICE").toUpperCase();
-    rg(0.4, 0.4, 0.4);
-    const docW = docTitle.length * 14 * 0.55;
-    txt(docTitle, centerX - (docW / 2), bizY, "F2", 14);
-    bizY -= 28;
-
-    // Business Details (Centered)
-    if (isBizAscii) {
-        rg(0.1, 0.1, 0.1);
-        getLines(biz, 24, 350).forEach(wLine => {
-            const wBiz = wLine.length * 24 * 0.55;
-            txt(wLine, centerX - (wBiz / 2), bizY, "F2", 24);
-            bizY -= 25;
-        });
-    } else {
-        bizImgData = await getBizImage(biz);
-        if (bizImgData && bizImgData.hex) {
-            const dw = 180, dh = 18;
-            let bizX = centerX - (dw / 2);
-            lns.push(`q ${dw} 0 0 ${dh} ${bizX} ${bizY} cm /ImBiz Do Q`);
-        }
-        bizY -= 25;
-    }
-
-    // ISO & Address lines (Centered) - Standardized Order
-    rg(0.3, 0.3, 0.3);
     const details = [
         seller.description,
         seller.address,
-        seller.locationUrl, // URL After Address
+        seller.locationUrl,
         [seller.email, seller.phone && `Phone: ${seller.phone}`].filter(Boolean).join(" | ")
     ].filter(Boolean);
 
-    details.forEach(line => {
-        const wrapped = getLines(line, 8, 350);
-        wrapped.forEach(wLine => {
-            const lw = wLine.length * 8 * 0.5;
-            const x = centerX - (lw / 2);
-            if (line === seller.locationUrl) {
-                rg(0.0, 0.4, 0.8);
-                txt(wLine, x, bizY, "F1", 8);
-                annots.push({ rect: [x, bizY - 2, x + lw, bizY + 8], url: seller.locationUrl });
-                rg(0.3, 0.3, 0.3);
-            } else if (line.includes(seller.email) && seller.email) {
-                const parts = line.split(" | ");
-                let currentX = x;
-                parts.forEach((part, pIdx) => {
-                    const isEmail = part.includes(seller.email);
-                    if (isEmail) {
-                        const labelPart = "Email: ";
-                        txt(labelPart, currentX, bizY, "F1", 8);
-                        currentX += labelPart.length * 8 * 0.5;
+    if (themeId === "minimal") {
+        // --- MINIMAL THEME HEADER ---
+        rg(0.1, 0.1, 0.1);
+        const docW = docTitle.length * 13 * 0.55;
+        txt(docTitle, W - M - docW, H - 40, "F2", 13);
 
-                        const emailValue = seller.email;
-                        const ew = emailValue.length * 8 * 0.6;
-                        rg(0.0, 0.4, 0.8); // Blue
-                        txt(emailValue, currentX, bizY, "F1", 8);
-                        annots.push({ rect: [currentX, bizY - 2, currentX + ew, bizY + 8], url: `mailto:${emailValue}` });
-                        currentX += ew;
-                        rg(0.3, 0.3, 0.3); // Restore Back
-                    } else {
-                        txt(part, currentX, bizY, "F1", 8);
-                        currentX += part.length * 8 * 0.5;
-                    }
-                    if (pIdx < parts.length - 1) {
-                        txt(" | ", currentX, bizY, "F1", 8);
-                        currentX += 3 * 8 * 0.5;
-                    }
-                });
-            } else {
-                txt(wLine, x, bizY, "F1", 8);
+        let headerLeftOffset = 0;
+        if (logoData && logoData.hex) {
+            headerLeftOffset = 65;
+            const logoSize = 45;
+            lns.push(`q ${logoSize} 0 0 ${logoSize} ${M} ${H - M - logoSize} cm /ImLogo Do Q`);
+        }
+
+        const bX = M + headerLeftOffset;
+        let bY = H - 40;
+
+        if (isBizAscii) {
+            rg(0.1, 0.1, 0.1);
+            txt(biz, bX, bY, "F2", 18);
+            bY -= 18;
+        } else {
+            bizImgData = await getBizImage(biz);
+            if (bizImgData && bizImgData.hex) {
+                const dw = 140, dh = 14;
+                lns.push(`q ${dw} 0 0 ${dh} ${bX} ${bY - 4} cm /ImBiz Do Q`);
             }
-            bizY -= 10;
+            bY -= 18;
+        }
+
+        rg(0.4, 0.4, 0.4);
+        details.forEach(line => {
+            getLines(line, 8, centerX - 10).forEach(wLine => {
+                if (line === seller.locationUrl) {
+                    rg(0.0, 0.4, 0.8);
+                    txt(wLine, bX, bY, "F1", 7.5);
+                    annots.push({ rect: [bX, bY - 2, bX + wLine.length * 4, bY + 8], url: seller.locationUrl });
+                    rg(0.4, 0.4, 0.4);
+                } else if (line.includes(seller.email) && seller.email) {
+                    const parts = line.split(" | ");
+                    let currentX = bX;
+                    parts.forEach((part, pIdx) => {
+                        const isEmail = part.includes(seller.email);
+                        if (isEmail) {
+                            txt("Email: ", currentX, bY, "F1", 7.5);
+                            currentX += 7 * 7.5 * 0.5;
+                            rg(0.0, 0.4, 0.8);
+                            txt(seller.email, currentX, bY, "F1", 7.5);
+                            annots.push({ rect: [currentX, bY - 2, currentX + seller.email.length * 4.5, bY + 8], url: `mailto:${seller.email}` });
+                            currentX += seller.email.length * 4.5;
+                            rg(0.4, 0.4, 0.4);
+                        } else {
+                            txt(part, currentX, bY, "F1", 7.5);
+                            currentX += part.length * 7.5 * 0.55;
+                        }
+                        if (pIdx < parts.length - 1) {
+                            txt(" | ", currentX, bY, "F1", 7.5);
+                            currentX += 3 * 7.5 * 0.5;
+                        }
+                    });
+                } else {
+                    txt(wLine, bX, bY, "F1", 7.5);
+                }
+                bY -= 9;
+            });
         });
-    });
+        bizY = Math.min(bizY, bY - 10);
+    } else {
+        // --- CLASSIC & BOLD THEME HEADERS ---
+        if (logoData && logoData.hex) {
+            const logoSize = 55;
+            lns.push(`q ${logoSize} 0 0 ${logoSize} ${M} ${H - M - logoSize} cm /ImLogo Do Q`);
+            const lName = seller.logoName;
+            if (lName) {
+                const lw = lName.length * 7 * 0.5;
+                rg(0.4, 0.4, 0.4); txt(lName, M + (logoSize / 2) - (lw / 2), H - M - logoSize - 10, "F2", 7);
+            }
+        }
+
+        rg(0.4, 0.4, 0.4);
+        const docW = docTitle.length * 14 * 0.55;
+        txt(docTitle, centerX - (docW / 2), bizY, "F2", 14);
+        bizY -= 28;
+
+        if (isBizAscii) {
+            rg(0.1, 0.1, 0.1);
+            getLines(biz, 24, 350).forEach(wLine => {
+                const wBiz = wLine.length * 24 * 0.55;
+                txt(wLine, centerX - (wBiz / 2), bizY, "F2", 24);
+                bizY -= 25;
+            });
+        } else {
+            bizImgData = await getBizImage(biz);
+            if (bizImgData && bizImgData.hex) {
+                const dw = 180, dh = 18;
+                let bizX = centerX - (dw / 2);
+                lns.push(`q ${dw} 0 0 ${dh} ${bizX} ${bizY} cm /ImBiz Do Q`);
+            }
+            bizY -= 25;
+        }
+
+        if (themeId === "bold") {
+            rg(0.08, 0.25, 0.45);
+            rc(centerX - 100, bizY + 12, 200, 2); lns.push("f");
+            bizY -= 5;
+        }
+
+        rg(0.3, 0.3, 0.3);
+        details.forEach(line => {
+            const wrapped = getLines(line, 8, 350);
+            wrapped.forEach(wLine => {
+                const lw = wLine.length * 8 * 0.5;
+                const x = centerX - (lw / 2);
+                if (line === seller.locationUrl) {
+                    rg(0.0, 0.4, 0.8);
+                    txt(wLine, x, bizY, "F1", 8);
+                    annots.push({ rect: [x, bizY - 2, x + lw, bizY + 8], url: seller.locationUrl });
+                    rg(0.3, 0.3, 0.3);
+                } else if (line.includes(seller.email) && seller.email) {
+                    const parts = line.split(" | ");
+                    let currentX = x;
+                    parts.forEach((part, pIdx) => {
+                        const isEmail = part.includes(seller.email);
+                        if (isEmail) {
+                            txt("Email: ", currentX, bizY, "F1", 8);
+                            currentX += 7 * 8 * 0.5;
+                            rg(0.0, 0.4, 0.8);
+                            txt(seller.email, currentX, bizY, "F1", 8);
+                            annots.push({ rect: [currentX, bizY - 2, currentX + seller.email.length * 4.5, bizY + 8], url: `mailto:${seller.email}` });
+                            currentX += seller.email.length * 4.5;
+                            rg(0.3, 0.3, 0.3);
+                        } else {
+                            txt(part, currentX, bizY, "F1", 8);
+                            currentX += part.length * 8 * 0.5;
+                        }
+                        if (pIdx < parts.length - 1) {
+                            txt(" | ", currentX, bizY, "F1", 8);
+                            currentX += 3 * 8 * 0.5;
+                        }
+                    });
+                } else {
+                    txt(wLine, x, bizY, "F1", 8);
+                }
+                bizY -= 10;
+            });
+        });
+    }
 
     // Prepare Left side Client Info
     const clDataProps = [
@@ -780,13 +874,22 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
 
     // --- SUB-HEADER (The Boxed Section) ---
     let cy = bizY - 15;
-    const boxH = Math.max(90, (wrapClData.length + 1) * 12 + 20); // Dynamic height to prevent clipping
+    const boxH = Math.max(90, (wrapClData.length + 1) * 12 + 20);
 
-    rg(0, 0, 0);
-    // Outer Border
-    rc(M, cy - boxH, W - 2 * M, boxH); lns.push("s");
-    // Vertical Divider (Middle-ish)
-    move(centerX + 30, cy); lto(centerX + 30, cy - boxH); lns.push("s");
+    if (themeId === "minimal") {
+        rg(0.7, 0.7, 0.7);
+        move(M, cy); lto(W - M, cy); lns.push("s");
+        move(M, cy - boxH); lto(W - M, cy - boxH); lns.push("s");
+    } else if (themeId === "bold") {
+        rg(0.97, 0.97, 0.98); rc(M, cy - boxH, W - 2 * M, boxH); lns.push("f");
+        rg(0.8, 0.8, 0.85); rc(M, cy - boxH, W - 2 * M, boxH); lns.push("s");
+        rg(0.08, 0.25, 0.45); rc(M, cy - boxH, 4, boxH); lns.push("f");
+        rg(0.8, 0.8, 0.85); move(centerX + 30, cy); lto(centerX + 30, cy - boxH); lns.push("s");
+    } else {
+        rg(0, 0, 0);
+        rc(M, cy - boxH, W - 2 * M, boxH); lns.push("s");
+        move(centerX + 30, cy); lto(centerX + 30, cy - boxH); lns.push("s");
+    }
 
     // Left side: Client Info
     txt("To,", M + 10, cy - 15, "F2", 10);
@@ -819,12 +922,22 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     // --- ITEMS TABLE (Grid with Vertical Dividers) ---
     cy = headerBottomLine - 20;
     const tableTop = cy;
-    const headers = ["Sl.", "Particulars", "HSN/SAC", "Qty.", "Rate", "Total"];
-    const headerPos = [M + 5, M + 35, M + 235, M + 295, M + 345, M + 435];
+    const headers = ["Sl.", "Particulars", "HSN/SAC", "Qty.", "Rate", "Tax", "Total"];
+    const headerPos = [M + 5, M + 35, M + 215, M + 265, M + 305, M + 375, M + 435];
 
     // Shaded header box
-    rg(0.96, 0.96, 0.96); rc(M, cy - 20, W - 2 * M, 20); lns.push("f");
-    rg(0, 0, 0); rc(M, cy - 20, W - 2 * M, 20); lns.push("s");
+    if (themeId === "minimal") {
+        rg(0.7, 0.7, 0.7);
+        move(M, cy); lto(W - M, cy); lns.push("s");
+        move(M, cy - 20); lto(W - M, cy - 20); lns.push("s");
+        rg(0.1, 0.1, 0.1);
+    } else if (themeId === "bold") {
+        rg(0.08, 0.25, 0.45); rc(M, cy - 20, W - 2 * M, 20); lns.push("f");
+        rg(1, 1, 1);
+    } else {
+        rg(0.96, 0.96, 0.96); rc(M, cy - 20, W - 2 * M, 20); lns.push("f");
+        rg(0, 0, 0); rc(M, cy - 20, W - 2 * M, 20); lns.push("s");
+    }
 
     headers.forEach((h, i) => {
         txt(h, headerPos[i], cy - 14, "F2", 9);
@@ -836,7 +949,6 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     const curSymbol = currency?.symbol || "₹";
     const isAsciiCur = /^[\x00-\x7F]*$/.test(curSymbol);
     const pdfCur = isAsciiCur ? curSymbol : (currency?.code || "INR");
-    const curImgData = !isAsciiCur ? await getCurrencySymbolImage(curSymbol) : null;
     const fmt = (n) => `${pdfCur} ${(Number(n) || 0).toFixed(2)}`;
 
     // Calculate tax breakdown early
@@ -862,7 +974,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     // Items Rendering
     (inv.items || []).forEach((it, idx) => {
         rg(0.1, 0.1, 0.1);
-        const wrappedDesc = getLines(it.desc || "---", 9, 180);
+        const wrappedDesc = getLines(it.desc || "---", 9, 175);
         const itemRows = Math.max(1, wrappedDesc.length);
         const rowH = 20 + ((itemRows - 1) * 12);
 
@@ -870,29 +982,42 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
         wrappedDesc.forEach((dl, di) => {
             txt(dl, M + 35, cy - 14 - (di * 12), "F1", 9);
         });
-        txt(it.hsn || "---", M + 235, cy - 14, "F1", 8);
-        rTxt(String(it.qty || 0), M + 335, cy - 14, "F1", 9, 40);
-        rTxt(fmtNum(it.price), M + 425, cy - 14, "F1", 9, 80);
+        txt(it.hsn || "---", M + 215, cy - 14, "F1", 8);
+        rTxt(String(it.qty || 0), M + 295, cy - 14, "F1", 9, 35);
+        rTxt(fmtNum(it.price), M + 365, cy - 14, "F1", 9, 65);
 
         const lineTax = itemTaxTotal(it, taxRates);
+        rTxt(fmtNum(lineTax), M + 425, cy - 14, "F1", 9, 55);
+
         const lineTotal = (Number(it.qty || 0) * Number(it.price || 0)) + lineTax;
-        rTxt(fmtNum(lineTotal), W - M - 5, cy - 14, "F2", 9, 80);
+        rTxt(fmtNum(lineTotal), W - M - 5, cy - 14, "F2", 9, 100);
 
         cy -= rowH;
         // Horizontal cell divider (lighter)
         rg(0.9, 0.9, 0.9); move(M, cy); lto(W - M, cy); lns.push("s");
     });
 
-    // Vertical dividers for the table
-    rg(0, 0, 0);
-    [M + 30, M + 230, M + 290, M + 340, M + 430].forEach(vx => {
-        move(vx, tableTop); lto(vx, cy); lns.push("s");
-    });
-    // Outer border of the item list
-    rc(M, cy, W - 2 * M, gridStart - cy); lns.push("s");
+    // Vertical dividers and borders for the table
+    if (themeId === "minimal") {
+        rg(0.7, 0.7, 0.7);
+        move(M, cy); lto(W - M, cy); lns.push("s");
+    } else if (themeId === "bold") {
+        rg(0.8, 0.8, 0.85);
+        [M + 30, M + 210, M + 260, M + 300, M + 370, M + 430].forEach(vx => {
+            move(vx, tableTop); lto(vx, cy); lns.push("s");
+        });
+        rc(M, cy, W - 2 * M, gridStart - cy); lns.push("s");
+    } else {
+        rg(0, 0, 0);
+        [M + 30, M + 210, M + 260, M + 300, M + 370, M + 430].forEach(vx => {
+            move(vx, tableTop); lto(vx, cy); lns.push("s");
+        });
+        rc(M, cy, W - 2 * M, gridStart - cy); lns.push("s");
+    }
 
     // --- TOTALS & BANK DETAILS ---
     let totalAreaY = cy - 20;
+
     const subtotalCost = total(inv.items);
     const taxGrandCol = (inv.items || []).reduce((s, it) => s + itemTaxTotal(it, taxRates), 0);
     const grandFinal = totalWithTax(inv.items, taxRates);
@@ -920,9 +1045,26 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     let ty = totalAreaY;
     const drawFinalTotalLine = (label, val, isGrand = false) => {
         if (isGrand) {
-            rg(0.92, 0.92, 0.92); rc(taxX, ty - 18, taxWidth, 22); lns.push("f");
-            rg(0, 0, 0); txt(label, taxX + 10, ty - 12, "F2", 10);
-            rTxt(val, W - M - 5, ty - 12, "F2", 10, 105);
+            if (themeId === "minimal") {
+                rg(0.7, 0.7, 0.7);
+                move(taxX, ty); lto(W - M, ty); lns.push("s");
+                rg(0.1, 0.1, 0.1);
+                txt(label, taxX + 10, ty - 12, "F2", 10);
+                rTxt(val, W - M - 5, ty - 12, "F2", 10, 105);
+                rg(0.7, 0.7, 0.7);
+                move(taxX, ty - 16); lto(W - M, ty - 16); lns.push("s");
+                move(taxX, ty - 18); lto(W - M, ty - 18); lns.push("s");
+            } else if (themeId === "bold") {
+                rg(0.08, 0.25, 0.45); rc(taxX, ty - 18, taxWidth, 22); lns.push("f");
+                rg(1, 1, 1);
+                txt(label, taxX + 10, ty - 12, "F2", 10);
+                rTxt(val, W - M - 5, ty - 12, "F2", 10, 105);
+            } else {
+                rg(0.92, 0.92, 0.92); rc(taxX, ty - 18, taxWidth, 22); lns.push("f");
+                rg(0, 0, 0);
+                txt(label, taxX + 10, ty - 12, "F2", 10);
+                rTxt(val, W - M - 5, ty - 12, "F2", 10, 105);
+            }
         } else {
             rg(0.2, 0.2, 0.2); txt(label, taxX + 10, ty - 12, "F1", 9);
             rTxt(val, W - M - 5, ty - 12, "F1", 9, 105);
@@ -934,8 +1076,16 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     Object.entries(taxBreakdown).forEach(([label, amount]) => {
         drawFinalTotalLine(label, fmtNum(amount));
     });
-    drawFinalTotalLine("Tax Total", fmtNum(taxGrandCol));
     drawFinalTotalLine("Grand Total", fmtNum(grandFinal), true);
+
+    // Partial payment summary (additive — only when something has been paid)
+    const paidSoFar = Math.round((Number(inv.amountPaid) || 0) * 100) / 100;
+    if (paidSoFar > 0) {
+        drawFinalTotalLine("Amount Paid", fmtNum(paidSoFar));
+        const balance = Math.round((grandFinal - paidSoFar) * 100) / 100;
+        if (balance > 0) drawFinalTotalLine("Balance Due", fmtNum(balance), true);
+        else drawFinalTotalLine("Paid in Full", fmtNum(0));
+    }
 
     // Amount in Words (In a shaded box)
     const wordsText = `${(currency.code || "INR").toUpperCase()}: ${numberToWords(grandFinal, currency.code)}`;
@@ -1017,7 +1167,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
     if (qrData && qrData.hex) {
         const qrSize = 100;
         lns.push(`q ${qrSize} 0 0 ${qrSize} ${M} 40 cm /Im1 Do Q`);
-        txt(seller.qrLabel || "Scan to Pay", M, 30, "F2", 8);
+        txt(seller.qrLabel || (seller.upiId ? "Scan to Pay via UPI" : "Scan to Pay"), M, 30, "F2", 8);
     }
 
     // Branding at absolute bottom to avoid overlap
@@ -1031,7 +1181,7 @@ export const getInvoicePageStream = async (inv, client, seller, currency, taxRat
 };
 
 
-export const getBatchPDF = async (invList, clients, seller, currency, taxRates, title = "INVOICE") => {
+export const getBatchPDF = async (invList, clients, seller, currency, taxRates, title = "INVOICE", plan = "free") => {
     const W = 595, H = 842;
     let objCount = 0; const objects = [];
     const addObj = (content) => {
@@ -1051,7 +1201,7 @@ export const getBatchPDF = async (invList, clients, seller, currency, taxRates, 
     const pageIDs = [];
     for (let inv of invList) {
         const cl = clients.find(c => String(c.id) === String(inv.clientId));
-        const { stream, annots, W, H } = await getInvoicePageStream(inv, cl, seller, currency, taxRates, title);
+        const { stream, annots, W, H } = await getInvoicePageStream(inv, cl, seller, currency, taxRates, title, plan);
         
         const xObjMap = {};
         const qrData = seller.qrCode ? await getQRImage(seller.qrCode) : null;
@@ -1112,12 +1262,12 @@ export const getBatchPDF = async (invList, clients, seller, currency, taxRates, 
     return { bytes: finalPdf, blob, url: URL.createObjectURL(blob) };
 };
 
-export const getPDFData = async (inv, clients, seller, currency, taxRates) => {
-    const pdf = await getBatchPDF([inv], clients, seller, currency, taxRates);
+export const getPDFData = async (inv, clients, seller, currency, taxRates, plan = "free") => {
+    const pdf = await getBatchPDF([inv], clients, seller, currency, taxRates, "INVOICE", plan);
     return pdf.bytes;
 };
 
-export const getThermalInventoryPDFData = async (seller, currency, products, taxRates, title = "INVENTORY", defaultNote = "") => {
+export const getThermalInventoryPDFData = async (seller, currency, products, taxRates, title = "INVENTORY", defaultNote = "", plan = "free") => {
     let itemH = 0;
     products.forEach(p => { itemH += p.desc ? 22 : 12; });
     const bizH = 50 + (seller?.email ? 10 : 0) + (seller?.phone ? 10 : 0) + (seller?.address ? 10 : 0) + (seller?.gstin ? 10 : 0);
@@ -1224,10 +1374,12 @@ export const getThermalInventoryPDFData = async (seller, currency, products, tax
     txt(endMsg.substring(0, 40), W / 2 - ew / 2, cy, "F1", 8);
 
     // Branding
-    rg(0.2, 0.2, 0.2);
-    const brandingText = "Invoiced beautifully with Billit. Professional. Fast. Free.";
-    const brandingWidth = brandingText.length * 6 * 0.5;
-    txt(brandingText, W - M - brandingWidth, cy - 20, "F1", 6);
+    if (plan === "free") {
+        rg(0.2, 0.2, 0.2);
+        const brandingText = "Invoiced beautifully with Billit. Professional. Fast. Free.";
+        const brandingWidth = brandingText.length * 6 * 0.5;
+        txt(brandingText, W - M - brandingWidth, cy - 20, "F1", 6);
+    }
 
 
     const stream = lns.join("\n");
@@ -1244,7 +1396,7 @@ export const getThermalInventoryPDFData = async (seller, currency, products, tax
     return new TextEncoder().encode(pdf);
 };
 
-export const getThermalInvoicePageStream = async (inv, clients, seller, currency, taxRates, defaultNote = "") => {
+export const getThermalInvoicePageStream = async (inv, clients, seller, currency, taxRates, defaultNote = "", plan = "free") => {
     const biz = seller?.name || "BILLIT";
     const isBizAscii = /^[\x00-\x7F]*$/.test(biz);
 
@@ -1263,6 +1415,16 @@ export const getThermalInvoicePageStream = async (inv, clients, seller, currency
     const txt = (t, x, y, f, s) => { lns.push("BT", `/${f} ${s} Tf`, `${(Number(x) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} Td`, `(${esc(t)}) Tj`, "ET"); };
     const rg = (r, g, b) => lns.push(`${(Number(r) || 0).toFixed(3)} ${(Number(g) || 0).toFixed(3)} ${(Number(b) || 0).toFixed(3)} rg`);
     const line = (x1, y, x2) => lns.push(`${(Number(x1) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} m ${(Number(x2) || 0).toFixed(2)} ${(Number(y) || 0).toFixed(2)} l s`);
+    const rTxt = (t, rightX, y, f, defaultSize, maxW) => {
+        const estW = String(t).length * defaultSize * 0.55;
+        let s = defaultSize;
+        let finalW = estW;
+        if (estW > maxW) {
+            s = Math.max(5, maxW / (String(t).length * 0.55));
+            finalW = maxW;
+        }
+        txt(t, rightX - finalW, y, f, s);
+    };
 
     let cy = H - 30;
     rg(0, 0, 0);
@@ -1306,9 +1468,10 @@ export const getThermalInvoicePageStream = async (inv, clients, seller, currency
     line(M, cy, W - M); cy -= 15;
 
     txt("Particulars", M, cy, "F2", 8);
-    txt("Qty", W - M - 80, cy, "F2", 8);
-    txt("Rate", W - M - 55, cy, "F2", 8);
-    txt("Amount", W - M - 30, cy, "F2", 8); cy -= 12;
+    rTxt("Qty", W - M - 105, cy, "F2", 8, 20);
+    rTxt("Rate", W - M - 62, cy, "F2", 8, 40);
+    rTxt("Tax", W - M - 32, cy, "F2", 8, 30);
+    rTxt("Amount", W - M, cy, "F2", 8, 40); cy -= 12;
     line(M, cy, W - M); cy -= 15;
 
     const fmtNum = (n) => {
@@ -1323,12 +1486,13 @@ export const getThermalInvoicePageStream = async (inv, clients, seller, currency
     };
 
     inv.items.forEach(it => {
-        txt(it.desc.substring(0, 20), M, cy, "F1", 8);
-        txt(String(it.qty), W - M - 78, cy, "F1", 8);
-        txt(fmtNum(it.price), W - M - 58, cy, "F1", 8);
+        txt(it.desc.substring(0, 14), M, cy, "F1", 8);
+        rTxt(String(it.qty), W - M - 105, cy, "F1", 8, 20);
+        rTxt(fmtNum(it.price), W - M - 62, cy, "F1", 8, 40);
         const lineTax = itemTaxTotal(it, taxRates);
+        rTxt(fmtNum(lineTax), W - M - 32, cy, "F1", 8, 30);
         const lineTotal = (Number(it.qty || 0) * Number(it.price || 0)) + lineTax;
-        txt(fmtNum(lineTotal), W - M - 30, cy, "F1", 8);
+        rTxt(fmtNum(lineTotal), W - M, cy, "F1", 8, 40);
         cy -= 12;
     });
 
@@ -1362,11 +1526,7 @@ export const getThermalInvoicePageStream = async (inv, clients, seller, currency
         cy -= 10;
     });
 
-    const taxGrandVal = (inv.items || []).reduce((s, it) => s + itemTaxTotal(it, taxRates), 0);
-    const taxGrand = fmtNum(taxGrandVal);
-    txt("Tax Total :", M, cy, "F1", 9);
-    txt(taxGrand, W - M - (taxGrand.length * 9 * 0.55), cy, "F1", 9);
-    cy -= 15;
+    cy -= 5;
 
     line(M, cy, W - M); cy -= 20;
 
@@ -1375,6 +1535,22 @@ export const getThermalInvoicePageStream = async (inv, clients, seller, currency
     txt("Total :", M, cy, "F2", 12);
     txt(grand, W - M - (grand.length * 12 * 0.55), cy, "F2", 12); cy -= 30;
 
+    // Partial payment summary (additive — only when something has been paid)
+    const paidSoFarT = Math.round((Number(inv.amountPaid) || 0) * 100) / 100;
+    if (paidSoFarT > 0) {
+        const paidStr = fmtNum(paidSoFarT);
+        txt("Paid :", M, cy, "F2", 10);
+        txt(paidStr, W - M - (paidStr.length * 10 * 0.55), cy, "F2", 10); cy -= 16;
+        const balT = Math.round((grandVal - paidSoFarT) * 100) / 100;
+        if (balT > 0) {
+            const balStr = fmtNum(balT);
+            txt("Balance :", M, cy, "F2", 10);
+            txt(balStr, W - M - (balStr.length * 10 * 0.55), cy, "F2", 10); cy -= 16;
+        } else {
+            txt("Paid in Full", M, cy, "F2", 10); cy -= 16;
+        }
+    }
+
     cy -= 10;
 
     const endMsg = defaultNote || "Thank You Visit Again...";
@@ -1382,14 +1558,16 @@ export const getThermalInvoicePageStream = async (inv, clients, seller, currency
     txt(endMsg.substring(0, 45), W / 2 - ew / 2, cy, "F1", 8);
 
     // Branding
-    rg(0.2, 0.2, 0.2);
-    const brandingText = "Invoiced beautifully with Billit. Professional. Fast. Free.";
-    const brandingWidth = brandingText.length * 6 * 0.5;
-    txt(brandingText, W - M - brandingWidth, cy - 12, "F1", 6);
+    if (plan === "free") {
+        rg(0.2, 0.2, 0.2);
+        const brandingText = "Invoiced beautifully with Billit. Professional. Fast. Free.";
+        const brandingWidth = brandingText.length * 6 * 0.5;
+        txt(brandingText, W - M - brandingWidth, cy - 12, "F1", 6);
+    }
     return { stream: lns.join("\n"), W, H };
 };
 
-export const getBatchThermalPDF = async (invList, clients, seller, currency, taxRates, defaultNote = "") => {
+export const getBatchThermalPDF = async (invList, clients, seller, currency, taxRates, defaultNote = "", plan = "free") => {
     let objCount = 0; const objects = [];
     const addObj = (content) => {
         const data = typeof content === "string" ? new TextEncoder().encode(content) : content;
@@ -1405,7 +1583,7 @@ export const getBatchThermalPDF = async (invList, clients, seller, currency, tax
 
     const pageIDs = [];
     for (let inv of invList) {
-        const { stream, W, H } = await getThermalInvoicePageStream(inv, clients, seller, currency, taxRates, defaultNote);
+        const { stream, W, H } = await getThermalInvoicePageStream(inv, clients, seller, currency, taxRates, defaultNote, plan);
         const ctID = addObj(`<< /Length ${new TextEncoder().encode(stream).length} >>\nstream\n${stream}\nendstream`);
         const pgID = addObj(`<< /Type /Page /Parent ${pagesID} 0 R /MediaBox [0 0 ${W} ${H}] /Contents ${ctID} 0 R /Resources << /Font << /F1 ${f1ID} 0 R /F2 ${f2ID} 0 R >> >> >>`);
         pageIDs.push(pgID);
@@ -1434,12 +1612,12 @@ export const getBatchThermalPDF = async (invList, clients, seller, currency, tax
     return { bytes: finalPdf, blob, url: URL.createObjectURL(blob) };
 };
 
-export const getThermalPDFData = async (inv, clients, seller, currency, taxRates, defaultNote = "") => {
-    const pdf = await getBatchThermalPDF([inv], clients, seller, currency, taxRates, defaultNote);
+export const getThermalPDFData = async (inv, clients, seller, currency, taxRates, defaultNote = "", plan = "free") => {
+    const pdf = await getBatchThermalPDF([inv], clients, seller, currency, taxRates, defaultNote, plan);
     return pdf.bytes;
 };
 
-export const getLetterPages = async (content, client, seller, subject = "COMMUNICATION") => {
+export const getLetterPages = async (content, client, seller, subject = "COMMUNICATION", plan = "free") => {
     const W = 595, H = 842, M = 55;
     const lns = []; const annots = [];
     const esc = (s) => String(s || "").replace(/[()\\]/g, (c) => "\\" + c);
@@ -1509,16 +1687,18 @@ export const getLetterPages = async (content, client, seller, subject = "COMMUNI
     rg(0.4, 0.4, 0.4); txt(seller.companyName || seller.name || "My Business", M, cy, "F1", 9);
 
     // Branding
-    rg(0.2, 0.2, 0.2);
-    const brandingText = "Document generated with Billit. Professional. Fast. Free.";
-    const brandingWidth = brandingText.length * 6 * 0.5;
-    txt(brandingText, W - M - brandingWidth, 30, "F1", 6);
+    if (plan === "free") {
+        rg(0.2, 0.2, 0.2);
+        const brandingText = "Document generated with Billit. Professional. Fast. Free.";
+        const brandingWidth = brandingText.length * 6 * 0.5;
+        txt(brandingText, W - M - brandingWidth, 30, "F1", 6);
+    }
 
     return [{ stream: lns.join("\n"), annots, W, H }];
 };
 
-export const getLetterPDF = async (content, client, seller, subject) => {
-    const pages = await getLetterPages(content, client, seller, subject);
+export const getLetterPDF = async (content, client, seller, subject, plan = "free") => {
+    const pages = await getLetterPages(content, client, seller, subject, plan);
     const W = 595, H = 842;
     let objCount = 0; const objects = [];
     const addObj = (content) => {
